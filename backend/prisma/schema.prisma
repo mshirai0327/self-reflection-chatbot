@@ -1,0 +1,34 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model PersonaStatus {
+  id        Int      @id @default(autoincrement())
+  height    Float    @default(160.0)
+  weight    Float    @default(50.0)
+  health    Int      @default(100)
+  mood      Int      @default(50)
+  trust     Int      @default(50)
+  updatedAt DateTime @updatedAt
+}
+
+model ChatLog {
+  id            String   @id @default(uuid())
+  role          String   // "user" or "assistant"
+  content       String   @db.Text
+  surpriseScore Float?
+  createdAt     DateTime @default(now())
+}
+
+model EventLog {
+  id        String   @id @default(uuid())
+  type      String   // "physical", "emotional", "memory"
+  content   String   @db.Text
+  value     Float?
+  createdAt DateTime @default(now())
+}

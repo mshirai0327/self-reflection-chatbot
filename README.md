@@ -24,17 +24,54 @@ Reflecta（仮名）は、自己進化型のAIチャットボットを開発す�
 
 それを探究するための、個人の自由研究のようなプロジェクトです。
 
-## アーキテクチャ
+## 🏗️ アーキテクチャ
 
-（TBA）
+```text
+.
+├── frontend/             # React (Vite) + Tailwind CSS + Framer Motion
+├── backend/              # Next.js (App Router) + Prisma + Gemini API
+├── docker-compose.yml    # MySQL, ChromaDB, Front/Back, GPUサポート
+├── prisma/               # RDBスキーマ定義 (PersonaStatus, ChatLog等)
+└── README.md             # 起動手順と設計思想のまとめ
+```
 
-## 🚀 Quick Start
+## 🚀 主要な実装ポイント
 
-（TBA）
+### 1. ハイブリッド・ストレージ
+*   **MySQL (Prisma)**: 「身長・体重・情緒・健康」などの数値を管理。`PersonaStatus` テーブルで不変・可逆・非可逆なステータスを保持します。
+*   **ChromaDB (Vector)**: 会話履歴をベクトル化して保存。「フラジャイルな記憶」として、次回の会話時に類似の文脈を引き出すために使用します。
 
-### Installation
+### 2. デュアルLLMロジック
+*   **Interaction (Gemini 1.5 Flash)**: 高速な応答を担当。現在のステータスと過去の類似記憶をプロンプトに注入し、一貫性のある人格を維持します。
+*   **Reflection (Gemini 1.5 Pro)**: 「内省ボタン」により起動。直近の履歴を分析し、「自身の情緒をどう変化させるべきか」「後世に残すべき教訓は何か」を論理推論し、RDBとVectorを更新します。
 
-（TBA）
+### 3. プレミアムなUI/UX
+*   **ステータス可視化**: サイドバーでAIの「健康度」「情緒」「信頼」をゲージ表示。
+*   **アニメーション**: `framer-motion` を使用し、AIの思考やメッセージの登場を滑らかに演出。
+*   **ダークテーマ**: 深い紺色を基調としたガラスモーフィズム（Glassmorphism）デザイン。
+
+### 4. Docker & GPU
+*   `docker-compose.yml` に `nvidia` ドライバの予約設定を盛り込んでおり、将来的にローカルLLMをコンテナ内で動かす準備も万端です。
+
+## 🛠 起動方法
+
+### 1. APIキーの設定
+ルートディレクトリの `.env` ファイルに Gemini API キーを入力してください。
+
+```env
+GOOGLE_GENERATIVE_AI_API_KEY="あなたのAPIキー"
+```
+
+### 2. 起動
+```bash
+docker-compose up --build
+```
+
+### 3. アクセス
+*   **Frontend**: [http://localhost:5173](http://localhost:5173)
+*   **Backend API**: [http://localhost:3001](http://localhost:3001)
+
+「Self Reflect」ボタンを押すと、AIがこれまでの会話を振り返り、自らのステータスを書き換える「自己進化ループ」が動作します。ぜひお試しください！
 
 ## 📜 License
 
