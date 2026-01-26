@@ -1,0 +1,25 @@
+# CodeRabbit configuration file
+# See https://docs.coderabbit.ai/for more information
+
+language: "ja-JP"
+reviews:
+  profile: "chill"
+  request_reviews_threshold: 0
+  auto_review:
+    enabled: true
+    ignore_paths:
+      - "**/node_modules/**"
+      - "**/dist/**"
+      - "**/build/**"
+      - "yarn.lock"
+      - "package-lock.json"
+      - "prisma/client/**"
+  path_instructions:
+    - path: "**/*.ts"
+      instructions: "TypeScriptのベストプラクティスに従っているか、型定義が適切かを確認してください。"
+    - path: "**/*.tsx"
+      instructions: "Reactコンポーネントの構造が適切か、パフォーマンスに問題がないかを確認してください。"
+    - path: "backend/**/*.ts"
+      instructions: "Prismaを使用したデータベース操作が効率的か、セキュリティ対策がなされているかを確認してください。"
+chat:
+  auto_reply: true
