@@ -3,9 +3,14 @@ FROM node:22-alpine
 WORKDIR /app
 
 COPY package*.json ./
+
 RUN npm install
 
 COPY . .
+
+# ビルド時にダミーのDATABASE_URLを設定
+ARG DATABASE_URL="mysql://user:password@db:3306/ai_reflection_db"
+ENV DATABASE_URL=${DATABASE_URL}
 
 # Generate Prisma Client
 RUN npx prisma generate
