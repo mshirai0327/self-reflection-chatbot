@@ -4,6 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { flashModel, generateResponse } from "@/lib/gemini";
 import { queryMemories, addMemory } from "@/lib/chroma";
 
+/**
+ * Handle an incoming chat request: generate an AI response, persist the chat, and update vector memories.
+ *
+ * @param req - The incoming NextRequest whose JSON body must contain a `message` string to process
+ * @returns A JSON object with `response` (the assistant's reply) and `status` (the current persona status); on failure returns an `{ error: string }` payload with HTTP status 500
+ */
 export async function POST(req: NextRequest) {
     try {
         const { message } = await req.json();
