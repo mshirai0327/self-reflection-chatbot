@@ -6,6 +6,7 @@ import { addMemory } from "@/lib/chroma";
 
 export async function POST(req: NextRequest) {
     try {
+        console.log("[Reflect API] Starting reflection process...");
         // 1. Fetch recent chat logs (e.g., last 24h)
         const recentLogs = await prisma.chatLog.findMany({
             take: 20,
@@ -13,46 +14,60 @@ export async function POST(req: NextRequest) {
         });
 
         if (recentLogs.length === 0) {
+            console.log("[Reflect API] No chat logs found. Skipping.");
             return NextResponse.json({ message: "No logs to reflect on." });
         }
+        console.log(`[Reflect API] Found ${recentLogs.length} recent logs.`);
 
         const logSummary = recentLogs.map((l: any) => `${l.role}: ${l.content}`).join("\n");
 
         // 2. Fetch current status
+        console.log("[Reflect API] Fetching current status...");
         const status = await prisma.personaStatus.findFirst({
             orderBy: { updatedAt: 'desc' }
         });
 
-        if (!status) return NextResponse.json({ error: "Status not found" }, { status: 404 });
+        if (!status) {
+            console.error("[Reflect API] Persona status not found!");
+            return NextResponse.json({ error: "Status not found" }, { status: 404 });
+        }
+        console.log("[Reflect API] Current status:", status);
 
         // 3. Inference with Pro Model
+        console.log("[Reflect API] Sending data to Gemini Pro for reflection...");
         const reflectionPrompt = `
-以下の直近の会話内容を内省し、自分の性格やステータスにどのような影響を与えるべきか考えてください。
-会話履歴:
-${logSummary}
+            以下の直近の会話内容を内省し、自分の性格やステータスにどのような影響を与えるべきか考えてください。
+            会話履歴:
+            ${logSummary}
 
-現在のステータス:
-身長: ${status.height}, 体重: ${status.weight}, 健康: ${status.health}, 情緒: ${status.mood}, 信頼: ${status.trust}
+            現在のステータス:
+            身長: ${status.height}, 体重: ${status.weight}, 健康: ${status.health}, 情緒: ${status.mood}, 信頼: ${status.trust}
 
-内省の結果として、以下のJSON形式で回答してください：
-{
-  "thought": "（内省の思考過程）",
-  "statusUpdate": { "health": 1, "mood": -5, "trust": 10 },
-  "permanentMemory": "（今後忘れてはいけない重要な教訓や記憶）"
-}
-`;
+            内省の結果として、以下のJSON形式で回答してください：
+            {
+            "thought": "（内省の思考過程）",
+            "statusUpdate": { "health": 1, "mood": -5, "trust": 10 },
+            "permanentMemory": "（今後忘れてはいけない重要な教訓や記憶）"
+            }
+            `;
 
         const resultText = await generateResponse(proModel, reflectionPrompt, {
             status,
             memories: []
         });
+        console.log("[Reflect API] Gemini Pro Raw Response:", resultText);
 
         // Parse JSON from LLM response (handling potential markdown)
         const jsonMatch = resultText.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("Failed to parse reflection result");
+        if (!jsonMatch) {
+            console.error("[Reflect API] Failed to find JSON in response.");
+            throw new Error("Failed to parse reflection result");
+        }
         const reflection = JSON.parse(jsonMatch[0]);
+        console.log("[Reflect API] Parsed reflection:", reflection);
 
         // 4. Update Status in RDB
+        console.log("[Reflect API] Updating status in Prisma...");
         await prisma.personaStatus.create({
             data: {
                 health: Math.min(100, Math.max(0, status.health + (reflection.statusUpdate.health || 0))),
@@ -65,6 +80,7 @@ ${logSummary}
 
         // 5. Save to ChromaDB (Semantic Memory)
         if (reflection.permanentMemory) {
+            console.log("[Reflect API] Saving permanent memory to ChromaDB...");
             await addMemory(
                 `ref_${Date.now()}`,
                 reflection.permanentMemory,
@@ -72,9 +88,14 @@ ${logSummary}
             );
         }
 
+        console.log("[Reflect API] Reflection process completed successfully.");
         return NextResponse.json({ reflection });
     } catch (error: any) {
-        console.error("Reflection API Error:", error);
+        console.error("[Reflect API Error] Details:", {
+            message: error.message,
+            stack: error.stack,
+            cause: error.cause
+        });
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

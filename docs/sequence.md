@@ -11,7 +11,7 @@ sequenceDiagram
     participant U as ユーザー (Frontend)
     participant B as Backend (Next.js API)
     participant P as Prisma (MySQL)
-    participant C as ChromaDB (Vector)
+    participant C as ChromaDB (Vector Strore)
     participant G as Gemini 1.5 Flash
 
     U->>B: POST /api/chat { message }
@@ -42,7 +42,7 @@ sequenceDiagram
     participant U as ユーザー (Frontend)
     participant B as Backend (Next.js API)
     participant P as Prisma (MySQL)
-    participant C as ChromaDB (Vector)
+    participant C as ChromaDB (Vector Strore)
     participant G as Gemini 1.5 Pro
 
     U->>B: POST /api/reflect
