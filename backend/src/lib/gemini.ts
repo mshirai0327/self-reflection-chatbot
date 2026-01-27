@@ -2,7 +2,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || "");
 
-export const flashModel = "gemini-flash-latest";
+//export const flashModel = "gemini-flash-latest";
+export const flashModel = "gemini-3-flash-preview"; // demo 
 export const proModel = "gemini-pro-latest";
 
 export interface PersonaContext {
