@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
         console.log("[Chat API] Received message:", message);
 
         // 1. Get current status (or create default)
-        console.log("[Chat API] Fetching persona status...");
+        console.log("[Chat API] Fetching persona status...");// チャット時にデータ取得。フロントでも描画する
         let status = await prisma.personaStatus.findFirst({
             orderBy: { updatedAt: 'desc' }
         });
