@@ -36,6 +36,11 @@ services:
       CHROMA_URL: "http://chromadb:8000"
     ports:
       - "3001:3000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
     depends_on:
       - db
       - chromadb
@@ -57,7 +62,11 @@ services:
     ports:
       - "5173:5173"
     environment:
-      VITE_API_URL: "http://backend:3000"
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0
     networks:
       - ai_network
 

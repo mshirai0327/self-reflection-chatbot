@@ -16,8 +16,15 @@ interface PersonaStatus {
   trust: number;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
+/**
+ * Root React component for the Reflecta chat user interface.
+ *
+ * Manages chat messages, user input, loading state, and persona status; communicates with the backend chat and reflection endpoints to send messages, receive assistant responses, and refresh persona status; and renders the sidebar status panel, scrollable chat area, and input controls with animated message transitions.
+ *
+ * @returns The JSX element for the main application UI
+ */
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');

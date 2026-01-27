@@ -32,7 +32,12 @@ Reflecta（仮名）は、自己進化型のAIチャットボットを開発す�
 ├── backend/              # Next.js (App Router) + Prisma + Gemini API
 ├── docker-compose.yml    # MySQL, ChromaDB, Front/Back, GPUサポート
 ├── prisma/               # RDBスキーマ定義 (PersonaStatus, ChatLog等)
+├── docs/                 # 設計ドキュメント・シークエンス図
 └── README.md             # 起動手順と設計思想のまとめ
+
+## 📊 処理フロー (シークエンス図)
+
+システムの詳細な処理フローについては、[docs/sequence.md](./docs/sequence.md) を参照してください。
 ```
 
 ## 🚀 主要な実装ポイント

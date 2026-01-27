@@ -7,6 +7,7 @@ generator client {
   provider = "prisma-client-js"
 }
 
+//todo このテーブルは分割されるべきである
 model PersonaStatus {
   id        Int      @id @default(autoincrement())
   height    Float    @default(160.0)
@@ -15,20 +16,26 @@ model PersonaStatus {
   mood      Int      @default(50)
   trust     Int      @default(50)
   updatedAt DateTime @updatedAt
+
+  @@map("persona_statuses")
 }
 
 model ChatLog {
   id            String   @id @default(uuid())
-  role          String   // "user" or "assistant"
+  role          String // "user" or "assistant"
   content       String   @db.Text
   surpriseScore Float?
   createdAt     DateTime @default(now())
+
+  @@map("chat_logs")
 }
 
 model EventLog {
   id        String   @id @default(uuid())
-  type      String   // "physical", "emotional", "memory"
+  type      String // "physical", "emotional", "memory"
   content   String   @db.Text
   value     Float?
   createdAt DateTime @default(now())
+
+  @@map("event_logs")
 }
