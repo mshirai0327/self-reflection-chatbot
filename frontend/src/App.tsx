@@ -60,7 +60,7 @@ function App() {
       setStatus(res.data.status);
     } catch (error) {
       console.error('Error sending message:', error);
-      setMessages(prev => [...prev, { role: 'assistant', content: 'エラーが発生しました。' }]);// todo ここでエラーになってしまう
+      setMessages(prev => [...prev, { role: 'assistant', content: 'エラーが発生しました。' }]);
     } finally {
       setIsLoading(false);
     }
