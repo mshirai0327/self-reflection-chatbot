@@ -4,6 +4,13 @@
 language: "ja-JP"
 reviews:
   profile: "chill"
+  tone_instructions: "全てのレビューやフィードバックは日本語で行ってください。"
+  high_level_summary: true # 自動要約を有効にする
+  high_level_summary_instructions: >
+    以下の項目を含む、エンジニア向けの技術的な Overview を日本語で作成してください。
+    - 変更の主目的（何のための修正か）
+    - 影響範囲（どのモジュールが書き換わったか）
+    - フォーマットは箇条書きを使い、簡潔にまとめてください。
   request_reviews_threshold: 0
   auto_review:
     enabled: true
@@ -23,3 +30,4 @@ reviews:
       instructions: "Prismaを使用したデータベース操作が効率的か、セキュリティ対策がなされているかを確認してください。"
 chat:
   auto_reply: true
+  instructions: "全ての返答は日本語で行ってください。"
