@@ -4,6 +4,20 @@ import { prisma } from "@/lib/prisma";
 import { proModel, generateResponse } from "@/lib/gemini";
 import { addMemory } from "@/lib/chroma";
 
+/**
+ * Handle POST requests to run a reflection workflow over recent chat logs, update persona status, and persist any resulting permanent memory.
+ *
+ * This endpoint:
+ * - Fetches recent chat logs and the latest persona status,
+ * - Sends a reflection prompt (Japanese) to the configured LLM,
+ * - Parses the LLM's JSON response containing `thought`, `statusUpdate`, and `permanentMemory`,
+ * - Creates a new personaStatus record with clamped health/mood/trust updates,
+ * - Saves `permanentMemory` to the semantic memory store when present,
+ * - Returns the parsed reflection payload.
+ *
+ * @param req - The incoming Next.js POST request for the reflection operation
+ * @returns A JSON response containing the `reflection` object on success; if no logs are available, an informational message; on failure, an error message and an appropriate HTTP status code.
+ */
 export async function POST(req: NextRequest) {
     try {
         console.log("[Reflect API] Starting reflection process...");
