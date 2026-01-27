@@ -2,8 +2,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || "");
 
-export const flashModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });// latest取る
-export const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+export const flashModel = "gemini-flash-latest";
+export const proModel = "gemini-pro-latest";
 
 export interface PersonaContext {
     status: {
@@ -16,7 +16,7 @@ export interface PersonaContext {
     memories: string[];
 }
 
-export async function generateResponse(model: any, prompt: string, context: PersonaContext) {
+export async function generateResponse(modelName: string, prompt: string, context: PersonaContext) {
     const systemInstruction = `
 あなたは自己進化型AI「Reflecta」です。
 現在のあなたのステータス:
@@ -32,9 +32,13 @@ ${context.memories.join("\n")}
 上記を踏まえ、一貫性のある人格として回答してください。
 `;
 
+    const model = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: systemInstruction,
+    }, { apiVersion: "v1beta" });
+
     const result = await model.generateContent({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        systemInstruction,
     });
 
     return result.response.text();
