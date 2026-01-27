@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
         console.log("[Chat API] Retrieved memories:", memories);
 
         // 3. Generate response with Flash
-        console.log("[Chat API] Generating response from Gemini...");
+        console.log("[Chat API] Generating response from Gemini...");// todo ここでエラー
         const aiResponse = await generateResponse(flashModel, message, {
             status,
             memories: (memories as string[]) || []
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
             status: status
         });
     } catch (error: any) {
-        console.error("[Chat API Error] Details:", {
+        console.error("[Chat API Error] Details:", {//todo ここでエラー
             message: error.message,
             stack: error.stack,
             cause: error.cause

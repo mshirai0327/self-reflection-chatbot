@@ -2,8 +2,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || "");
 
-export const flashModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-export const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+export const flashModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });// latest取る
+export const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
 
 export interface PersonaContext {
     status: {
@@ -38,4 +38,10 @@ ${context.memories.join("\n")}
     });
 
     return result.response.text();
+}
+
+export async function embedText(text: string) {
+    const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    const result = await model.embedContent(text);
+    return result.embedding.values;
 }
