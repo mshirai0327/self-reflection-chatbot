@@ -16,7 +16,7 @@ interface PersonaStatus {
   trust: number;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -53,7 +53,7 @@ function App() {
       setStatus(res.data.status);
     } catch (error) {
       console.error('Error sending message:', error);
-      setMessages(prev => [...prev, { role: 'assistant', content: 'エラーが発生しました。' }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'エラーが発生しました。' }]);// todo ここでエラーになってしまう
     } finally {
       setIsLoading(false);
     }
