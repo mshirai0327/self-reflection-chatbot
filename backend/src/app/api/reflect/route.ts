@@ -21,6 +21,16 @@ import { addMemory } from "@/lib/chroma";
 export async function POST(req: NextRequest) {
     try {
         console.log("[Reflect API] Starting reflection process...");
+
+        let model = proModel;
+        try {
+            const body = await req.json();
+            if (body && body.model) model = body.model;
+        } catch (e) {
+            // No body or invalid JSON, ignore
+        }
+        console.log("[Reflect API] Using model:", model);
+
         // 1. Fetch recent chat logs (e.g., last 24h)
         const recentLogs = await prisma.chatLog.findMany({
             take: 20,
@@ -65,7 +75,7 @@ export async function POST(req: NextRequest) {
             }
             `;
 
-        const resultText = await generateResponse(proModel, reflectionPrompt, {
+        const resultText = await generateResponse(model, reflectionPrompt, {
             status,
             memories: []
         });

@@ -14,8 +14,9 @@ import { queryMemories, addMemory } from "@/lib/chroma";
  */
 export async function POST(req: NextRequest) {
     try {
-        const { message } = await req.json();
+        const { message, model } = await req.json();
         console.log("[Chat API] Received message:", message);
+        console.log("[Chat API] Using model:", model || flashModel);
 
         // 1. Get current status (or create default)
         console.log("[Chat API] Fetching persona status...");// チャット時にデータ取得。フロントでも描画する
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
 
         // 3. Generate response with Flash
         console.log("[Chat API] Generating response from Gemini...");
-        const aiResponse = await generateResponse(flashModel, message, {
+        const aiResponse = await generateResponse(model || flashModel, message, {
             status,
             memories: (memories as string[]) || []
         });

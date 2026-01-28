@@ -1,4 +1,4 @@
-import { Bot, Activity, Heart, Sparkles, Database, Menu } from 'lucide-react';
+import { Bot, Activity, Heart, Sparkles, Database, Menu, Settings } from 'lucide-react';
 
 type BotSidebarProps = {
     isOpen: boolean;
@@ -10,9 +10,21 @@ type BotSidebarProps = {
         height: number;
         weight: number;
     };
+    chatModel: string;
+    setChatModel: (model: string) => void;
+    reflectModel: string;
+    setReflectModel: (model: string) => void;
 };
 
-export function BotSidebar({ isOpen, onToggle, status }: BotSidebarProps) {
+const MODELS = [
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+    { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash Exp' },
+    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
+    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+];
+
+export function BotSidebar({ isOpen, onToggle, status, chatModel, setChatModel, reflectModel, setReflectModel }: BotSidebarProps) {
     const stats = [
         { icon: Heart, label: 'Health', value: `${status.health}%`, color: 'text-rose-500' },
         { icon: Sparkles, label: 'Emotion', value: `${status.mood}%`, color: 'text-amber-500' },
@@ -70,6 +82,40 @@ export function BotSidebar({ isOpen, onToggle, status }: BotSidebarProps) {
                                 <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{stat.value}</span>
                             </div>
                         ))}
+                    </div>
+                </div>
+
+                {/* API設定 */}
+                <div className="mt-6 border-t border-slate-100 dark:border-slate-800 pt-6">
+                    <h3 className="text-sm text-slate-500 dark:text-slate-400 mb-3 font-medium flex items-center gap-2">
+                        <Settings className="w-4 h-4" />
+                        API設定
+                    </h3>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-xs text-slate-500 dark:text-slate-400 block mb-1">チャットモデル</label>
+                            <select
+                                value={chatModel}
+                                onChange={(e) => setChatModel(e.target.value)}
+                                className="w-full text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20"
+                            >
+                                {MODELS.map(m => (
+                                    <option key={m.value} value={m.value}>{m.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-xs text-slate-500 dark:text-slate-400 block mb-1">内省モデル</label>
+                            <select
+                                value={reflectModel}
+                                onChange={(e) => setReflectModel(e.target.value)}
+                                className="w-full text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20"
+                            >
+                                {MODELS.map(m => (
+                                    <option key={m.value} value={m.value}>{m.label}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>

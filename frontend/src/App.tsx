@@ -37,6 +37,8 @@ function App() {
   const [isLeftOpen, setIsLeftOpen] = useState(true);
   const [isRightOpen, setIsRightOpen] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [chatModel, setChatModel] = useState<string>('gemini-2.5-flash');
+  const [reflectModel, setReflectModel] = useState<string>('gemini-2.5-pro');
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -67,7 +69,7 @@ function App() {
     setIsLoading(true);
 
     try {
-      const res = await axios.post(`${API_URL}/api/chat`, { message: input });
+      const res = await axios.post(`${API_URL}/api/chat`, { message: input, model: chatModel });
       const aiMsg: Message = { role: 'assistant', content: res.data.response };
       setMessages(prev => [...prev, aiMsg]);
       if (res.data.status) setStatus(res.data.status);
@@ -81,9 +83,9 @@ function App() {
   const handleReflect = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/api/reflect`);
+      const res = await axios.post(`${API_URL}/api/reflect`, { model: reflectModel });
       alert(`内省完了: ${res.data.reflection.permanentMemory}`);
-      const resChat = await axios.post(`${API_URL}/api/chat`, { message: "内省が終わったようですね。今の気分はどうですか？" });
+      const resChat = await axios.post(`${API_URL}/api/chat`, { message: "内省が終わったようですね。今の気分はどうですか？", model: chatModel });
       setMessages(prev => [...prev, { role: 'assistant', content: resChat.data.response }]);
       if (resChat.data.status) setStatus(resChat.data.status);
     } catch (error) {
@@ -97,7 +99,15 @@ function App() {
     <div className="flex h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300">
       <Toaster position="top-center" />
       {/* Bot Sidebar (Left) */}
-      <BotSidebar isOpen={isLeftOpen} onToggle={() => setIsLeftOpen(false)} status={status} />
+      <BotSidebar
+        isOpen={isLeftOpen}
+        onToggle={() => setIsLeftOpen(false)}
+        status={status}
+        chatModel={chatModel}
+        setChatModel={setChatModel}
+        reflectModel={reflectModel}
+        setReflectModel={setReflectModel}
+      />
 
       {/* Main Chat Area */}
       <main className="flex-1 flex flex-col relative bg-slate-50 dark:bg-slate-950">
