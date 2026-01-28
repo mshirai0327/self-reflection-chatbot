@@ -202,7 +202,7 @@ function App() {
             <button
               onClick={handleReflect}
               disabled={isLoading}
-              className="text-xs text-slate-400 dark:text-slate-600 hover:text-blue-500 transition-colors underline underline-offset-4"
+              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-300 text-xs font-semibold tracking-wide cursor-pointer disabled:cursor-not-allowed"
             >
               内省を実行する
             </button>
