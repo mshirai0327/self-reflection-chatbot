@@ -1,31 +1,44 @@
 @import "tailwindcss";
 
-:root {
-  --bg-color: #0f172a;
-  --panel-bg: rgba(30, 41, 59, 0.7);
-  --accent-color: #38bdf8;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-}
+@layer base {
+  :root {
+    --bg-main: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-header: rgba(255, 255, 255, 0.8);
+    --border-color: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --accent-blue: #2563eb;
+    --sidebar-width: 16rem;
+    --history-width: 18rem;
+  }
 
-body {
-  margin: 0;
-  padding: 0;
-  background-color: var(--bg-color);
-  color: var(--text-primary);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  overflow: hidden;
+  .dark {
+    --bg-main: #020617;
+    --bg-card: #0f172a;
+    --bg-header: rgba(15, 23, 42, 0.8);
+    --border-color: #1e293b;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --accent-blue: #38bdf8;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
 }
 
 .glass {
-  background: var(--panel-bg);
+  background: var(--bg-header);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.glow-text {
-  text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+  border-bottom: 1px solid var(--border-color);
 }
 
 * {

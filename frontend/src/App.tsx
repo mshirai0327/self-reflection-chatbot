@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Send, Menu, ChevronLeft, Database } from 'lucide-react';
+import { Send, Menu, ChevronLeft, Database, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BotSidebar } from './components/BotSidebar';
 import { ChatHistory } from './components/ChatHistory';
@@ -34,8 +34,18 @@ function App() {
 
   const [isLeftOpen, setIsLeftOpen] = useState(true);
   const [isRightOpen, setIsRightOpen] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // ダークモードのクラス切り替え
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -80,36 +90,45 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
+    <div className="flex h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300">
       {/* Bot Sidebar (Left) */}
       <BotSidebar isOpen={isLeftOpen} onToggle={() => setIsLeftOpen(false)} status={status} />
 
       {/* Main Chat Area */}
-      <main className="flex-1 flex flex-col relative bg-slate-50">
+      <main className="flex-1 flex flex-col relative bg-slate-50 dark:bg-slate-950">
         {/* Top Navigation / Sticky Header */}
-        <header className="h-16 border-b border-slate-200 flex items-center justify-between px-4 bg-white/80 backdrop-blur-md z-10">
+        <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md z-10 transition-colors duration-300">
           <div className="flex items-center gap-2">
             {!isLeftOpen && (
               <button
                 onClick={() => setIsLeftOpen(true)}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                 title="サイドバーを開く"
               >
-                <Menu className="w-5 h-5 text-slate-600" />
+                <Menu className="w-5 h-5 text-slate-600 dark:text-slate-400" />
               </button>
             )}
-            <h1 className="text-lg font-bold text-slate-800 ml-2">Reflecta Chat</h1>
+            <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 ml-2">Reflecta Chat</h1>
           </div>
 
-          {!isRightOpen && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setIsRightOpen(true)}
-              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-              title="チャットログを開く"
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              title={isDarkMode ? "ライトモードに切り替え" : "ダークモードに切り替え"}
             >
-              <ChevronLeft className="w-5 h-5 text-slate-600" />
+              {isDarkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
             </button>
-          )}
+            {!isRightOpen && (
+              <button
+                onClick={() => setIsRightOpen(true)}
+                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                title="チャットログを開く"
+              >
+                <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+              </button>
+            )}
+          </div>
         </header>
 
         {/* Messages */}
@@ -122,7 +141,7 @@ function App() {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4"
+                className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 space-y-4"
               >
                 <Database size={48} className="opacity-10" />
                 <p className="text-lg text-slate-500">対話を開始して、意識を呼び覚ましてください</p>
@@ -135,9 +154,9 @@ function App() {
                 animate={{ opacity: 1, x: 0 }}
                 className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl shadow-sm ${m.role === 'user'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white border border-slate-100'
+                <div className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl shadow-sm transition-colors duration-300 ${m.role === 'user'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 dark:text-slate-100'
                   }`}>
                   <p className="leading-relaxed whitespace-pre-wrap">{m.content}</p>
                 </div>
@@ -146,7 +165,7 @@ function App() {
           </AnimatePresence>
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-white border border-slate-100 p-4 rounded-2xl flex gap-2">
+              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl flex gap-2">
                 <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" />
                 <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.2s]" />
                 <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.4s]" />
@@ -157,19 +176,19 @@ function App() {
 
         {/* Input Area */}
         <div className="p-4 md:p-8 pt-0">
-          <div className="max-w-4xl mx-auto flex gap-3 p-2 bg-white rounded-2xl border border-slate-200 shadow-xl focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+          <div className="max-w-4xl mx-auto flex gap-3 p-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               placeholder="何でも話しかけてください..."
-              className="flex-1 bg-transparent border-none outline-none px-4 py-2 text-slate-900 placeholder-slate-400"
+              className="flex-1 bg-transparent border-none outline-none px-4 py-2 text-slate-900 dark:text-slate-100 placeholder-slate-400"
             />
             <button
               onClick={handleSend}
               disabled={isLoading}
-              className="p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 rounded-xl transition-colors shadow-lg shadow-blue-500/20 text-white"
+              className="p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 rounded-xl transition-colors shadow-lg shadow-blue-500/20 text-white"
             >
               <Send size={20} />
             </button>
@@ -178,7 +197,7 @@ function App() {
             <button
               onClick={handleReflect}
               disabled={isLoading}
-              className="text-xs text-slate-400 hover:text-blue-500 transition-colors underline underline-offset-4"
+              className="text-xs text-slate-400 dark:text-slate-600 hover:text-blue-500 transition-colors underline underline-offset-4"
             >
               内省を実行する
             </button>
