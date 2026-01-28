@@ -9,7 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@chroma-core/default-embed": "^0.1.9",
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.2.1",
     "axios": "^1.13.3",

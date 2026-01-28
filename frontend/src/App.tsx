@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Send, Menu, ChevronLeft, Database, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Toaster } from 'react-hot-toast';
 import { BotSidebar } from './components/BotSidebar';
 import { ChatHistory } from './components/ChatHistory';
+import { handleApiError } from './utils/errorHandler';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -70,8 +72,7 @@ function App() {
       setMessages(prev => [...prev, aiMsg]);
       if (res.data.status) setStatus(res.data.status);
     } catch (error) {
-      console.error('Error sending message:', error);
-      setMessages(prev => [...prev, { role: 'assistant', content: 'エラーが発生しました。' }]);
+      handleApiError(error, 'メッセージの送信に失敗しました');
     } finally {
       setIsLoading(false);
     }
@@ -86,7 +87,7 @@ function App() {
       setMessages(prev => [...prev, { role: 'assistant', content: resChat.data.response }]);
       if (resChat.data.status) setStatus(resChat.data.status);
     } catch (error) {
-      console.error('Reflection error:', error);
+      handleApiError(error, '内省処理に失敗しました');
     } finally {
       setIsLoading(false);
     }
@@ -94,6 +95,7 @@ function App() {
 
   return (
     <div className="flex h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300">
+      <Toaster position="top-center" />
       {/* Bot Sidebar (Left) */}
       <BotSidebar isOpen={isLeftOpen} onToggle={() => setIsLeftOpen(false)} status={status} />
 
