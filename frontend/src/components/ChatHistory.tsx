@@ -14,6 +14,7 @@ type ChatHistoryProps = {
 };
 
 export function ChatHistory({ isOpen, onToggle }: ChatHistoryProps) {
+    //todo APIから取得するように変更する
     const chatLogs: ChatLog[] = [
         {
             id: '1',

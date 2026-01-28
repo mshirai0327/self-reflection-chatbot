@@ -17,6 +17,8 @@ export function BotSidebar({ isOpen, onToggle, status }: BotSidebarProps) {
         { icon: Heart, label: 'Health', value: `${status.health}%`, color: 'text-rose-500' },
         { icon: Sparkles, label: 'Emotion', value: `${status.mood}%`, color: 'text-amber-500' },
         { icon: Database, label: 'Trust', value: `${status.trust}%`, color: 'text-emerald-500' },
+        //todo Height/Weightを縦に並べるのは見にくいうえ、私のL1-L4生体データ表現に合わない。要検討
+
         { icon: Activity, label: 'Height/Weight', value: `${status.height.toFixed(1)}cm / ${status.weight.toFixed(1)}kg`, color: 'text-blue-500 dark:text-sky-400' }
     ];
 
@@ -48,6 +50,7 @@ export function BotSidebar({ isOpen, onToggle, status }: BotSidebarProps) {
                         <span className="text-xl dark:text-slate-200">
                             {status.mood > 70 ? '😊' : status.mood > 40 ? '😐' : '😔'}
                             <span className="ml-2 font-medium">
+                                {/* todo APIから取得するように変更する */}
                                 {status.mood > 70 ? '絶好調' : status.mood > 40 ? '穏やか' : '沈んでいる'}
                             </span>
                         </span>

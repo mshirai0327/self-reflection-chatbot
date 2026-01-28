@@ -40,10 +40,13 @@ function App() {
 
   // ダークモードのクラス切り替え
   useEffect(() => {
+    console.log('Dark mode changed:', isDarkMode);
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
+      console.log('Added dark class to html. Current classes:', document.documentElement.className);
     } else {
       document.documentElement.classList.remove('dark');
+      console.log('Removed dark class from html. Current classes:', document.documentElement.className);
     }
   }, [isDarkMode]);
 
@@ -155,8 +158,8 @@ function App() {
                 className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl shadow-sm transition-colors duration-300 ${m.role === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 dark:text-slate-100'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 dark:text-slate-100'
                   }`}>
                   <p className="leading-relaxed whitespace-pre-wrap">{m.content}</p>
                 </div>
