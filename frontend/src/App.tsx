@@ -85,7 +85,11 @@ function App() {
     try {
       const res = await axios.post(`${API_URL}/api/reflect`, { model: reflectModel });
       alert(`内省完了: ${res.data.reflection.permanentMemory}`);
-      const resChat = await axios.post(`${API_URL}/api/chat`, { message: "内省が終わったようですね。今の気分はどうですか？", model: chatModel });
+
+      const followUpMessage = "内省が終わったようですね。今の気分はどうですか？";
+      setMessages(prev => [...prev, { role: 'user', content: followUpMessage }]);
+
+      const resChat = await axios.post(`${API_URL}/api/chat`, { message: followUpMessage, model: chatModel });
       setMessages(prev => [...prev, { role: 'assistant', content: resChat.data.response }]);
       if (resChat.data.status) setStatus(resChat.data.status);
     } catch (error) {
