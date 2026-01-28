@@ -14,6 +14,7 @@ class GeminiEmbeddingFunction implements EmbeddingFunction {
             console.log("[ChromaDB] Generating embeddings for", texts.length, "texts");
             if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
                 console.error("[ChromaDB] ERROR: GOOGLE_GENERATIVE_AI_API_KEY is missing!");
+                throw new Error("GOOGLE_GENERATIVE_AI_API_KEY is missing");
             }
             return await Promise.all(texts.map(text => embedText(text)));
         } catch (error) {

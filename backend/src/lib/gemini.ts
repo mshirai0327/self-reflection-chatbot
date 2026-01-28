@@ -25,15 +25,15 @@ export interface PersonaContext {
 }
 
 /**
- * Generate a persona-aware response using the specified generative model.
+ * 指定された生成モデルを使用して、ペルソナを考慮したレスポンスを生成します。
  *
- * Constructs a system instruction from the provided `context` (status and memories),
- * invokes the generative model identified by `modelName`, and returns the model's reply text.
+ * 提供された `context`（ステータスおよびメモリ）からシステム指示文（System Instruction）を構築し、
+ * `modelName` で指定された生成モデルを呼び出して、モデルからの返答テキストを返します。
  *
- * @param modelName - The identifier of the generative model to use (e.g., `"gemini-pro-latest"`).
- * @param prompt - The user prompt to send to the model.
- * @param context - PersonaContext containing `status` and `memories` used to shape the system instruction.
- * @returns The generated response text from the model.
+ * @param modelName - 使用する生成モデルの識別子（例: `"gemini-pro-latest"`）。
+ * @param prompt - モデルに送信するユーザープロンプト。
+ * @param context - システム指示文を構成するために使用される、`status` と `memories` を含む PersonaContext。
+ * @returns モデルによって生成されたレスポンスのテキスト。
  */
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;

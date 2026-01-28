@@ -5,10 +5,12 @@ import { flashModel, generateResponse } from "@/lib/gemini";
 import { queryMemories, addMemory } from "@/lib/chroma";
 
 /**
- * Handle an incoming chat request: generate an AI response, persist the chat, and update vector memories.
+ * 受信したチャットリクエストを処理します。
+ * AIレスポンスの生成、チャット内容の保存、およびベクトルメモリの更新を行います。
  *
- * @param req - The incoming NextRequest whose JSON body must contain a `message` string to process
- * @returns A JSON object with `response` (the assistant's reply) and `status` (the current persona status); on failure returns an `{ error: string }` payload with HTTP status 500
+ * @param req - 受信した NextRequest。JSONボディに処理対象の文字列 `message` を含む必要があります。
+ * @returns `response`（アシスタントの返答）と `status`（現在のペルソナステータス）を含む JSON オブジェクト。
+ * 失敗した場合は、エラーメッセージ `{ error: string }` と HTTP ステータス 500 を返します。
  */
 export async function POST(req: NextRequest) {
     try {
@@ -30,7 +32,7 @@ export async function POST(req: NextRequest) {
         console.log("[Chat API] Current status:", status);
 
         // 2. Fetch relevant memories from ChromaDB
-        console.log("[Chat API] Querying memories from ChromaDB...");// todo エラーだ
+        console.log("[Chat API] Querying memories from ChromaDB...");
         const memories = await queryMemories(message);
         console.log("[Chat API] Retrieved memories:", memories);
 
