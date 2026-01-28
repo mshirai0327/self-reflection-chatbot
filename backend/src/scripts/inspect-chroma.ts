@@ -1,41 +1,29 @@
-import { ChromaClient, EmbeddingFunction } from "chromadb";
-import { embedText } from "../lib/gemini";
 
-const client = new ChromaClient({
-    path: process.env.CHROMA_URL || "http://localhost:8000"
-});
+import { ChromaClient } from "chromadb";
+import "dotenv/config";
 
-class GeminiEmbeddingFunction implements EmbeddingFunction {
-    async generate(texts: string[]): Promise<number[][]> {
-        return await Promise.all(texts.map(text => embedText(text)));
-    }
-}
-
-const embeddingFunction = new GeminiEmbeddingFunction();
-
-async function inspectChroma() {
+async function main() {
+    const chromaPath = process.env.CHROMA_URL || "http://localhost:8000";
+    console.log("Connecting to ChromaDB at:", chromaPath);
+    const client = new ChromaClient({ path: chromaPath });
     try {
-        console.log("--- ChromaDB Inspection ---");
-        const collection = await client.getCollection({
-            name: "persona_memories",
-            embeddingFunction: embeddingFunction,
-        });
+        const collections = await client.listCollections();
+        console.log("Collections found:", collections.length);
+        for (const col of collections) {
+            // Check count
+            const collection = await client.getCollection({ name: col.name, embeddingFunction: null as any });
+            const count = await collection.count();
+            console.log(`- Collection: ${col.name}, Items: ${count}`);
 
-        const count = await collection.count();
-        console.log(`Total documents in 'persona_memories': ${count}`);
-
-        if (count > 0) {
-            const results = await collection.get();
-            console.log("Documents:");
-            results.documents.forEach((doc, i) => {
-                console.log(`[${i}] ID: ${results.ids[i]}`);
-                console.log(`    Content: ${doc}`);
-                console.log(`    Metadata: ${JSON.stringify(results.metadatas[i])}`);
-            });
+            // Try to peek one if exists
+            if (count > 0) {
+                const peek = await collection.peek({ limit: 1 });
+                console.log(`  Peek embedding dimension: ${peek.embeddings?.[0]?.length}`);
+            }
         }
-    } catch (error) {
-        console.error("Error inspecting ChromaDB:", error);
+    } catch (e: any) {
+        console.error("Failed to connect or list collections:", e.message);
     }
 }
 
-inspectChroma();
+main();

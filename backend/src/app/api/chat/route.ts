@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
         console.log("[Chat API] Current status:", status);
 
         // 2. Fetch relevant memories from ChromaDB
-        console.log("[Chat API] Querying memories from ChromaDB...");
+        console.log("[Chat API] Querying memories from ChromaDB...");// todo エラーだ
         const memories = await queryMemories(message);
         console.log("[Chat API] Retrieved memories:", memories);
 
