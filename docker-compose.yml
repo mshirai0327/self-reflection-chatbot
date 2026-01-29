@@ -11,7 +11,6 @@ services:
       - "3306:3306"
     volumes:
       - db_data:/var/lib/mysql
-    command: --default-authentication-plugin=
     networks:
       - ai_network
 
@@ -43,7 +42,7 @@ services:
       - ./backend:/app
       - /app/node_modules
       - /app/.next
-    command: npm run dev
+    command: sh -c "npx prisma generate && npm run dev"
     depends_on:
       - db
       - chromadb

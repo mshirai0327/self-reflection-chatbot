@@ -1,4 +1,4 @@
-import { prisma } from "./prisma";
+import { prisma } from "@/lib/prisma";
 
 /**
  * デフォルトのユーザーおよびペルソナを取得または作成します。
@@ -8,6 +8,10 @@ export const DEFAULT_USER_EMAIL = "default-user@example.com";
 export const DEFAULT_PERSONA_NAME = "Reflecta";
 
 export async function getDefaultPersona() {
+    if (!prisma.persona) {
+        console.error("[PersonaLib] CRITICAL ERROR: prisma.persona is undefined! Available keys:", Object.keys(prisma));
+        throw new Error("Prisma Client is not synced with schema. Please restart containers.");
+    }
     // 1. デフォルトペルソナを取得、なければ作成
     let persona = await prisma.persona.findFirst({
         where: { name: DEFAULT_PERSONA_NAME }
