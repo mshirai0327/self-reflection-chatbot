@@ -16,9 +16,14 @@ export const handleApiError = (error: unknown, defaultMessage: string = 'エラ�
 
             console.error(`[API Error] Status: ${status}, Message: ${serverMessage}`);
 
+            // メッセージが長すぎる場合は切り捨て
+            const truncatedMessage = serverMessage && serverMessage.length > 100
+                ? serverMessage.substring(0, 100) + '...'
+                : serverMessage;
+
             switch (status) {
                 case 400:
-                    toast.error(`リクエストが不正です。\n${serverMessage}`);
+                    toast.error(`リクエストが不正です。\n${truncatedMessage}`);
                     break;
                 case 401:
                     toast.error('認証に失敗しました。再ログインやAPIキーの確認が必要です。');
@@ -30,16 +35,16 @@ export const handleApiError = (error: unknown, defaultMessage: string = 'エラ�
                     toast.error('リソースが見つかりませんでした。');
                     break;
                 case 429:
-                    toast.error('リクエスト回数が多すぎます。しばらく時間を置いてから再度お試しください。');
+                    toast.error(truncatedMessage || 'リクエスト回数が多すぎます。しばらく時間を置いてから再度お試しください。');
                     break;
                 case 500:
-                    toast.error(`システムエラーが発生しました。\n${serverMessage}`);
+                    toast.error(`システムエラーが発生しました。\n${truncatedMessage}`);
                     break;
                 case 503:
                     toast.error('サービスが一時的に利用できません。メンテナンス中か過負荷の可能性があります。');
                     break;
                 default:
-                    toast.error(`エラー (${status}): ${serverMessage || defaultMessage}`);
+                    toast.error(`エラー (${status}): ${truncatedMessage || defaultMessage}`);
             }
         } else if (error.request) {
             // リクエストは送信されたがレスポンスがない場合

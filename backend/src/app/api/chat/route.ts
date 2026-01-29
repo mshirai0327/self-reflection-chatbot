@@ -69,6 +69,13 @@ export async function POST(req: NextRequest) {
             stack: error.stack,
             cause: error.cause
         });
-        return NextResponse.json({ error: error.message }, { status: 500 });
+
+        // Gemini APIからの429エラーなどを検知して適切なステータスを返す
+        const status = error.message?.includes("429") || error.status === 429 ? 429 : 500;
+        const errorMessage = status === 429
+            ? "現在アクセスが集中しているか、利用枠を超えています。少し時間を置いてからお試しください。"
+            : error.message;
+
+        return NextResponse.json({ error: errorMessage }, { status });
     }
 }
