@@ -1,5 +1,5 @@
 import { ChromaClient, EmbeddingFunction } from "chromadb";
-import { embedText } from "./gemini";
+import { embedTexts, LLMConfig } from "./llm";
 
 /** ChromaDBの接続URL（環境変数から取得） */
 const chromaPath = process.env.CHROMA_URL || "http://localhost:8000";
@@ -8,8 +8,6 @@ const collectionName = process.env.CHROMA_COLLECTION_NAME || "persona_memories";
 
 /**
  * ChromaDB SDKの特定の警告を抑制するためのハック。
- * 実態として embeddingFunction は常に渡しているため動作に問題はないが、
- * SDKが内部的にコレクション情報を取得する際に重複して警告を出してしまうため、それをフィルタリングする。
  */
 const originalWarn = console.warn;
 console.warn = (...args) => {
@@ -21,14 +19,9 @@ console.warn = (...args) => {
 
 /**
  * ChromaDBクライアントを初期化します。
- * 実行環境（Docker内かホストか）に応じて、接続先ホストを適切に判定します。
- * 
- * @returns ChromaClient インスタンス
  */
 const getChromaClient = () => {
     const urlObj = new URL(chromaPath);
-
-    // スクリプトがホストマシンから実行される場合の便宜を図る（chromadb -> localhost）
     const isDocker = process.env.IS_DOCKER === "true";
     const host = (urlObj.hostname === "chromadb" && !isDocker) ? "localhost" : urlObj.hostname;
     const port = parseInt(urlObj.port || (urlObj.protocol === "https:" ? "443" : "80"));
@@ -44,10 +37,20 @@ const getChromaClient = () => {
 const client = getChromaClient();
 
 /**
- * Gemini APIを使用してテキストをベクトル化するためのChromaDB用カスタム埋め込み関数。
- * これにより、ベクトルストア上での意味ベースの検索が可能になります。
+ * llm.tsのファクトリ関数を利用して、動的に埋め込みモデルを切り替えるカスタム埋め込み関数。
  */
-class GeminiEmbeddingFunction implements EmbeddingFunction {
+class DynamicEmbeddingFunction implements EmbeddingFunction {
+    private config: LLMConfig;
+
+    constructor(config?: LLMConfig) {
+        // デフォルトはGeminiの埋め込みモデルを使用
+        this.config = config || {
+            provider: "gemini",
+            model: process.env.GOOGLE_EMBEDDING_MODEL || "text-embedding-004",
+        };
+        console.log(`[ChromaDB] Initialized DynamicEmbeddingFunction with provider: ${this.config.provider}`);
+    }
+
     /**
      * 与えられたテキスト配列をベクトルに変換します。
      * @param texts 変換対象のテキスト配列
@@ -55,47 +58,42 @@ class GeminiEmbeddingFunction implements EmbeddingFunction {
      */
     async generate(texts: string[]): Promise<number[][]> {
         try {
-            console.log("[ChromaDB] Generating embeddings for", texts.length, "texts");
-            if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-                console.error("[ChromaDB] ERROR: GOOGLE_GENERATIVE_AI_API_KEY is missing!");
-                throw new Error("GOOGLE_GENERATIVE_AI_API_KEY is missing");
-            }
-            return await Promise.all(texts.map(text => embedText(text)));
+            console.log(`[ChromaDB] Generating embeddings for ${texts.length} texts using ${this.config.provider}`);
+            // llm.tsのembedTexts関数を一括で呼び出す
+            return await embedTexts(this.config, texts);
         } catch (error) {
             console.error("[ChromaDB] Embedding generation failed:", error);
+            // エラーを再スローして、呼び出し元で処理できるようにする
             throw error;
         }
     }
 }
 
-const embeddingFunction = new GeminiEmbeddingFunction();
+// デフォルトのEmbeddingFunctionインスタンス
+const defaultEmbeddingFunction = new DynamicEmbeddingFunction();
 
 /**
  * メモリ保存用のコレクションを取得、存在しない場合は作成します。
- * @returns ChromaDB コレクションインスタンス
- * @throws 接続に失敗した場合
  */
 export async function getCollection() {
     try {
         return await client.getOrCreateCollection({
             name: collectionName,
-            embeddingFunction: embeddingFunction,
+            embeddingFunction: defaultEmbeddingFunction,
         });
     } catch (error) {
         console.error("[ChromaDB] getOrCreateCollection failed. Check CHROMA_URL:", process.env.CHROMA_URL);
-        console.error("Error details:", error);
+        if (error instanceof Error) {
+            console.error("Error details:", error.message);
+        }
         throw error;
     }
 }
 
 /**
  * 新しい記憶をベクトルストアに保存します。
- * 
- * @param id 記憶の一意識別子
- * @param text 保存するテキスト内容
- * @param metadata 関連付けるメタデータ（ロール、タイムスタンプなど）
  */
-export async function addMemory(id: string, text: string, metadata: any) {
+export async function addMemory(id: string, text: string, metadata: Record<string, any>) {
     const collection = await getCollection();
     await collection.add({
         ids: [id],
@@ -105,11 +103,7 @@ export async function addMemory(id: string, text: string, metadata: any) {
 }
 
 /**
- * 与えられたテキストに意味的に近い記憶（ベクトル）をベクトルストアから検索します。
- * 
- * @param text 検索のトリガーとなるテキスト（queryTexts）
- * @param nResults 取得する件数（最大数）。デフォルトは3
- * @returns 類似度の高い順に並んだドキュメント（テキスト）の配列。見つからない場合は空配列
+ * 与えられたテキストに意味的に近い記憶を検索します。
  */
 export async function queryMemories(text: string, nResults: number = 3) {
     try {
@@ -119,15 +113,17 @@ export async function queryMemories(text: string, nResults: number = 3) {
             queryTexts: [text],
             nResults,
         });
-        console.log("[ChromaDB] Query results:", results);
+        console.log("[ChromaDB] Query results:", results.documents);
         if (!results.documents || results.documents.length === 0) {
             return [];
         }
-        // results.documents[0] は、最初（かつ唯一）のクエリテキストに対する結果の配列
         return results.documents[0] as string[];
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("[ChromaDB Error] queryMemories failed:", error);
-        throw error;
+        if (error instanceof Error) {
+            throw new Error(`Failed to query memories: ${error.message}`);
+        }
+        throw new Error("An unknown error occurred while querying memories");
     }
 }
 

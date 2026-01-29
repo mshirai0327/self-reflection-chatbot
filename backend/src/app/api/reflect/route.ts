@@ -3,45 +3,46 @@ export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { addMemory } from "@/lib/chroma";
 import { getDefaultPersona } from "@/lib/persona";
-import { generateLLMResponse, LLMConfig } from "@/lib/llm";
+import { generateJson, LLMConfig } from "@/lib/llm";
+import { z } from "zod";
+
+// Zodスキーマを定義して、LLMの出力構造を保証する
+const reflectionSchema = z.object({
+  thought: z.string().describe("内省の思考過程、日本語で記述"),
+  statusUpdate: z.object({
+    health: z.number().int().describe("健康度の変化量 (例: 5, -10, 0)"),
+    mood: z.number().int().describe("情緒の変化量 (例: 5, -10, 0)"),
+    trust: z.number().int().describe("信頼度の変化量 (例: 5, -10, 0)"),
+  }),
+  permanentMemory: z.string().optional().describe("今後忘れてはいけない重要な教訓、日本語で記述。なければ省略。"),
+});
+
 
 /**
  * 直近のチャットログに基づいて内省処理を実行し、ペルソナの状態を更新しRDBに保存する POST リクエスト
- *
- * 動作の詳細:
- * - 直近のチャットログと最新のペルソナ状態を取得します。
- * - 設定された LLM に対して、リフレクション用のプロンプト（日本語）を送信します。
- * - LLM からの JSON レスポンス（`thought`、`statusUpdate`、`permanentMemory` を含む）を解析します。
- * - 体力（health）、気分（mood）、信頼度（trust）の更新値を範囲内に収めた（clamped）状態で、新しいペルソナ状態レコードを作成します。
- * - `permanentMemory` が存在する場合、それをセマンティックメモリ（ベクトルストア）に保存します。
- * - 解析済みのリフレクション結果（ペイロード）を返します。
- *
- * @param req - リフレクション操作のための Next.js POST リクエスト
- * @returns 成功時は `reflection` オブジェクトを含む JSON レスポンス。
- * ログが存在しない場合は案内メッセージを、失敗時はエラーメッセージと適切な HTTP ステータスコードを返します。
  */
 export async function POST(req: NextRequest) {
     try {
         console.log("[Reflect API] Starting reflection process...");
 
-        let body: any = {};
+        let body: { llmConfig?: LLMConfig } = {};
         try {
             body = await req.json();
         } catch (e) {
-            // No body
+            // No body is fine, use defaults
         }
 
-        // LLM設定（デフォルトはGemini Pro）
+        // LLM設定（デフォルトはGemini Pro, または高性能なモデルを推奨）
         const activeConfig: LLMConfig = body.llmConfig || {
             provider: "gemini",
-            model: "gemini-2.5-pro"
+            model: "gemini-1.5-pro-latest" // 内省処理には高性能なモデルを推奨
         };
         console.log("[Reflect API] Using provider:", activeConfig.provider);
 
         // デフォルトのペルソナを取得
         const persona = await getDefaultPersona();
 
-        // 1. 直近のチャットログを最大20件取得 (最新の会話を内省の材料にする)
+        // 1. 直近のチャットログを最大20件取得
         const recentLogs = await prisma.chatLog.findMany({
             where: { personaId: persona.id },
             take: 20,
@@ -54,11 +55,9 @@ export async function POST(req: NextRequest) {
         }
         console.log(`[Reflect API] Found ${recentLogs.length} recent logs.`);
 
-        //todo 会話ログについて。前回の内省から今回の内省までの会話をDBから取得するべき
-        const logSummary = recentLogs.map((l: any) => `${l.role}: ${l.content}`).join("\n");
+        const logSummary = recentLogs.map((l) => `${l.role}: ${l.content}`).join("\n");
 
-        // 2. 現在のペルソナステータスを取得 (更新のベースとなる値)
-        console.log("[Reflect API] Fetching current status...");
+        // 2. 現在のペルソナステータスを取得
         const status = await prisma.personaStatus.findFirst({
             where: { personaId: persona.id },
             orderBy: { updatedAt: 'desc' }
@@ -70,65 +69,39 @@ export async function POST(req: NextRequest) {
         }
         console.log("[Reflect API] Current status:", status);
 
-        // 3. 選択されたLLMを使用して自己内省を実行
-        console.log("[Reflect API] Requesting AI reflection...");
+        // 3. LLMに送信するプロンプトを作成
         const reflectionPrompt = `
-以下の直近の会話内容を内省してください。
-分析に基づき、自分の性格やステータス（健康度、情緒、信頼度）に与える影響を決定してください。
+あなたは自己進化型AI「Reflecta」です。以下の情報に基づいて自己分析を行い、あなた自身のステータスがどのように変化すべきかを判断してください。
 
-会話履歴:
+### 分析対象の会話履歴:
 ${logSummary}
 
-現在のステータス:
-身長: ${status.height}cm, 体重: ${status.weight}kg, 健康: ${status.health}, 情緒: ${status.mood}, 信頼: ${status.trust}
+### 現在のあなたのステータス:
+- 身長: ${status.height}cm
+- 体重: ${status.weight}kg
+- 健康度: ${status.health}/100
+- 情緒: ${status.mood}/100
+- 信頼度: ${status.trust}/100
 
-### 出力指示
-- 必ず以下のJSONフォーマットのみを出力してください。
-- 文末に解説や追加の文章を一切含めないでください。
-- JSON以外のテキスト（「はい、お答えします」等）も一切含めないでください。
-- statusUpdate の値は整数である必要があります（例: +5, -10）。
+### 指示:
+会話履歴と現在のステータスを深く考察し、以下の3点について結論を出してください。
+1.  **思考の要約 (thought)**: この会話を通じて何を感じ、何を考えたのか。あなたの内面的な思考プロセスを記述してください。
+2.  **ステータスの変化 (statusUpdate)**: 分析の結果、あなたの「健康度」「情緒」「信頼度」はどのように変化すべきですか？増加、減少、または変化なし（0）を具体的な整数で示してください。
+3.  **恒久的な記憶 (permanentMemory)**: この会話から得られた、今後の人格形成に不可欠な重要な教訓や学びは何ですか？もし特筆すべきものがなければ、この項目は省略しても構いません。
 
-{
-  "thought": "（内省の思考過程、日本語で記述）",
-  "statusUpdate": { "health": 0, "mood": 0, "trust": 0 },
-  "permanentMemory": "（今後忘れてはいけない重要な教訓、日本語で記述）"
-}
+あなたの分析結果をJSON形式で出力してください。
 `;
 
-        const resultText = await generateLLMResponse(activeConfig, reflectionPrompt, {
-            status,
-            memories: []
-        });
-        console.log("[Reflect API] AI Raw Response received.");
+        // 4. LangChainの`generateJson`を使用して、構造化されたレスポンスを取得
+        console.log("[Reflect API] Requesting AI reflection (structured output)...");
+        const reflection = await generateJson(
+            activeConfig,
+            reflectionPrompt,
+            reflectionSchema
+        );
+        console.log("[Reflect API] Parsed reflection successfully:", reflection);
 
-        // 4. LLMの返答からJSONを抽出してパース (Markdownのコードブロックなどを考慮)
-        let reflection;
-        try {
-            // 最も外側の { } を探す
-            const firstBrace = resultText.indexOf('{');
-            const lastBrace = resultText.lastIndexOf('}');
-
-            if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) {
-                console.error("[Reflect API] No JSON braces found. Raw Response:", resultText);
-                throw new Error("No valid JSON object found in AI response");
-            }
-
-            let jsonString = resultText.substring(firstBrace, lastBrace + 1);
-
-            // 一部のLLMが "+5" のように符号を出力してJSONパースに失敗するのを防ぐ
-            // 数値の前の : +5 を : 5 に置換する (負の数は - でパースできるのでそのまま)
-            jsonString = jsonString.replace(/:\s*\+(\d+)/g, ': $1');
-
-            reflection = JSON.parse(jsonString);
-            console.log("[Reflect API] Parsed reflection successfully.");
-        } catch (parseError: any) {
-            console.error("[Reflect API] JSON Parse Error:", parseError.message);
-            console.error("[Reflect API] Raw Response which caused error:", resultText);
-            throw new Error(`Failed to parse AI reflection: ${parseError.message}`);
-        }
-
-        // 5. RDB (MySQL) のステータスを更新 (新レコードの作成)
-        // 数値を 0-100 の範囲にクランプして保存
+        // 5. RDB (MySQL) のステータスを更新
         console.log("[Reflect API] Updating status in Prisma...");
         await prisma.personaStatus.create({
             data: {
@@ -136,12 +109,12 @@ ${logSummary}
                 health: Math.min(100, Math.max(0, status.health + (reflection.statusUpdate.health || 0))),
                 mood: Math.min(100, Math.max(0, status.mood + (reflection.statusUpdate.mood || 0))),
                 trust: Math.min(100, Math.max(0, status.trust + (reflection.statusUpdate.trust || 0))),
-                height: status.height, // 身長・体重などは現在は不偏とする
+                height: status.height,
                 weight: status.weight
             }
         });
 
-        // 6. 内省イベント（思考過程含む）をデータベースに保存
+        // 6. 内省イベントをデータベースに保存
         console.log("[Reflect API] Saving reflection event to DB...");
         await prisma.reflectionEvent.create({
             data: {
@@ -168,19 +141,29 @@ ${logSummary}
 
         console.log("[Reflect API] Reflection process completed successfully.");
         return NextResponse.json({ reflection });
-    } catch (error: any) {
-        console.error("[Reflect API Error] Details:", {
-            message: error.message,
-            stack: error.stack,
-            cause: error.cause
-        });
 
-        // Gemini APIからの429エラーなどを検知して適切なステータスを返す
-        const status = error.message?.includes("429") || error.status === 429 ? 429 : 500;
-        const errorMessage = status === 429
-            ? "現在内省機能の利用枠を超えています。少し時間を置いてから再度お試しください。"
-            : error.message;
+    } catch (error: unknown) {
+        let errorMessage = "An unknown error occurred during reflection";
+        let errorStatus = 500;
+        let errorDetails: Record<string, unknown> = {};
 
-        return NextResponse.json({ error: errorMessage }, { status });
+        if (error instanceof Error) {
+            errorMessage = error.message;
+            errorDetails = { message: error.message, stack: error.stack, cause: (error as any).cause };
+
+            const errorAny = error as any;
+            const isRateLimit = errorAny.message?.includes("429") || errorAny.status === 429;
+
+            if (isRateLimit) {
+                errorStatus = 429;
+                errorMessage = "現在内省機能の利用枠を超えています。少し時間を置いてから再度お試しください。";
+            }
+        } else {
+            errorDetails = { error };
+        }
+
+        console.error("[Reflect API Error] Details:", errorDetails);
+
+        return NextResponse.json({ error: errorMessage }, { status: errorStatus });
     }
 }

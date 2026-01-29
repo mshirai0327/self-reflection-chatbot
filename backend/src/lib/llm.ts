@@ -1,35 +1,100 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import axios from "axios";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { ChatOpenAI } from "@langchain/openai";
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { OpenAIEmbeddings } from "@langchain/openai";
+import { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { BaseEmbeddings } from "@langchain/core/embeddings";
+import { BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { z } from "zod";
+import { Runnable } from "@langchain/core/runnables";
 
-export type LLMProvider = "gemini" | "local";
+// --- Configuration Interfaces ---
+
+export type LLMProvider = "gemini" | "openai";
 
 export interface LLMConfig {
-    provider: LLMProvider;
-    model?: string;
-    endpoint?: string; // For local LLM
-    apiKey?: string;
+  provider: LLMProvider;
+  model?: string;
+  apiKey?: string;
+  // For OpenAI-compatible endpoints (like local LLMs)
+  baseURL?: string;
 }
 
 export interface PersonaContext {
-    status: {
-        height: number;
-        weight: number;
-        health: number;
-        mood: number;
-        trust: number;
-    };
-    memories: string[];
+  status: {
+    height: number;
+    weight: number;
+    health: number;
+    mood: number;
+    trust: number;
+  };
+  memories: string[];
 }
 
-const DEFAULT_GEMINI_FLASH = "gemini-2.5-flash";
-const DEFAULT_GEMINI_PRO = "gemini-2.5-pro";
+// --- Model Instantiation ---
+
+const DEFAULT_GEMINI_CHAT_MODEL = "gemini-1.5-flash-latest";
+const DEFAULT_OPENAI_CHAT_MODEL = "gpt-4o";
+const DEFAULT_GEMINI_EMBEDDING_MODEL = "text-embedding-004";
+const DEFAULT_OPENAI_EMBEDDING_MODEL = "text-embedding-3-small";
 
 /**
- * プロンプトにペルソナ情報を付与したシステム指示文を生成します
+ * Creates a LangChain chat model instance based on the provided configuration.
+ * @param config The LLM configuration.
+ * @returns An instance of a LangChain BaseChatModel.
  */
-function buildSystemInstruction(context: PersonaContext) {
-    return `
-あなたは自己進化型AI「Reflecta」です。
+export function createChatModel(config: LLMConfig): BaseChatModel {
+  const provider = config.provider || "gemini";
+
+  switch (provider) {
+    case "openai":
+      return new ChatOpenAI({
+        apiKey: config.apiKey || process.env.OPENAI_API_KEY,
+        modelName: config.model || DEFAULT_OPENAI_CHAT_MODEL,
+        baseURL: config.baseURL, // For local LLM proxy
+        // maxRetries: 3, // Optional: configure retries
+      });
+    case "gemini":
+    default:
+      return new ChatGoogleGenerativeAI({
+        apiKey: config.apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+        modelName: config.model || DEFAULT_GEMINI_CHAT_MODEL,
+        // maxRetries: 3,
+      });
+  }
+}
+
+/**
+ * Creates a LangChain embeddings model instance based on the provided configuration.
+ * @param config The LLM configuration.
+ * @returns An instance of a LangChain BaseEmbeddings model.
+ */
+export function createEmbeddingModel(config: LLMConfig): BaseEmbeddings {
+  const provider = config.provider || "gemini";
+
+  switch (provider) {
+    case "openai":
+      return new OpenAIEmbeddings({
+        apiKey: config.apiKey || process.env.OPENAI_API_KEY,
+        modelName: config.model || DEFAULT_OPENAI_EMBEDDING_MODEL,
+        baseURL: config.baseURL,
+      });
+    case "gemini":
+    default:
+      return new GoogleGenerativeAIEmbeddings({
+        apiKey: config.apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+        modelName: config.model || DEFAULT_GEMINI_EMBEDDING_MODEL,
+      });
+  }
+}
+
+// --- Core Functions ---
+
+/**
+ * Builds the system instruction prompt from the persona context.
+ */
+function buildSystemInstruction(context: PersonaContext): string {
+  return `あなたは自己進化型AI「Reflecta」です。
 現在のあなたのステータス:
 身長: ${context.status.height}cm
 体重: ${context.status.weight}kg
@@ -40,98 +105,70 @@ function buildSystemInstruction(context: PersonaContext) {
 過去の関連する記憶:
 ${context.memories.join("\n")}
 
-上記を踏まえ、一貫性のある人格として回答してください。
-`;
+上記を踏まえ、一貫性のある人格として回答してください。`;
 }
 
 /**
- * Gemini APIを使用してレスポンスを生成します
+ * Generates a text response from the LLM based on the provided configuration and context.
+ * @param config The LLM configuration.
+ * @param userPrompt The user's prompt.
+ * @param context The persona context.
+ * @returns The generated text response.
  */
-async function generateWithGemini(config: LLMConfig, prompt: string, context: PersonaContext) {
-    const apiKey = config.apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-    if (!apiKey) throw new Error("Google AI API Key is missing");
+export async function generateResponse(
+  config: LLMConfig,
+  userPrompt: string,
+  context: PersonaContext
+): Promise<string> {
+  console.log(`[LLM] Generating response using provider: ${config.provider}, model: ${config.model || 'default'}`);
+  const chatModel = createChatModel(config);
+  const systemInstruction = buildSystemInstruction(context);
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const modelName = config.model || DEFAULT_GEMINI_FLASH;
-    const systemInstruction = buildSystemInstruction(context);
+  const messages = [
+    new SystemMessage(systemInstruction),
+    new HumanMessage(userPrompt),
+  ];
 
-    const isSystemInstructionSupported = !modelName.startsWith("gemma");
-    const modelOptions: any = { model: modelName };
-    if (isSystemInstructionSupported) {
-        modelOptions.systemInstruction = systemInstruction;
-    }
-
-    const model = genAI.getGenerativeModel(modelOptions, { apiVersion: "v1beta" });
-    const finalPrompt = isSystemInstructionSupported
-        ? prompt
-        : `System Instruction:\n${systemInstruction}\n\nUser Message: ${prompt}`;
-
-    const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: finalPrompt }] }],
-    });
-    return result.response.text();
+  const result = await chatModel.invoke(messages);
+  return result.content as string;
 }
 
 /**
- * Local LLM のエンドポイントを正規化します。
- * /v1 で終わっている場合は、用途に応じて /chat/completions や /models を付加できるようにベースURLを返します。
+ * Generates a structured JSON response from the LLM.
+ * @param config The LLM configuration.
+ * @param userPrompt The user's prompt.
+ * @param zodSchema The Zod schema to validate the JSON output.
+ * @returns The generated and validated JSON object.
  */
-export function normalizeLocalEndpoint(endpoint: string, path: "/chat/completions" | "/models" = "/chat/completions"): string {
-    let base = endpoint.trim().replace(/\/$/, "");
+export async function generateJson<T extends z.ZodType>(
+  config: LLMConfig,
+  userPrompt: string,
+  zodSchema: T
+): Promise<z.infer<T>> {
+    console.log(`[LLM] Generating JSON using provider: ${config.provider}, model: ${config.model || 'default'}`);
+    const chatModel = createChatModel(config);
 
-    // すでに指定のパスが含まれている場合はそのまま返す
-    if (base.endsWith(path)) return base;
+    const modelWithStructuredOutput: Runnable<BaseMessage[], z.infer<T>> = chatModel.withStructuredOutput(zodSchema);
 
-    // /v1/chat/completions などのフルパスが入力された場合、まずそれを削ってベースを作る
-    const knownPaths = ["/chat/completions", "/models"];
-    for (const p of knownPaths) {
-        if (base.endsWith(p)) {
-            base = base.substring(0, base.length - p.length);
-            break;
-        }
-    }
+    const result = await modelWithStructuredOutput.invoke([
+        new HumanMessage(userPrompt),
+    ]);
 
-    // ベースURLに指定のパスを付加して返す
-    return `${base}${path}`;
+    return result;
 }
 
-/**
- * Local LLM (OpenAI互換API)を使用してレスポンスを生成します
- */
-async function generateWithLocal(config: LLMConfig, prompt: string, context: PersonaContext) {
-    const rawEndpoint = config.endpoint || "http://localhost:11434/v1";
-    const endpoint = normalizeLocalEndpoint(rawEndpoint, "/chat/completions");
-    const modelName = config.model || "llaman";
-    const systemInstruction = buildSystemInstruction(context);
-
-    const response = await axios.post(endpoint, {
-        model: modelName,
-        messages: [
-            { role: "system", content: systemInstruction },
-            { role: "user", content: prompt }
-        ],
-        temperature: 0.7
-    }, {
-        headers: {
-            "Content-Type": "application/json",
-            ...(config.apiKey ? { "Authorization": `Bearer ${config.apiKey}` } : {})
-        }
-    });
-
-    return response.data.choices[0].message.content;
-}
 
 /**
- * プロバイダーに応じてLLMレスポンスを生成します
+ * Generates embeddings for a list of texts.
+ * @param config The LLM configuration.
+ * @param texts An array of texts to embed.
+ * @returns A promise that resolves to an array of embeddings.
  */
-export async function generateLLMResponse(config: LLMConfig, prompt: string, context: PersonaContext) {
-    console.log(`[LLM] Generating response using provider: ${config.provider}, model: ${config.model || 'default'}`);
-
-    if (config.provider === "gemini") {
-        return generateWithGemini(config, prompt, context);
-    } else if (config.provider === "local") {
-        return generateWithLocal(config, prompt, context);
-    } else {
-        throw new Error(`Unsupported LLM provider: ${config.provider}`);
-    }
+export async function embedTexts(
+  config: LLMConfig,
+  texts: string[]
+): Promise<number[][]> {
+  console.log(`[LLM] Embedding ${texts.length} documents using provider: ${config.provider}`);
+  const embeddingModel = createEmbeddingModel(config);
+  return embeddingModel.embedDocuments(texts);
 }
