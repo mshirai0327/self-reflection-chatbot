@@ -76,15 +76,26 @@ ${context.memories.join("\n")}
 `;
 
     const genAI = getGenAI();
-    // Fallback to flashModel if modelName fails? Or just use modelName.
-    const model = genAI.getGenerativeModel({
-        model: modelName,
-        systemInstruction: systemInstruction,
-    }, { apiVersion: "v1beta" });
+
+    // Gemmaなどの一部のモデルは API レベルで systemInstruction (Developer Instruction) をサポートしていないため、
+    // それらのモデルの場合はプロンプトの先頭に指示を結合する形式にフォールバックします。
+    const isSystemInstructionSupported = !modelName.startsWith("gemma");
+
+    const modelOptions: any = { model: modelName };
+    if (isSystemInstructionSupported) {
+        modelOptions.systemInstruction = systemInstruction;
+    }
+
+    const model = genAI.getGenerativeModel(modelOptions, { apiVersion: "v1beta" });
 
     return callWithRetry(async () => {
+        // systemInstruction がサポートされていない場合は、プロンプトの先頭に指示を挿入
+        const finalPrompt = isSystemInstructionSupported
+            ? prompt
+            : `System Instruction:\n${systemInstruction}\n\nUser Message: ${prompt}`;
+
         const result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            contents: [{ role: "user", parts: [{ text: finalPrompt }] }],
         });
         return result.response.text();
     }, "generateResponse");
