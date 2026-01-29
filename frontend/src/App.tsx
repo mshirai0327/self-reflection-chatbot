@@ -176,7 +176,7 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300">
+    <div className="flex flex-col h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300">
       <Toaster
         position="top-center"
         toastOptions={{
@@ -186,139 +186,140 @@ function App() {
           },
         }}
       />
-      {/* Bot Sidebar (Left) */}
-      <BotSidebar
-        isOpen={isLeftOpen}
-        onToggle={() => setIsLeftOpen(false)}
-        status={status}
-        chatModel={chatModel}
-        setChatModel={setChatModel}
-        reflectModel={reflectModel}
-        setReflectModel={setReflectModel}
-        llmSettings={llmSettings}
-        setLlmSettings={setLlmSettings}
-      />
 
-      {/* Main Chat Area */}
-      <main className="flex-1 flex flex-col relative bg-slate-50 dark:bg-slate-950">
-        {/* Top Navigation / Sticky Header */}
-        <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md z-10 transition-colors duration-300">
-          <div className="flex items-center gap-2">
-            {!isLeftOpen && (
-              <button
-                onClick={() => setIsLeftOpen(true)}
-                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                title="サイドバーを開く"
-              >
-                <Menu className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-              </button>
-            )}
-            <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 ml-2">Reflecta Chat</h1>
-          </div>
+      {/* Fixed Header */}
+      <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md z-40 transition-colors duration-300 shrink-0">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsLeftOpen(!isLeftOpen)}
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            title={isLeftOpen ? "サイドバーを閉じる" : "サイドバーを開く"}
+          >
+            <Menu className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+          </button>
+          <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 ml-2">Reflecta Chat</h1>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-              title={isDarkMode ? "ライトモードに切り替え" : "ダークモードに切り替え"}
-            >
-              {isDarkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
-            </button>
-            {!isRightOpen && (
-              <button
-                onClick={() => setIsRightOpen(true)}
-                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                title="チャットログを開く"
-              >
-                <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-              </button>
-            )}
-          </div>
-        </header>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            title={isDarkMode ? "ライトモードに切り替え" : "ダークモードに切り替え"}
+          >
+            {isDarkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
+          </button>
+          <button
+            onClick={() => setIsRightOpen(!isRightOpen)}
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            title={isRightOpen ? "チャットログを閉じる" : "チャットログを開く"}
+          >
+            <ChevronLeft className={`w-5 h-5 text-slate-600 dark:text-slate-400 transition-transform duration-300 ${isRightOpen ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
+      </header>
 
-        {/* Messages */}
-        <div
-          ref={scrollRef}
-          className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 scroll-smooth"
-        >
-          <AnimatePresence initial={false}>
-            {messages.length === 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 space-y-4"
-              >
-                <Database size={48} className="opacity-10" />
-                <p className="text-lg text-slate-500">対話を開始して、意識を呼び覚ましてください</p>
-              </motion.div>
-            )}
-            {messages.map((m, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, x: m.role === 'user' ? 20 : -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl shadow-sm transition-colors duration-300 ${m.role === 'user'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 dark:text-slate-100'
-                  }`}>
-                  <p className="leading-relaxed whitespace-pre-wrap">{m.content}</p>
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Bot Sidebar (Left) */}
+        <BotSidebar
+          isOpen={isLeftOpen}
+          onToggle={() => setIsLeftOpen(false)}
+          status={status}
+          chatModel={chatModel}
+          setChatModel={setChatModel}
+          reflectModel={reflectModel}
+          setReflectModel={setReflectModel}
+          llmSettings={llmSettings}
+          setLlmSettings={setLlmSettings}
+        />
+
+        {/* Main Chat Area */}
+        <main className="flex-1 flex flex-col relative bg-slate-50 dark:bg-slate-950 min-w-0">
+
+          {/* Messages */}
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 scroll-smooth"
+          >
+            <AnimatePresence initial={false}>
+              {messages.length === 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 space-y-4"
+                >
+                  <Database size={48} className="opacity-10" />
+                  <p className="text-lg text-slate-500">対話を開始して、意識を呼び覚ましてください</p>
+                </motion.div>
+              )}
+              {messages.map((m, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: m.role === 'user' ? 20 : -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl shadow-sm transition-colors duration-300 ${m.role === 'user'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 dark:text-slate-100'
+                    }`}>
+                    <p className="leading-relaxed whitespace-pre-wrap">{m.content}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl flex gap-2">
+                  <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" />
+                  <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.2s]" />
+                  <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.4s]" />
                 </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl flex gap-2">
-                <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" />
-                <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.2s]" />
-                <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.4s]" />
               </div>
+            )}
+          </div>
+
+          {/* Input Area todo shift+enterで改行できるように*/}
+          <div className="p-4 md:p-8 pt-0">
+            <div className="max-w-4xl mx-auto flex gap-3 p-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                placeholder="何でも話しかけてください..."
+                className="flex-1 bg-transparent border-none outline-none px-4 py-2 text-slate-900 dark:text-slate-100 placeholder-slate-400"
+              />
+              <button
+                onClick={handleSend}
+                disabled={isLoading}
+                className="p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 rounded-xl transition-colors shadow-lg shadow-blue-500/20 text-white"
+              >
+                <Send size={20} />
+              </button>
             </div>
-          )}
-        </div>
-
-        {/* Input Area */}
-        <div className="p-4 md:p-8 pt-0">
-          <div className="max-w-4xl mx-auto flex gap-3 p-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="何でも話しかけてください..."
-              className="flex-1 bg-transparent border-none outline-none px-4 py-2 text-slate-900 dark:text-slate-100 placeholder-slate-400"
-            />
-            <button
-              onClick={handleSend}
-              disabled={isLoading}
-              className="p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 rounded-xl transition-colors shadow-lg shadow-blue-500/20 text-white"
-            >
-              <Send size={20} />
-            </button>
+            <div className="text-center mt-4">
+              <button
+                onClick={handleReflect}
+                disabled={isLoading}
+                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-300 text-xs font-semibold tracking-wide cursor-pointer disabled:cursor-not-allowed"
+              >
+                内省を実行する
+              </button>
+            </div>
           </div>
-          <div className="text-center mt-4">
-            <button
-              onClick={handleReflect}
-              disabled={isLoading}
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-300 text-xs font-semibold tracking-wide cursor-pointer disabled:cursor-not-allowed"
-            >
-              内省を実行する
-            </button>
-          </div>
-        </div>
-      </main>
+        </main>
 
-      {/* Chat History Sidebar (Right) */}
-      <ChatHistory
-        isOpen={isRightOpen}
-        onToggle={() => setIsRightOpen(false)}
-        refreshTrigger={refreshTrigger}
-        onSelectChat={(id: string) => setCurrentChatId(id)}
-        currentChatId={currentChatId}
-        onNewChat={() => setCurrentChatId(null)}
-      />
+        {/* Chat History Sidebar (Right) */}
+        <ChatHistory
+          isOpen={isRightOpen}
+          onToggle={() => setIsRightOpen(false)}
+          refreshTrigger={refreshTrigger}
+          onSelectChat={(id: string) => setCurrentChatId(id)}
+          currentChatId={currentChatId}
+          onNewChat={() => setCurrentChatId(null)}
+        />
+      </div>
     </div>
   );
 }
