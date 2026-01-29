@@ -26,7 +26,10 @@
       "@/*": [
         "./src/*"
       ]
-    }
+    },
+    "types": [
+      "node"
+    ]
   },
   "include": [
     "next-env.d.ts",
@@ -39,8 +42,5 @@
   "exclude": [
     "node_modules",
     "src/scripts"
-  ],
-  "types": [
-    "node"
   ]
 }

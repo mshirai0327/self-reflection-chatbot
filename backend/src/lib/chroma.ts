@@ -26,8 +26,7 @@ console.warn = (...args) => {
  * @returns ChromaClient インスタンス
  */
 const getChromaClient = () => {
-    const url = process.env.CHROMA_URL || "http://localhost:8000";
-    const urlObj = new URL(url);
+    const urlObj = new URL(chromaPath);
 
     // スクリプトがホストマシンから実行される場合の便宜を図る（chromadb -> localhost）
     const isDocker = process.env.IS_DOCKER === "true";

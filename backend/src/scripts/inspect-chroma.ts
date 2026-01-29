@@ -60,7 +60,7 @@ async function main() {
             if (count > 0) {
                 // peekの代わりにgetを使用して、明示的にincludeを指定します
                 const result: any = await (collection as any).get({
-                    limit: 5,
+                    limit: 7,
                     include: ["embeddings", "documents", "metadatas"]
                 });
 
