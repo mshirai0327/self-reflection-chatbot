@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
         }
         console.log(`[Reflect API] Found ${recentLogs.length} recent logs.`);
 
+        //todo 会話ログについて。前回の内省から今回の内省までの会話をDBから取得するべき
         const logSummary = recentLogs.map((l: any) => `${l.role}: ${l.content}`).join("\n");
 
         // 2. 現在のペルソナステータスを取得 (更新のベースとなる値)
