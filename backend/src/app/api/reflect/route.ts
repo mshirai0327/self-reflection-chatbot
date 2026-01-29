@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
-import { proModel, generateResponse } from "@/lib/gemini";
 import { addMemory } from "@/lib/chroma";
 import { getDefaultPersona } from "@/lib/persona";
+import { generateLLMResponse, LLMConfig } from "@/lib/llm";
 
 /**
  * 直近のチャットログに基づいて内省処理を実行し、ペルソナの状態を更新しRDBに保存する POST リクエスト
@@ -24,14 +24,19 @@ export async function POST(req: NextRequest) {
     try {
         console.log("[Reflect API] Starting reflection process...");
 
-        let model = proModel;
+        let body: any = {};
         try {
-            const body = await req.json();
-            if (body && body.model) model = body.model;
+            body = await req.json();
         } catch (e) {
-            // No body or invalid JSON, ignore
+            // No body
         }
-        console.log("[Reflect API] Using model:", model);
+
+        // LLM設定（デフォルトはGemini Pro）
+        const activeConfig: LLMConfig = body.llmConfig || {
+            provider: "gemini",
+            model: "gemini-2.5-pro"
+        };
+        console.log("[Reflect API] Using provider:", activeConfig.provider);
 
         // デフォルトのペルソナを取得
         const persona = await getDefaultPersona();
@@ -64,38 +69,62 @@ export async function POST(req: NextRequest) {
         }
         console.log("[Reflect API] Current status:", status);
 
-        // 3. Gemini Pro（推論モデル）を使用して自己内省を実行
-        console.log("[Reflect API] Sending data to Gemini Pro for reflection...");
+        // 3. 選択されたLLMを使用して自己内省を実行
+        console.log("[Reflect API] Requesting AI reflection...");
         const reflectionPrompt = `
-            以下の直近の会話内容を内省し、自分の性格やステータスにどのような影響を与えるべきか考えてください。
-            会話履歴:
-            ${logSummary}
+以下の直近の会話内容を内省してください。
+分析に基づき、自分の性格やステータス（健康度、情緒、信頼度）に与える影響を決定してください。
 
-            現在のステータス:
-            身長: ${status.height}, 体重: ${status.weight}, 健康: ${status.health}, 情緒: ${status.mood}, 信頼: ${status.trust}
+会話履歴:
+${logSummary}
 
-            内省の結果として、以下のJSON形式で回答してください：
-            {
-            "thought": "（内省の思考過程）",
-            "statusUpdate": { "health": 1, "mood": -5, "trust": 10 },
-            "permanentMemory": "（今後忘れてはいけない重要な教訓や記憶）"
-            }
-            `;
+現在のステータス:
+身長: ${status.height}cm, 体重: ${status.weight}kg, 健康: ${status.health}, 情緒: ${status.mood}, 信頼: ${status.trust}
 
-        const resultText = await generateResponse(model, reflectionPrompt, {
+### 出力指示
+- 必ず以下のJSONフォーマットのみを出力してください。
+- 文末に解説や追加の文章を一切含めないでください。
+- JSON以外のテキスト（「はい、お答えします」等）も一切含めないでください。
+- statusUpdate の値は整数である必要があります（例: +5, -10）。
+
+{
+  "thought": "（内省の思考過程、日本語で記述）",
+  "statusUpdate": { "health": 0, "mood": 0, "trust": 0 },
+  "permanentMemory": "（今後忘れてはいけない重要な教訓、日本語で記述）"
+}
+`;
+
+        const resultText = await generateLLMResponse(activeConfig, reflectionPrompt, {
             status,
             memories: []
         });
-        console.log("[Reflect API] Gemini Pro Raw Response:", resultText);
+        console.log("[Reflect API] AI Raw Response received.");
 
         // 4. LLMの返答からJSONを抽出してパース (Markdownのコードブロックなどを考慮)
-        const jsonMatch = resultText.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-            console.error("[Reflect API] Failed to find JSON in response.");
-            throw new Error("Failed to parse reflection result");
+        let reflection;
+        try {
+            // 最も外側の { } を探す
+            const firstBrace = resultText.indexOf('{');
+            const lastBrace = resultText.lastIndexOf('}');
+
+            if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) {
+                console.error("[Reflect API] No JSON braces found. Raw Response:", resultText);
+                throw new Error("No valid JSON object found in AI response");
+            }
+
+            let jsonString = resultText.substring(firstBrace, lastBrace + 1);
+
+            // 一部のLLMが "+5" のように符号を出力してJSONパースに失敗するのを防ぐ
+            // 数値の前の : +5 を : 5 に置換する (負の数は - でパースできるのでそのまま)
+            jsonString = jsonString.replace(/:\s*\+(\d+)/g, ': $1');
+
+            reflection = JSON.parse(jsonString);
+            console.log("[Reflect API] Parsed reflection successfully.");
+        } catch (parseError: any) {
+            console.error("[Reflect API] JSON Parse Error:", parseError.message);
+            console.error("[Reflect API] Raw Response which caused error:", resultText);
+            throw new Error(`Failed to parse AI reflection: ${parseError.message}`);
         }
-        const reflection = JSON.parse(jsonMatch[0]);
-        console.log("[Reflect API] Parsed reflection:", reflection);
 
         // 5. RDB (MySQL) のステータスを更新 (新レコードの作成)
         // 数値を 0-100 の範囲にクランプして保存

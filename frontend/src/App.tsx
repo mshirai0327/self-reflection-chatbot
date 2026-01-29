@@ -39,6 +39,12 @@ function App() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [chatModel, setChatModel] = useState<string>('gemini-2.5-flash');
   const [reflectModel, setReflectModel] = useState<string>('gemini-2.5-pro');
+  const [llmSettings, setLlmSettings] = useState({
+    provider: 'gemini' as 'gemini' | 'local',
+    localEndpoint: 'http://localhost:11434/v1',
+    localModel: 'llama3',
+    availableModels: [] as string[]
+  });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -87,7 +93,16 @@ function App() {
     setIsLoading(true);
 
     try {
-      const res = await axios.post(`${API_URL}/api/chat`, { message: input, model: chatModel });
+      const llmConfig = {
+        provider: llmSettings.provider,
+        model: llmSettings.provider === 'local' ? llmSettings.localModel : chatModel,
+        endpoint: llmSettings.provider === 'local' ? llmSettings.localEndpoint : undefined
+      };
+
+      const res = await axios.post(`${API_URL}/api/chat`, {
+        message: input,
+        llmConfig
+      });
       const aiMsg: Message = { role: 'assistant', content: res.data.response };
       setMessages(prev => [...prev, aiMsg]);
       if (res.data.status) setStatus(res.data.status);
@@ -102,13 +117,22 @@ function App() {
   const handleReflect = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/api/reflect`, { model: reflectModel });
+      const llmConfig = {
+        provider: llmSettings.provider,
+        model: llmSettings.provider === 'local' ? llmSettings.localModel : reflectModel,
+        endpoint: llmSettings.provider === 'local' ? llmSettings.localEndpoint : undefined
+      };
+
+      const res = await axios.post(`${API_URL}/api/reflect`, { llmConfig });
       alert(`内省完了: ${res.data.reflection.permanentMemory}`);
 
       const followUpMessage = "内省が終わったようですね。今の気分はどうですか？";
       setMessages(prev => [...prev, { role: 'user', content: followUpMessage }]);
 
-      const resChat = await axios.post(`${API_URL}/api/chat`, { message: followUpMessage, model: chatModel });
+      const resChat = await axios.post(`${API_URL}/api/chat`, {
+        message: followUpMessage,
+        llmConfig
+      });
       setMessages(prev => [...prev, { role: 'assistant', content: resChat.data.response }]);
       if (resChat.data.status) setStatus(resChat.data.status);
       setRefreshTrigger(prev => prev + 1);
@@ -139,6 +163,8 @@ function App() {
         setChatModel={setChatModel}
         reflectModel={reflectModel}
         setReflectModel={setReflectModel}
+        llmSettings={llmSettings}
+        setLlmSettings={setLlmSettings}
       />
 
       {/* Main Chat Area */}
