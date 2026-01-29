@@ -13,7 +13,6 @@ interface Chat {
 
 type ChatHistoryProps = {
     isOpen: boolean;
-    onToggle: () => void;
     refreshTrigger: number;
     onSelectChat: (id: string) => void;
     currentChatId: string | null;

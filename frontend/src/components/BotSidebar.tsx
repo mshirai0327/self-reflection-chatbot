@@ -1,10 +1,9 @@
-import { Bot, Activity, Heart, Sparkles, Database, Menu, Settings, RefreshCw, CheckCircle } from 'lucide-react';
+import { Bot, Activity, Heart, Sparkles, Database, Settings, RefreshCw, CheckCircle } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
 type BotSidebarProps = {
     isOpen: boolean;
-    onToggle: () => void;
     status: {
         health: number;
         mood: number;
