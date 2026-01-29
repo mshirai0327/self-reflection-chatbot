@@ -1,0 +1,14 @@
+name: Label when moved to In Progress
+
+on:
+  project_card:
+    types: [moved]
+
+jobs:
+  label_issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add 'in-progress' label
+        # プロジェクトのステータスが 'In Progress' になった時のみ実行するロジックをここに書きます
+        # ※ 実際には 'actions/github-script' などを使って
+        # ステータス名を判定し、Issueにラベルを貼る処理を記述します。
