@@ -5,18 +5,19 @@ import { proModel, generateResponse } from "@/lib/gemini";
 import { addMemory } from "@/lib/chroma";
 
 /**
- * Handle POST requests to run a reflection workflow over recent chat logs, update persona status, and persist any resulting permanent memory.
+ * 直近のチャットログに基づいて内省処理を実行し、ペルソナの状態を更新しRDBに保存する POST リクエスト
  *
- * This endpoint:
- * - Fetches recent chat logs and the latest persona status,
- * - Sends a reflection prompt (Japanese) to the configured LLM,
- * - Parses the LLM's JSON response containing `thought`, `statusUpdate`, and `permanentMemory`,
- * - Creates a new personaStatus record with clamped health/mood/trust updates,
- * - Saves `permanentMemory` to the semantic memory store when present,
- * - Returns the parsed reflection payload.
+ * 動作の詳細:
+ * - 直近のチャットログと最新のペルソナ状態を取得します。
+ * - 設定された LLM に対して、リフレクション用のプロンプト（日本語）を送信します。
+ * - LLM からの JSON レスポンス（`thought`、`statusUpdate`、`permanentMemory` を含む）を解析します。
+ * - 体力（health）、気分（mood）、信頼度（trust）の更新値を範囲内に収めた（clamped）状態で、新しいペルソナ状態レコードを作成します。
+ * - `permanentMemory` が存在する場合、それをセマンティックメモリ（ベクトルストア）に保存します。
+ * - 解析済みのリフレクション結果（ペイロード）を返します。
  *
- * @param req - The incoming Next.js POST request for the reflection operation
- * @returns A JSON response containing the `reflection` object on success; if no logs are available, an informational message; on failure, an error message and an appropriate HTTP status code.
+ * @param req - リフレクション操作のための Next.js POST リクエスト
+ * @returns 成功時は `reflection` オブジェクトを含む JSON レスポンス。
+ * ログが存在しない場合は案内メッセージを、失敗時はエラーメッセージと適切な HTTP ステータスコードを返します。
  */
 export async function POST(req: NextRequest) {
     try {
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
         }
         console.log("[Reflect API] Using model:", model);
 
-        // 1. Fetch recent chat logs (e.g., last 24h)
+        // 1. 直近のチャットログを最大20件取得 (最新の会話を内省の材料にする)
         const recentLogs = await prisma.chatLog.findMany({
             take: 20,
             orderBy: { createdAt: 'desc' }
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
 
         const logSummary = recentLogs.map((l: any) => `${l.role}: ${l.content}`).join("\n");
 
-        // 2. Fetch current status
+        // 2. 現在のペルソナステータスを取得 (更新のベースとなる値)
         console.log("[Reflect API] Fetching current status...");
         const status = await prisma.personaStatus.findFirst({
             orderBy: { updatedAt: 'desc' }
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
         }
         console.log("[Reflect API] Current status:", status);
 
-        // 3. Inference with Pro Model
+        // 3. Gemini Pro（推論モデル）を使用して自己内省を実行
         console.log("[Reflect API] Sending data to Gemini Pro for reflection...");
         const reflectionPrompt = `
             以下の直近の会話内容を内省し、自分の性格やステータスにどのような影響を与えるべきか考えてください。
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
         });
         console.log("[Reflect API] Gemini Pro Raw Response:", resultText);
 
-        // Parse JSON from LLM response (handling potential markdown)
+        // 4. LLMの返答からJSONを抽出してパース (Markdownのコードブロックなどを考慮)
         const jsonMatch = resultText.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {
             console.error("[Reflect API] Failed to find JSON in response.");
@@ -90,19 +91,20 @@ export async function POST(req: NextRequest) {
         const reflection = JSON.parse(jsonMatch[0]);
         console.log("[Reflect API] Parsed reflection:", reflection);
 
-        // 4. Update Status in RDB
+        // 5. RDB (MySQL) のステータスを更新 (新レコードの作成)
+        // 数値を 0-100 の範囲にクランプして保存
         console.log("[Reflect API] Updating status in Prisma...");
         await prisma.personaStatus.create({
             data: {
                 health: Math.min(100, Math.max(0, status.health + (reflection.statusUpdate.health || 0))),
                 mood: Math.min(100, Math.max(0, status.mood + (reflection.statusUpdate.mood || 0))),
                 trust: Math.min(100, Math.max(0, status.trust + (reflection.statusUpdate.trust || 0))),
-                height: status.height, // Physical traits stay relatively same unless logic added
+                height: status.height, // 身長・体重などは現在は不偏とする
                 weight: status.weight
             }
         });
 
-        // 5. Save to ChromaDB (Semantic Memory)
+        // 6. ベクトルストア (ChromaDB) への「恒久的な記憶」の保存
         if (reflection.permanentMemory) {
             console.log("[Reflect API] Saving permanent memory to ChromaDB...");
             await addMemory(

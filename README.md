@@ -41,6 +41,7 @@ Reflecta（仮名）は、自己進化型のAIチャットボットを開発す�
 
 - [**プロジェクト詳細・設計思想 (README.md)**](./README.md)
 - [**処理フロー (シークエンス図)**](./docs/sequence.md)
+- [**人格再構築システム：内省処理**](./docs/reflection-process.md): AI が自らを振り返り、ステータスを更新する仕組みの解説。
 - [**Gemini API 実装仕様ガイド**](./docs/gemini-api-specs.md): モデルごとのパラメータ指定や JSON 構造の具体例について。
 - [**開発・運用スクリプトガイド**](./docs/scripts-guide.md): モデル一覧取得やデータの調査に役立つスクリプトの使い方。
 - [**開発 Tips**](./docs/development-tips.md): データベース調査や疎通確認のメモ。
