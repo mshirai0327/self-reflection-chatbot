@@ -39,9 +39,11 @@ const DEFAULT_GEMINI_EMBEDDING_MODEL = "text-embedding-004";
 const DEFAULT_OPENAI_EMBEDDING_MODEL = "text-embedding-3-small";
 
 /**
- * Creates a LangChain chat model instance based on the provided configuration.
- * @param config The LLM configuration.
- * @returns An instance of a LangChain BaseChatModel.
+ * 指定された設定に基づいて LangChain のチャットモデルインスタンスを生成します。
+ * プロバイダー（Gemini または OpenAI）に応じて適切なクラスを初期化します。
+ *
+ * @param config - LLMの設定情報（プロバイダー、モデル名、APIキーなど）。
+ * @returns 初期化された LangChain の BaseChatModel インスタンス。
  */
 export function createChatModel(config: LLMConfig): BaseChatModel {
     const provider = config.provider || "gemini";
@@ -67,9 +69,11 @@ export function createChatModel(config: LLMConfig): BaseChatModel {
 }
 
 /**
- * Creates a LangChain embeddings model instance based on the provided configuration.
- * @param config The LLM configuration.
- * @returns An instance of a LangChain BaseEmbeddings model.
+ * 指定された設定に基づいて LangChain の埋め込みモデルインスタンスを生成します。
+ * ベクトル検索や類似度計算に使用するテキストのベクトル化を行います。
+ *
+ * @param config - LLMの設定情報（プロバイダー、モデル名、APIキーなど）。
+ * @returns 初期化された LangChain の Embeddings インスタンス。
  */
 export function createEmbeddingModel(config: LLMConfig): Embeddings {
     const provider = config.provider || "gemini";
@@ -95,9 +99,15 @@ export function createEmbeddingModel(config: LLMConfig): Embeddings {
 // --- Core Functions ---
 
 /**
- * Builds the system instruction prompt from the persona context.
+ * ペルソナのコンテキスト情報（ステータスや記憶）から、システムプロンプトを構築します。
+ * AIに対して、自身の役割や現在の状態を認識させるための指示文を生成します。
+ * 
+ * @param context - ペルソナの現在のステータスと、関連する記憶のリスト。
+ * @returns 構築されたシステムプロンプト文字列。
  */
 function buildSystemInstruction(context: PersonaContext): string {
+    //todo これは適切なプロンプトなのか？
+    // LLMにシステムプロンプト（LLMのキャラ設定）として渡すものだが、本来は内省処理後に更新すべきだ
     return `あなたは自己進化型AI「Reflecta」です。
 現在のあなたのステータス:
 身長: ${context.status.height}cm
@@ -113,11 +123,14 @@ ${context.memories.join("\n")}
 }
 
 /**
- * Generates a text response from the LLM based on the provided configuration and context.
- * @param config The LLM configuration.
- * @param userPrompt The user's prompt.
- * @param context The persona context.
- * @returns The generated text response.
+ * 指定された設定とコンテキストに基づいて、LLMを使用してテキスト応答を生成します。
+ * システムプロンプトとユーザープロンプトを組み合わせてAIに送信します。
+ * Gemmaなど一部のモデルではシステムプロンプトが非対応のため、自動的にフォールバック処理を行います。
+ *
+ * @param config - LLMの設定情報。
+ * @param userPrompt - ユーザーからの入力メッセージ。
+ * @param context - ペルソナのコンテキスト情報。
+ * @returns 生成された応答テキスト。
  */
 export async function generateResponse(
     config: LLMConfig,
@@ -150,11 +163,15 @@ export async function generateResponse(
 }
 
 /**
- * Generates a structured JSON response from the LLM.
- * @param config The LLM configuration.
- * @param userPrompt The user's prompt.
- * @param zodSchema The Zod schema to validate the JSON output.
- * @returns The generated and validated JSON object.
+ * LLMを使用して、指定されたZodスキーマに基づいた構造化データ（JSON）を生成します。
+ * LangChainの `withStructuredOutput` 機能を利用して、型安全な出力を保証します。
+ * 内省（Reflection）処理など、プログラムで扱いやすい形式の回答が必要な場合に適しています。
+ *
+ * @template T - Zodスキーマの型
+ * @param config - LLMの設定情報（プロバイダー、モデル名、APIキーなど）。
+ * @param userPrompt - ユーザーからの入力プロンプト。何を生成すべきかの指示を含めます。
+ * @param zodSchema - 出力の検証と型推論に使用するZodスキーマ。
+ * @returns バリデーション済みの生成されたJSONオブジェクト（型T）。
  */
 export async function generateJson<T extends z.ZodType>(
     config: LLMConfig,
@@ -175,10 +192,12 @@ export async function generateJson<T extends z.ZodType>(
 
 
 /**
- * Generates embeddings for a list of texts.
- * @param config The LLM configuration.
- * @param texts An array of texts to embed.
- * @returns A promise that resolves to an array of embeddings.
+ * 複数のテキストリストに対して、それぞれの埋め込みベクトル（Embeddings）を生成します。
+ * ChromaDBなどのベクトルストアにデータを保存する際や、検索クエリのベクトル化に使用します。
+ *
+ * @param config - LLMの設定情報。
+ * @param texts - ベクトル化対象のテキスト配列。
+ * @returns 生成されたベクトルの配列（各ベクトルは数値の配列）。
  */
 export async function embedTexts(
     config: LLMConfig,
