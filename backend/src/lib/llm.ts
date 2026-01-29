@@ -124,14 +124,26 @@ export async function generateResponse(
     userPrompt: string,
     context: PersonaContext
 ): Promise<string> {
-    console.log(`[LLM] Generating response using provider: ${config.provider}, model: ${config.model || 'default'}`);
+    const modelName = config.model || 'default';
+    console.log(`[LLM] Generating response using provider: ${config.provider}, model: ${modelName}`);
+
     const chatModel = createChatModel(config);
     const systemInstruction = buildSystemInstruction(context);
 
-    const messages = [
-        new SystemMessage(systemInstruction),
-        new HumanMessage(userPrompt),
-    ];
+    const isSystemInstructionSupported = !modelName.toLowerCase().startsWith("gemma");
+
+    let messages: BaseMessage[];
+    if (isSystemInstructionSupported) {
+        messages = [
+            new SystemMessage(systemInstruction),
+            new HumanMessage(userPrompt),
+        ];
+    } else {
+        // System Instruction未サポートモデルへのフォールバック
+        messages = [
+            new HumanMessage(`System Instruction:\n${systemInstruction}\n\nUser Message: ${userPrompt}`),
+        ];
+    }
 
     const result = await chatModel.invoke(messages);
     return result.content as string;
