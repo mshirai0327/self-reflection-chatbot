@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { flashModel, generateResponse } from "@/lib/gemini";
 import { queryMemories, addMemory } from "@/lib/chroma";
+import { getDefaultPersona, getDefaultUser } from "@/lib/persona";
 
 /**
  * 受信したチャットリクエストを処理します。
@@ -18,16 +19,24 @@ export async function POST(req: NextRequest) {
         console.log("[Chat API] Received message:", message);
         console.log("[Chat API] Using model:", model || flashModel);
 
-        // 1. Get current status (or create default)
-        console.log("[Chat API] Fetching persona status...");// チャット時にデータ取得。フロントでも描画する
+        // デフォルトのペルソナとユーザーを取得（独立したエンティティ）
+        const persona = await getDefaultPersona();
+        const user = await getDefaultUser();
+
+        // 1. 最新のステータスを取得 (なければ作成)
+        console.log("[Chat API] Fetching persona status...");
         let status = await prisma.personaStatus.findFirst({
+            where: { personaId: persona.id },
             orderBy: { updatedAt: 'desc' }
         });
 
         if (!status) {
             console.log("[Chat API] No status found, creating default.");
             status = await prisma.personaStatus.create({
-                data: { height: 160, weight: 50, health: 100, mood: 50, trust: 50 }
+                data: {
+                    personaId: persona.id,
+                    height: 160, weight: 50, health: 100, mood: 50, trust: 50
+                }
             });
         }
         console.log("[Chat API] Current status:", status);
@@ -45,18 +54,23 @@ export async function POST(req: NextRequest) {
         });
         console.log("[Chat API] AI Response:", aiResponse);
 
-        // 4. Persistence
+        // 4. Prismaへの会話ログ保存 (User/Persona 両方のIDを独立して付与)
         console.log("[Chat API] Saving chat logs to Prisma...");
+        const chatData = [
+            { role: "user", content: message, userId: user.id, personaId: persona.id },
+            { role: "assistant", content: aiResponse, userId: user.id, personaId: persona.id }
+        ];
+
         await prisma.chatLog.createMany({
-            data: [
-                { role: "user", content: message },
-                { role: "assistant", content: aiResponse }
-            ]
+            data: chatData
         });
 
         // 5. Add to vector memory (Fragile memory)
         console.log("[Chat API] Adding message to ChromaDB...");
-        await addMemory(Date.now().toString(), message, { role: "user" });
+        await addMemory(Date.now().toString(), message, {
+            role: "user",
+            personaId: persona.id // ベクトルストア側にもメタデータを付与可能
+        });
 
         console.log("[Chat API] Success!");
         return NextResponse.json({

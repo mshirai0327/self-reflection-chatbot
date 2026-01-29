@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { proModel, generateResponse } from "@/lib/gemini";
 import { addMemory } from "@/lib/chroma";
+import { getDefaultPersona } from "@/lib/persona";
 
 /**
  * 直近のチャットログに基づいて内省処理を実行し、ペルソナの状態を更新しRDBに保存する POST リクエスト
@@ -32,8 +33,12 @@ export async function POST(req: NextRequest) {
         }
         console.log("[Reflect API] Using model:", model);
 
+        // デフォルトのペルソナを取得
+        const persona = await getDefaultPersona();
+
         // 1. 直近のチャットログを最大20件取得 (最新の会話を内省の材料にする)
         const recentLogs = await prisma.chatLog.findMany({
+            where: { personaId: persona.id },
             take: 20,
             orderBy: { createdAt: 'desc' }
         });
@@ -49,6 +54,7 @@ export async function POST(req: NextRequest) {
         // 2. 現在のペルソナステータスを取得 (更新のベースとなる値)
         console.log("[Reflect API] Fetching current status...");
         const status = await prisma.personaStatus.findFirst({
+            where: { personaId: persona.id },
             orderBy: { updatedAt: 'desc' }
         });
 
@@ -96,6 +102,7 @@ export async function POST(req: NextRequest) {
         console.log("[Reflect API] Updating status in Prisma...");
         await prisma.personaStatus.create({
             data: {
+                personaId: persona.id,
                 health: Math.min(100, Math.max(0, status.health + (reflection.statusUpdate.health || 0))),
                 mood: Math.min(100, Math.max(0, status.mood + (reflection.statusUpdate.mood || 0))),
                 trust: Math.min(100, Math.max(0, status.trust + (reflection.statusUpdate.trust || 0))),
@@ -104,13 +111,28 @@ export async function POST(req: NextRequest) {
             }
         });
 
-        // 6. ベクトルストア (ChromaDB) への「恒久的な記憶」の保存
+        // 6. 内省イベント（思考過程含む）をデータベースに保存
+        console.log("[Reflect API] Saving reflection event to DB...");
+        await prisma.reflectionEvent.create({
+            data: {
+                personaId: persona.id,
+                thought: reflection.thought,
+                statusUpdate: reflection.statusUpdate,
+                permanentMemory: reflection.permanentMemory
+            }
+        });
+
+        // 7. ベクトルストア (ChromaDB) への「恒久的な記憶」の保存
         if (reflection.permanentMemory) {
             console.log("[Reflect API] Saving permanent memory to ChromaDB...");
             await addMemory(
                 `ref_${Date.now()}`,
                 reflection.permanentMemory,
-                { type: "reflection", thought: reflection.thought }
+                {
+                    type: "reflection",
+                    thought: reflection.thought,
+                    personaId: persona.id
+                }
             );
         }
 
