@@ -46,6 +46,7 @@ function App() {
     availableModels: [] as string[]
   });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -54,29 +55,53 @@ function App() {
     console.log('Dark mode changed:', isDarkMode);
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
-      console.log('Added dark class to html. Current classes:', document.documentElement.className);
     } else {
       document.documentElement.classList.remove('dark');
-      console.log('Removed dark class from html. Current classes:', document.documentElement.className);
     }
   }, [isDarkMode]);
 
+  // 初回読み込み時に最新のチャットを自動選択
   useEffect(() => {
-    const fetchHistory = async () => {
+    const fetchInitialChat = async () => {
       try {
-        const res = await axios.get(`${API_URL}/api/chat/logs`);
-        // backendからは降順(新→旧)で来るので、表示用に昇順(旧→新)にソート
-        const history = res.data.reverse().map((log: any) => ({
+        console.log('[App] Fetching initial chats from:', `${API_URL}/api/chats`);
+        const res = await axios.get(`${API_URL}/api/chats`);
+        console.log('[App] Chats received:', res.data);
+        if (res.data && res.data.length > 0) {
+          const latestChatId = res.data[0].id;
+          console.log('[App] Automatically selecting latest chat:', latestChatId);
+          setCurrentChatId(latestChatId);
+        } else {
+          console.log('[App] No existing chats found.');
+        }
+      } catch (error) {
+        console.error('[App] Failed to fetch initial chats:', error);
+      }
+    };
+    fetchInitialChat();
+  }, []);
+
+  useEffect(() => {
+    const fetchChatSession = async () => {
+      if (!currentChatId) {
+        console.log('[App] No currentChatId, clearing messages.');
+        setMessages([]);
+        return;
+      }
+      try {
+        console.log('[App] Fetching logs for chat:', currentChatId);
+        const res = await axios.get(`${API_URL}/api/chats/${currentChatId}`);
+        const history = res.data.chatLogs.map((log: any) => ({
           role: log.role as 'user' | 'assistant',
           content: log.content
         }));
         setMessages(history);
       } catch (error) {
-        console.error('Failed to fetch chat history:', error);
+        console.error('[App] Failed to fetch chat logs:', error);
       }
     };
-    fetchHistory();
-  }, []);
+    fetchChatSession();
+  }, [currentChatId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -101,8 +126,14 @@ function App() {
 
       const res = await axios.post(`${API_URL}/api/chat`, {
         message: input,
-        llmConfig
+        llmConfig,
+        chatId: currentChatId
       });
+
+      // 新規チャット作成時の処理
+      if (!currentChatId && res.data.chatId) {
+        setCurrentChatId(res.data.chatId);
+      }
       const aiMsg: Message = { role: 'assistant', content: res.data.response };
       setMessages(prev => [...prev, aiMsg]);
       if (res.data.status) setStatus(res.data.status);
@@ -131,7 +162,8 @@ function App() {
 
       const resChat = await axios.post(`${API_URL}/api/chat`, {
         message: followUpMessage,
-        llmConfig
+        llmConfig,
+        chatId: currentChatId
       });
       setMessages(prev => [...prev, { role: 'assistant', content: resChat.data.response }]);
       if (resChat.data.status) setStatus(resChat.data.status);
@@ -279,7 +311,14 @@ function App() {
       </main>
 
       {/* Chat History Sidebar (Right) */}
-      <ChatHistory isOpen={isRightOpen} onToggle={() => setIsRightOpen(false)} refreshTrigger={refreshTrigger} />
+      <ChatHistory
+        isOpen={isRightOpen}
+        onToggle={() => setIsRightOpen(false)}
+        refreshTrigger={refreshTrigger}
+        onSelectChat={(id: string) => setCurrentChatId(id)}
+        currentChatId={currentChatId}
+        onNewChat={() => setCurrentChatId(null)}
+      />
     </div>
   );
 }
