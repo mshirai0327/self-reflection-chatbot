@@ -39,6 +39,7 @@ function App() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [chatModel, setChatModel] = useState<string>('gemini-2.5-flash');
   const [reflectModel, setReflectModel] = useState<string>('gemini-2.5-pro');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -53,6 +54,23 @@ function App() {
       console.log('Removed dark class from html. Current classes:', document.documentElement.className);
     }
   }, [isDarkMode]);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/api/chat/logs`);
+        // backendからは降順(新→旧)で来るので、表示用に昇順(旧→新)にソート
+        const history = res.data.reverse().map((log: any) => ({
+          role: log.role as 'user' | 'assistant',
+          content: log.content
+        }));
+        setMessages(history);
+      } catch (error) {
+        console.error('Failed to fetch chat history:', error);
+      }
+    };
+    fetchHistory();
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -73,6 +91,7 @@ function App() {
       const aiMsg: Message = { role: 'assistant', content: res.data.response };
       setMessages(prev => [...prev, aiMsg]);
       if (res.data.status) setStatus(res.data.status);
+      setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       handleApiError(error, 'メッセージの送信に失敗しました');
     } finally {
@@ -92,6 +111,7 @@ function App() {
       const resChat = await axios.post(`${API_URL}/api/chat`, { message: followUpMessage, model: chatModel });
       setMessages(prev => [...prev, { role: 'assistant', content: resChat.data.response }]);
       if (resChat.data.status) setStatus(resChat.data.status);
+      setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       handleApiError(error, '内省処理に失敗しました');
     } finally {
@@ -225,7 +245,7 @@ function App() {
       </main>
 
       {/* Chat History Sidebar (Right) */}
-      <ChatHistory isOpen={isRightOpen} onToggle={() => setIsRightOpen(false)} />
+      <ChatHistory isOpen={isRightOpen} onToggle={() => setIsRightOpen(false)} refreshTrigger={refreshTrigger} />
     </div>
   );
 }
