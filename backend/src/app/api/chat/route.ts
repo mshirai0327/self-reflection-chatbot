@@ -78,14 +78,32 @@ export async function POST(req: NextRequest) {
         }
 
         // ログ。トランザクションで一括保存するか、個別に作成
-        const chatLogs = await Promise.all([
-            prisma.chatLog.create({
-                data: { role: "user", content: message, userId: user.id, personaId: persona.id, chatId: targetChatId }
-            }),
-            prisma.chatLog.create({
-                data: { role: "assistant", content: aiResponse, userId: user.id, personaId: persona.id, chatId: targetChatId }
-            })
-        ]);
+        // ログ保存。順序を保証するために直列実行し、createdAtの重複を避ける
+        await prisma.chatLog.create({
+            data: {
+                role: "user",
+                content: message,
+                userId: user.id,
+                personaId: persona.id,
+                chatId: targetChatId,
+                // AIの応答より確実に前にするために現在時刻を使用
+                createdAt: new Date()
+            }
+        });
+
+        // わずかに時間をずらす（DBの精度によっては同時刻扱いになるのを防ぐ）
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        await prisma.chatLog.create({
+            data: {
+                role: "assistant",
+                content: aiResponse,
+                userId: user.id,
+                personaId: persona.id,
+                chatId: targetChatId,
+                createdAt: new Date()
+            }
+        });
 
         // 5. Add to vector memory (Fragile memory)
         console.log("[Chat API] Adding message to ChromaDB...");
