@@ -2,24 +2,18 @@
 
 このドキュメントでは、システムの動作確認やデータの調査に役立つコマンドや手順をまとめています。
 
-## ChromaDB (ベクトルデータベース) の調査
+---
 
-ChromaDBに保存されている現在の記憶データを確認する方法です。
+## スクリプトによる調査
 
-### 全データの確認
-保存されているドキュメント数、内容、メタデータを一覧表示します。
+詳細なスクリプト一覧と使用方法は [scripts-guide.md](./scripts-guide.md) を参照してください。
 
-```bash
-cd backend
-npx tsx src/scripts/inspect-chroma.ts
-```
+### よく使うコマンド
 
-### ヘルスチェック
-ChromaDBのサーバーが生きているか確認します。
+- **記憶データの確認**: `npx tsx src/scripts/inspect-chroma.ts`
+- **モデル一覧の取得**: `npx tsx src/scripts/list-models.ts`
+- **レスポンス生成テスト**: `npx tsx src/scripts/test-response.ts`
 
-```bash
-curl http://localhost:8000/api/v2/heartbeat
-```
 
 ---
 
@@ -59,14 +53,14 @@ curl -X POST http://localhost:3000/api/chat \
 
 Google API Keyが必要です。
 
-### 全ての情報を取得
+スクリプトを使用した詳細な確認方法は [scripts-guide.md](./scripts-guide.md#1-gemini-api-関連) を参照してください。
+
+### cURLによる直接確認
 
 ```bash
-curl 'https://generativelanguage.googleapis.com/v1beta/models?key=***'
-```
+# 全ての情報を取得
+curl 'https://generativelanguage.googleapis.com/v1beta/models?key=YOUR_API_KEY'
 
-### nameだけ取得
-
-```bash
-curl 'https://generativelanguage.googleapis.com/v1beta/models?key=***' | grep '"name":' | sed 's/.*"name": "\(.*\)".*/\1/'
+# nameだけ取得して一覧表示
+curl 'https://generativelanguage.googleapis.com/v1beta/models?key=YOUR_API_KEY' | grep '"name":'
 ```
