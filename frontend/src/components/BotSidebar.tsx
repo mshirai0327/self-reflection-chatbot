@@ -17,11 +17,17 @@ type BotSidebarProps = {
 };
 
 const MODELS = [
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
     { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-    { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash Exp' },
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+    { value: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash-Lite' },
+    { value: 'gemini-pro-latest', label: 'Gemini Pro Latest' },
+    { value: 'gemini-flash-latest', label: 'Gemini Flash Latest' },
+    { value: 'gemini-flash-lite-latest', label: 'Gemini Flash-Lite Latest' },
+    { value: 'gemini-exp-1206', label: 'Gemini Experimental 1206' },
+    { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro Preview' },
+    { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash Preview' },
 ];
 
 export function BotSidebar({ isOpen, onToggle, status, chatModel, setChatModel, reflectModel, setReflectModel }: BotSidebarProps) {

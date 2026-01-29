@@ -86,5 +86,5 @@ This project is licensed under the MIT License.
 
 ## 🤝 Contributing
 
-Reflectaは発展途上です。このプロジェクトをより豊かにするためのアイデアをissue, PRを歓迎します。
+Reflectaは開発中のプロトタイプです。このプロジェクトをより豊かにするためのアイデアをissue, PRを歓迎します。
 
