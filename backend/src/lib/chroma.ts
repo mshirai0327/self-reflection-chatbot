@@ -2,10 +2,37 @@ import { ChromaClient, EmbeddingFunction } from "chromadb";
 import { embedText } from "./gemini";
 
 const chromaPath = process.env.CHROMA_URL || "http://localhost:8000";
-console.log("[ChromaDB] Initializing client with path:", chromaPath);
-const client = new ChromaClient({
-    path: chromaPath
-});
+const collectionName = process.env.CHROMA_COLLECTION_NAME || "persona_memories";
+
+// ChromaDB SDKの特定の警告（デシリアライズ時の埋め込み関数不足）を抑制するためのハック
+// 実態として embeddingFunction は常に渡しているため動作に問題はないが、
+// SDKがコレクション情報の取得時に必ずこの警告を出してしまうため、それをフィルタリングする。
+const originalWarn = console.warn;
+console.warn = (...args) => {
+    if (args[0] && typeof args[0] === 'string' && args[0].includes('No embedding function configuration found')) {
+        return;
+    }
+    originalWarn(...args);
+};
+
+const getChromaClient = () => {
+    const url = process.env.CHROMA_URL || "http://localhost:8000";
+    const urlObj = new URL(url);
+
+    // スクリプトがホストマシンから実行される場合の便宜を図る（chromadb -> localhost）
+    const isDocker = process.env.IS_DOCKER === "true";
+    const host = (urlObj.hostname === "chromadb" && !isDocker) ? "localhost" : urlObj.hostname;
+    const port = parseInt(urlObj.port || (urlObj.protocol === "https:" ? "443" : "80"));
+
+    console.log(`[ChromaDB] Initializing client with host: ${host}, port: ${port}`);
+    return new ChromaClient({
+        host: host,
+        port: port,
+        ssl: urlObj.protocol === "https:"
+    });
+};
+
+const client = getChromaClient();
 
 
 class GeminiEmbeddingFunction implements EmbeddingFunction {
@@ -29,7 +56,7 @@ const embeddingFunction = new GeminiEmbeddingFunction();
 export async function getCollection() {
     try {
         return await client.getOrCreateCollection({
-            name: "persona_memories",
+            name: collectionName,
             embeddingFunction: embeddingFunction,
         });
     } catch (error) {

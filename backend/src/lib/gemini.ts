@@ -101,6 +101,8 @@ ${context.memories.join("\n")}
     }, "generateResponse");
 }
 
+export const embeddingModel = process.env.GOOGLE_EMBEDDING_MODEL || "gemini-embedding-001";
+
 export async function embedText(text: string) {
     return callWithRetry(async () => {
         try {
@@ -108,7 +110,7 @@ export async function embedText(text: string) {
                 throw new Error("GOOGLE_GENERATIVE_AI_API_KEY is missing from environment variables");
             }
             const genAI = getGenAI();
-            const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" }, { apiVersion: "v1beta" });
+            const model = genAI.getGenerativeModel({ model: embeddingModel }, { apiVersion: "v1beta" });
             const result = await model.embedContent(text);
             if (!result || !result.embedding) {
                 throw new Error("Failed to get embedding from Gemini API");
