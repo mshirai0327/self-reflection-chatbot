@@ -30,20 +30,13 @@ export async function getDefaultPersona() {
 }
 
 export async function getDefaultUser() {
-    // 1. デフォルトユーザーを取得、なければ作成
-    let user = await prisma.user.findUnique({
-        where: { email: DEFAULT_USER_EMAIL }
+    // レースコンディションを避けるため upsert を使用
+    return await prisma.user.upsert({
+        where: { email: DEFAULT_USER_EMAIL },
+        update: {},
+        create: {
+            name: "Default User",
+            email: DEFAULT_USER_EMAIL,
+        }
     });
-
-    if (!user) {
-        console.log("[PersonaLib] Creating default user...");
-        user = await prisma.user.create({
-            data: {
-                name: "Default User",
-                email: DEFAULT_USER_EMAIL,
-            }
-        });
-    }
-
-    return user;
 }
