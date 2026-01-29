@@ -50,10 +50,10 @@ model PersonaStatus {
 model Chat {
   id        String    @id @default(uuid())
   title     String    @default("New Chat")
-  userId    String?
-  user      User?     @relation(fields: [userId], references: [id])
-  personaId String?
-  persona   Persona?  @relation(fields: [personaId], references: [id])
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  personaId String
+  persona   Persona   @relation(fields: [personaId], references: [id])
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   chatLogs  ChatLog[]
@@ -64,12 +64,12 @@ model Chat {
 /// 会話履歴。特定のユーザーと特定のペルソナの対話を記録。
 model ChatLog {
   id        String   @id @default(uuid())
-  chatId    String?
-  chat      Chat?    @relation(fields: [chatId], references: [id])
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
-  personaId String?
-  persona   Persona? @relation(fields: [personaId], references: [id])
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  personaId String
+  persona   Persona  @relation(fields: [personaId], references: [id])
   role      String // "user" or "assistant"
   content   String   @db.Text
   createdAt DateTime @default(now())
