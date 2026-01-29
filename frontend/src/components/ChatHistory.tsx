@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { MessageCircle, Clock, ChevronRight, PlusCircle } from 'lucide-react';
+import { MessageCircle, Clock, PlusCircle } from 'lucide-react';
 
 interface Chat {
     id: string;
@@ -24,7 +24,6 @@ const API_URL = import.meta.env.VITE_API_URL || '';
 
 export function ChatHistory({
     isOpen,
-    onToggle,
     refreshTrigger,
     onSelectChat,
     currentChatId,
@@ -75,13 +74,6 @@ export function ChatHistory({
                             title="新規チャット"
                         >
                             <PlusCircle className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={onToggle}
-                            className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors"
-                            title="サイドバーを閉じる"
-                        >
-                            <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                         </button>
                     </div>
                 </div>
