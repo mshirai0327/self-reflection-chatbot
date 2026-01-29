@@ -1,10 +1,9 @@
-import { Bot, Activity, Heart, Sparkles, Database, Menu, Settings, RefreshCw, CheckCircle } from 'lucide-react';
+import { Bot, Activity, Heart, Sparkles, Database, Settings, RefreshCw, CheckCircle } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
 type BotSidebarProps = {
     isOpen: boolean;
-    onToggle: () => void;
     status: {
         health: number;
         mood: number;
@@ -46,7 +45,7 @@ const MODELS = [
     { value: 'gemma-3-1b-it', label: 'Gemma 3 1B' },
 ];
 
-export function BotSidebar({ isOpen, onToggle, status, chatModel, setChatModel, reflectModel, setReflectModel, llmSettings, setLlmSettings }: BotSidebarProps) {
+export function BotSidebar({ isOpen, status, chatModel, setChatModel, reflectModel, setReflectModel, llmSettings, setLlmSettings }: BotSidebarProps) {
     const stats = [
         { icon: Heart, label: 'Health', value: `${status.health}%`, color: 'text-rose-500' },
         { icon: Sparkles, label: 'Emotion', value: `${status.mood}%`, color: 'text-amber-500' },
@@ -98,14 +97,6 @@ export function BotSidebar({ isOpen, onToggle, status, chatModel, setChatModel, 
         <div className={`bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 flex-shrink-0 ${isOpen ? 'w-64' : 'w-0'
             } overflow-hidden shadow-lg`}>
             <div className="w-64 p-6 flex flex-col h-full relative">
-                {/* 折り畳みボタン */}
-                <button
-                    onClick={onToggle}
-                    className="absolute top-4 left-4 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors z-10"
-                    title="サイドバーを閉じる"
-                >
-                    <Menu className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                </button>
 
                 {/* ボットアバター */}
                 <div className="flex flex-col items-center mb-6 mt-8">

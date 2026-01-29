@@ -54,28 +54,70 @@ export async function POST(req: NextRequest) {
         });
         console.log("[Chat API] AI Response received.");
 
-        // 4. Prismaへの会話ログ保存 (User/Persona 両方のIDを独立して付与)
+        // 4. Prismaへの会話ログ保存
         console.log("[Chat API] Saving chat logs to Prisma...");
-        const chatData = [
-            { role: "user", content: message, userId: user.id, personaId: persona.id },
-            { role: "assistant", content: aiResponse, userId: user.id, personaId: persona.id }
-        ];
+        let targetChatId = body.chatId;
 
-        await prisma.chatLog.createMany({
-            data: chatData
+        // chatId が指定されていない場合は新規作成
+        if (!targetChatId) {
+            const firstWords = message.substring(0, 15);
+            const newChat = await prisma.chat.create({
+                data: {
+                    title: firstWords + (message.length > 15 ? "..." : ""),
+                    userId: user.id,
+                    personaId: persona.id,
+                }
+            });
+            targetChatId = newChat.id;
+        } else {
+            // 既存チャットの更新日時を更新
+            await prisma.chat.update({
+                where: { id: targetChatId },
+                data: { updatedAt: new Date() }
+            });
+        }
+
+        // ログ。トランザクションで一括保存するか、個別に作成
+        // ログ保存。順序を保証するために直列実行し、createdAtの重複を避ける
+        await prisma.chatLog.create({
+            data: {
+                role: "user",
+                content: message,
+                userId: user.id,
+                personaId: persona.id,
+                chatId: targetChatId,
+                // AIの応答より確実に前にするために現在時刻を使用
+                createdAt: new Date()
+            }
+        });
+
+        // わずかに時間をずらす（DBの精度によっては同時刻扱いになるのを防ぐ）
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        await prisma.chatLog.create({
+            data: {
+                role: "assistant",
+                content: aiResponse,
+                userId: user.id,
+                personaId: persona.id,
+                chatId: targetChatId,
+                createdAt: new Date()
+            }
         });
 
         // 5. Add to vector memory (Fragile memory)
         console.log("[Chat API] Adding message to ChromaDB...");
         await addMemory(Date.now().toString(), message, {
             role: "user",
-            personaId: persona.id // ベクトルストア側にもメタデータを付与可能
+            personaId: persona.id,
+            chatId: targetChatId // メタデータにchatIdを保持
         });
 
         console.log("[Chat API] Success!");
         return NextResponse.json({
             response: aiResponse,
-            status: status
+            status: status,
+            chatId: targetChatId
         });
     } catch (error: any) {
         console.error("[Chat API Error] Details:", {

@@ -13,6 +13,7 @@ model User {
   email     String?   @unique
   chatLogs  ChatLog[]
   createdAt DateTime  @default(now())
+  chats     Chat[]
 
   @@map("users")
 }
@@ -25,6 +26,7 @@ model Persona {
   chatLogs         ChatLog[]
   reflectionEvents ReflectionEvent[]
   createdAt        DateTime          @default(now())
+  chats            Chat[]
 
   @@map("personas")
 }
@@ -44,13 +46,30 @@ model PersonaStatus {
   @@map("persona_statuses")
 }
 
+// チャット。ユーザーとペルソナの対話。チャット履歴の親。
+model Chat {
+  id        String    @id @default(uuid())
+  title     String    @default("New Chat")
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  personaId String
+  persona   Persona   @relation(fields: [personaId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  chatLogs  ChatLog[]
+
+  @@map("chats")
+}
+
 /// 会話履歴。特定のユーザーと特定のペルソナの対話を記録。
 model ChatLog {
   id        String   @id @default(uuid())
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
-  personaId String?
-  persona   Persona? @relation(fields: [personaId], references: [id])
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  personaId String
+  persona   Persona  @relation(fields: [personaId], references: [id])
   role      String // "user" or "assistant"
   content   String   @db.Text
   createdAt DateTime @default(now())
