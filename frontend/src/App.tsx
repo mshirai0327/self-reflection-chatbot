@@ -1,7 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Send, Activity, Heart, User, Sparkles, Database } from 'lucide-react';
+import { Send, Menu, ChevronLeft, Database, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Toaster } from 'react-hot-toast';
+import { BotSidebar } from './components/BotSidebar';
+import { ChatHistory } from './components/ChatHistory';
+import { handleApiError } from './utils/errorHandler';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -18,13 +22,6 @@ interface PersonaStatus {
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
-/**
- * Root React component for the Reflecta chat user interface.
- *
- * Manages chat messages, user input, loading state, and persona status; communicates with the backend chat and reflection endpoints to send messages, receive assistant responses, and refresh persona status; and renders the sidebar status panel, scrollable chat area, and input controls with animated message transitions.
- *
- * @returns The JSX element for the main application UI
- */
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -37,7 +34,49 @@ function App() {
     trust: 50
   });
 
+  const [isLeftOpen, setIsLeftOpen] = useState(true);
+  const [isRightOpen, setIsRightOpen] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [chatModel, setChatModel] = useState<string>('gemini-2.5-flash');
+  const [reflectModel, setReflectModel] = useState<string>('gemini-2.5-pro');
+  const [llmSettings, setLlmSettings] = useState({
+    provider: 'gemini' as 'gemini' | 'local',
+    localEndpoint: 'http://localhost:11434/v1',
+    localModel: 'llama3',
+    availableModels: [] as string[]
+  });
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // ダークモードのクラス切り替え
+  useEffect(() => {
+    console.log('Dark mode changed:', isDarkMode);
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      console.log('Added dark class to html. Current classes:', document.documentElement.className);
+    } else {
+      document.documentElement.classList.remove('dark');
+      console.log('Removed dark class from html. Current classes:', document.documentElement.className);
+    }
+  }, [isDarkMode]);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/api/chat/logs`);
+        // backendからは降順(新→旧)で来るので、表示用に昇順(旧→新)にソート
+        const history = res.data.reverse().map((log: any) => ({
+          role: log.role as 'user' | 'assistant',
+          content: log.content
+        }));
+        setMessages(history);
+      } catch (error) {
+        console.error('Failed to fetch chat history:', error);
+      }
+    };
+    fetchHistory();
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -54,13 +93,22 @@ function App() {
     setIsLoading(true);
 
     try {
-      const res = await axios.post(`${API_URL}/api/chat`, { message: input });
+      const llmConfig = {
+        provider: llmSettings.provider,
+        model: llmSettings.provider === 'local' ? llmSettings.localModel : chatModel,
+        endpoint: llmSettings.provider === 'local' ? llmSettings.localEndpoint : undefined
+      };
+
+      const res = await axios.post(`${API_URL}/api/chat`, {
+        message: input,
+        llmConfig
+      });
       const aiMsg: Message = { role: 'assistant', content: res.data.response };
       setMessages(prev => [...prev, aiMsg]);
-      setStatus(res.data.status);
+      if (res.data.status) setStatus(res.data.status);
+      setRefreshTrigger(prev => prev + 1);
     } catch (error) {
-      console.error('Error sending message:', error);
-      setMessages(prev => [...prev, { role: 'assistant', content: 'エラーが発生しました。' }]);
+      handleApiError(error, 'メッセージの送信に失敗しました');
     } finally {
       setIsLoading(false);
     }
@@ -69,78 +117,107 @@ function App() {
   const handleReflect = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/api/reflect`);
+      const llmConfig = {
+        provider: llmSettings.provider,
+        model: llmSettings.provider === 'local' ? llmSettings.localModel : reflectModel,
+        endpoint: llmSettings.provider === 'local' ? llmSettings.localEndpoint : undefined
+      };
+
+      const res = await axios.post(`${API_URL}/api/reflect`, { llmConfig });
       alert(`内省完了: ${res.data.reflection.permanentMemory}`);
-      // Refresh status
-      const resChat = await axios.post(`${API_URL}/api/chat`, { message: "内省が終わったようですね。今の気分はどうですか？" });
+
+      const followUpMessage = "内省が終わったようですね。今の気分はどうですか？";
+      setMessages(prev => [...prev, { role: 'user', content: followUpMessage }]);
+
+      const resChat = await axios.post(`${API_URL}/api/chat`, {
+        message: followUpMessage,
+        llmConfig
+      });
       setMessages(prev => [...prev, { role: 'assistant', content: resChat.data.response }]);
-      setStatus(resChat.data.status);
+      if (resChat.data.status) setStatus(resChat.data.status);
+      setRefreshTrigger(prev => prev + 1);
     } catch (error) {
-      console.error('Reflection error:', error);
+      handleApiError(error, '内省処理に失敗しました');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden">
-      {/* Sidebar: Persona Status */}
-      <aside className="w-80 glass p-6 flex flex-col gap-8 border-r border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-sky-500/20 rounded-lg">
-            <User className="text-sky-400" size={24} />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight glow-text">Reflecta</h1>
-        </div>
-
-        <section className="space-y-6">
-          <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-            <Activity size={16} /> Persona Status
-          </h2>
-
-          <div className="space-y-4">
-            <StatusItem label="Health" value={status.health} icon={<Heart size={16} className="text-rose-500" />} />
-            <StatusItem label="Emotion" value={status.mood} icon={<Sparkles size={16} className="text-amber-500" />} />
-            <StatusItem label="Trust" value={status.trust} icon={<Database size={16} className="text-emerald-500" />} />
-          </div>
-
-          <div className="p-4 bg-white/5 rounded-xl space-y-2 border border-white/5">
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-400">Height</span>
-              <span className="font-mono text-sky-400">{status.height.toFixed(1)} cm</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-400">Weight</span>
-              <span className="font-mono text-sky-400">{status.weight.toFixed(1)} kg</span>
-            </div>
-          </div>
-
-          <button
-            onClick={handleReflect}
-            disabled={isLoading}
-            className="w-full py-4 glass hover:bg-white/10 rounded-xl flex items-center justify-center gap-2 border border-white/10 transition-all active:scale-95 disabled:opacity-50"
-          >
-            <Sparkles size={18} className="text-sky-400" />
-            <span className="text-sm font-bold uppercase tracking-wider">Self Reflect</span>
-          </button>
-        </section>
-      </aside>
+    <div className="flex h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300">
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3000,
+          error: {
+            duration: 4000,
+          },
+        }}
+      />
+      {/* Bot Sidebar (Left) */}
+      <BotSidebar
+        isOpen={isLeftOpen}
+        onToggle={() => setIsLeftOpen(false)}
+        status={status}
+        chatModel={chatModel}
+        setChatModel={setChatModel}
+        reflectModel={reflectModel}
+        setReflectModel={setReflectModel}
+        llmSettings={llmSettings}
+        setLlmSettings={setLlmSettings}
+      />
 
       {/* Main Chat Area */}
-      <main className="flex-1 flex flex-col relative">
+      <main className="flex-1 flex flex-col relative bg-slate-50 dark:bg-slate-950">
+        {/* Top Navigation / Sticky Header */}
+        <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md z-10 transition-colors duration-300">
+          <div className="flex items-center gap-2">
+            {!isLeftOpen && (
+              <button
+                onClick={() => setIsLeftOpen(true)}
+                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                title="サイドバーを開く"
+              >
+                <Menu className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+              </button>
+            )}
+            <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 ml-2">Reflecta Chat</h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              title={isDarkMode ? "ライトモードに切り替え" : "ダークモードに切り替え"}
+            >
+              {isDarkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
+            </button>
+            {!isRightOpen && (
+              <button
+                onClick={() => setIsRightOpen(true)}
+                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                title="チャットログを開く"
+              >
+                <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* Messages */}
         <div
           ref={scrollRef}
-          className="flex-1 overflow-y-auto p-8 space-y-6 scroll-smooth"
+          className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 scroll-smooth"
         >
           <AnimatePresence initial={false}>
             {messages.length === 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="h-full flex flex-col items-center justify-center text-slate-500 space-y-4"
+                className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 space-y-4"
               >
-                <Database size={48} className="opacity-20" />
-                <p className="text-lg">対話を開始して、Reflectaの意識を呼び覚ましてください</p>
+                <Database size={48} className="opacity-10" />
+                <p className="text-lg text-slate-500">対話を開始して、意識を呼び覚ましてください</p>
               </motion.div>
             )}
             {messages.map((m, i) => (
@@ -150,68 +227,59 @@ function App() {
                 animate={{ opacity: 1, x: 0 }}
                 className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className={`max-w-[70%] p-4 rounded-2xl ${m.role === 'user'
-                  ? 'bg-sky-600 text-white shadow-lg'
-                  : 'glass shadow-xl'
+                <div className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl shadow-sm transition-colors duration-300 ${m.role === 'user'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 dark:text-slate-100'
                   }`}>
-                  <p className="leading-relaxed">{m.content}</p>
+                  <p className="leading-relaxed whitespace-pre-wrap">{m.content}</p>
                 </div>
               </motion.div>
             ))}
           </AnimatePresence>
           {isLoading && (
             <div className="flex justify-start">
-              <div className="glass p-4 rounded-2xl flex gap-2">
-                <span className="w-2 h-2 bg-sky-500 rounded-full animate-bounce" />
-                <span className="w-2 h-2 bg-sky-500 rounded-full animate-bounce [animation-delay:0.2s]" />
-                <span className="w-2 h-2 bg-sky-500 rounded-full animate-bounce [animation-delay:0.4s]" />
+              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl flex gap-2">
+                <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" />
+                <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.2s]" />
+                <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.4s]" />
               </div>
             </div>
           )}
         </div>
 
         {/* Input Area */}
-        <div className="p-8 pt-0">
-          <div className="max-w-4xl mx-auto flex gap-4 p-2 glass rounded-2xl border border-white/10 shadow-2xl focus-within:ring-2 focus-within:ring-sky-500/50 transition-all">
+        <div className="p-4 md:p-8 pt-0">
+          <div className="max-w-4xl mx-auto flex gap-3 p-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               placeholder="何でも話しかけてください..."
-              className="flex-1 bg-transparent border-none outline-none px-4 py-2 text-white placeholder-slate-500"
+              className="flex-1 bg-transparent border-none outline-none px-4 py-2 text-slate-900 dark:text-slate-100 placeholder-slate-400"
             />
             <button
               onClick={handleSend}
               disabled={isLoading}
-              className="p-3 bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 rounded-xl transition-colors shadow-lg shadow-sky-500/20"
+              className="p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 rounded-xl transition-colors shadow-lg shadow-blue-500/20 text-white"
             >
               <Send size={20} />
             </button>
           </div>
+          <div className="text-center mt-4">
+            <button
+              onClick={handleReflect}
+              disabled={isLoading}
+              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-300 text-xs font-semibold tracking-wide cursor-pointer disabled:cursor-not-allowed"
+            >
+              内省を実行する
+            </button>
+          </div>
         </div>
       </main>
-    </div>
-  );
-}
 
-function StatusItem({ label, value, icon }: { label: string, value: number, icon: React.ReactNode }) {
-  return (
-    <div className="space-y-1">
-      <div className="flex justify-between items-center text-xs">
-        <div className="flex items-center gap-2">
-          {icon}
-          <span className="text-slate-300 uppercase tracking-tighter font-bold">{label}</span>
-        </div>
-        <span className="font-mono text-sky-400">{value}%</span>
-      </div>
-      <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${value}%` }}
-          className={`h-full ${label === 'Health' ? 'bg-rose-500' : label === 'Emotion' ? 'bg-amber-500' : 'bg-emerald-500'}`}
-        />
-      </div>
+      {/* Chat History Sidebar (Right) */}
+      <ChatHistory isOpen={isRightOpen} onToggle={() => setIsRightOpen(false)} refreshTrigger={refreshTrigger} />
     </div>
   );
 }

@@ -1,9 +1,17 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || "");
+function getGenAI() {
+    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    if (!apiKey) {
+        throw new Error("GOOGLE_GENERATIVE_AI_API_KEY is not set in environment variables");
+    }
+    return new GoogleGenerativeAI(apiKey);
+}
 
-export const flashModel = "gemini-flash-latest";
-export const proModel = "gemini-pro-latest";
+//export const flashModel = "gemini-flash-latest";
+//export const flashModel = "gemini-flash-latest";
+export const flashModel = "gemini-2.5-flash";
+export const proModel = "gemini-2.5-pro";
 
 export interface PersonaContext {
     status: {
@@ -17,16 +25,40 @@ export interface PersonaContext {
 }
 
 /**
- * Generate a persona-aware response using the specified generative model.
+ * 指定された生成モデルを使用して、ペルソナを考慮したレスポンスを生成します。
  *
- * Constructs a system instruction from the provided `context` (status and memories),
- * invokes the generative model identified by `modelName`, and returns the model's reply text.
+ * 提供された `context`（ステータスおよびメモリ）からシステム指示文（System Instruction）を構築し、
+ * `modelName` で指定された生成モデルを呼び出して、モデルからの返答テキストを返します。
  *
- * @param modelName - The identifier of the generative model to use (e.g., `"gemini-pro-latest"`).
- * @param prompt - The user prompt to send to the model.
- * @param context - PersonaContext containing `status` and `memories` used to shape the system instruction.
- * @returns The generated response text from the model.
+ * @param modelName - 使用する生成モデルの識別子（例: `"gemini-pro-latest"`）。
+ * @param prompt - モデルに送信するユーザープロンプト。
+ * @param context - システム指示文を構成するために使用される、`status` と `memories` を含む PersonaContext。
+ * @returns モデルによって生成されたレスポンスのテキスト。
  */
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 2000;
+
+async function callWithRetry<T>(operation: () => Promise<T>, operationName: string): Promise<T> {
+    let lastError: any;
+    for (let i = 0; i < MAX_RETRIES; i++) {
+        try {
+            return await operation();
+        } catch (error: any) {
+            lastError = error;
+            const isRateLimit = error.message?.includes("429") || error.status === 429;
+            if (isRateLimit) {
+                const delay = RETRY_DELAY_MS * Math.pow(2, i);
+                console.warn(`[Gemini] Rate limit hit for ${operationName}. Retrying in ${delay}ms... (Attempt ${i + 1}/${MAX_RETRIES})`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+                throw error;
+            }
+        }
+    }
+    console.error(`[Gemini] Failed ${operationName} after ${MAX_RETRIES} retries.`);
+    throw lastError;
+}
+
 export async function generateResponse(modelName: string, prompt: string, context: PersonaContext) {
     const systemInstruction = `
 あなたは自己進化型AI「Reflecta」です。
@@ -43,25 +75,53 @@ ${context.memories.join("\n")}
 上記を踏まえ、一貫性のある人格として回答してください。
 `;
 
-    const model = genAI.getGenerativeModel({
-        model: modelName,
-        systemInstruction: systemInstruction,
-    }, { apiVersion: "v1beta" });
+    const genAI = getGenAI();
 
-    const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-    });
+    // Gemmaなどの一部のモデルは API レベルで systemInstruction (Developer Instruction) をサポートしていないため、
+    // それらのモデルの場合はプロンプトの先頭に指示を結合する形式にフォールバックします。
+    const isSystemInstructionSupported = !modelName.startsWith("gemma");
 
-    return result.response.text();
+    const modelOptions: any = { model: modelName };
+    if (isSystemInstructionSupported) {
+        modelOptions.systemInstruction = systemInstruction;
+    }
+
+    const model = genAI.getGenerativeModel(modelOptions, { apiVersion: "v1beta" });
+
+    return callWithRetry(async () => {
+        // systemInstruction がサポートされていない場合は、プロンプトの先頭に指示を挿入
+        const finalPrompt = isSystemInstructionSupported
+            ? prompt
+            : `System Instruction:\n${systemInstruction}\n\nUser Message: ${prompt}`;
+
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: finalPrompt }] }],
+        });
+        return result.response.text();
+    }, "generateResponse");
 }
 
-/**
- * Produce a numerical embedding vector for the given text.
- *
- * @returns The embedding vector as an array of numbers.
- */
+export const embeddingModel = process.env.GOOGLE_EMBEDDING_MODEL || "gemini-embedding-001";
+
 export async function embedText(text: string) {
-    const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
-    const result = await model.embedContent(text);
-    return result.embedding.values;
+    return callWithRetry(async () => {
+        try {
+            if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+                throw new Error("GOOGLE_GENERATIVE_AI_API_KEY is missing from environment variables");
+            }
+            const genAI = getGenAI();
+            const model = genAI.getGenerativeModel({ model: embeddingModel }, { apiVersion: "v1beta" });
+            const result = await model.embedContent(text);
+            if (!result || !result.embedding) {
+                throw new Error("Failed to get embedding from Gemini API");
+            }
+            return result.embedding.values;
+        } catch (error: any) {
+            // If it's NOT a rate limit, log it here, otherwise retry loop handles logging
+            if (!error.message?.includes("429")) {
+                console.error("[Gemini] embedText failed:", error.message || error);
+            }
+            throw error;
+        }
+    }, "embedText");
 }

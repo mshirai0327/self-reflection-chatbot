@@ -7,9 +7,33 @@ generator client {
   provider = "prisma-client-js"
 }
 
-//todo このテーブルは分割されるべきである
+model User {
+  id        String    @id @default(uuid())
+  name      String?
+  email     String?   @unique
+  chatLogs  ChatLog[]
+  createdAt DateTime  @default(now())
+
+  @@map("users")
+}
+
+/// AI人格（ペルソナ）の定義。ユーザーからは独立したエンティティ。
+model Persona {
+  id               String            @id @default(uuid())
+  name             String            @default("Reflecta")
+  statuses         PersonaStatus[]
+  chatLogs         ChatLog[]
+  reflectionEvents ReflectionEvent[]
+  createdAt        DateTime          @default(now())
+
+  @@map("personas")
+}
+
+/// ペルソナの動的なステータス。時系列で保存される。
 model PersonaStatus {
   id        Int      @id @default(autoincrement())
+  personaId String
+  persona   Persona  @relation(fields: [personaId], references: [id])
   height    Float    @default(160.0)
   weight    Float    @default(50.0)
   health    Int      @default(100)
@@ -20,16 +44,34 @@ model PersonaStatus {
   @@map("persona_statuses")
 }
 
+/// 会話履歴。特定のユーザーと特定のペルソナの対話を記録。
 model ChatLog {
-  id            String   @id @default(uuid())
-  role          String // "user" or "assistant"
-  content       String   @db.Text
-  surpriseScore Float?
-  createdAt     DateTime @default(now())
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  personaId String?
+  persona   Persona? @relation(fields: [personaId], references: [id])
+  role      String // "user" or "assistant"
+  content   String   @db.Text
+  createdAt DateTime @default(now())
 
   @@map("chat_logs")
 }
 
+/// 内省処理（リフレクション）の実行記録
+model ReflectionEvent {
+  id              String   @id @default(uuid())
+  personaId       String
+  persona         Persona  @relation(fields: [personaId], references: [id])
+  thought         String   @db.Text
+  statusUpdate    Json // 推論されたステータスの増減値
+  permanentMemory String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  @@map("reflection_events")
+}
+
+/// その他の一般的なイベントログ
 model EventLog {
   id        String   @id @default(uuid())
   type      String // "physical", "emotional", "memory"

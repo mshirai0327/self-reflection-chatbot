@@ -1,59 +1,76 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
-import { flashModel, generateResponse } from "@/lib/gemini";
 import { queryMemories, addMemory } from "@/lib/chroma";
+import { getDefaultPersona, getDefaultUser } from "@/lib/persona";
+import { generateLLMResponse, LLMConfig } from "@/lib/llm";
 
 /**
- * Handle an incoming chat request: generate an AI response, persist the chat, and update vector memories.
- *
- * @param req - The incoming NextRequest whose JSON body must contain a `message` string to process
- * @returns A JSON object with `response` (the assistant's reply) and `status` (the current persona status); on failure returns an `{ error: string }` payload with HTTP status 500
+ * 受信したチャットリクエストを処理します。
  */
 export async function POST(req: NextRequest) {
     try {
-        const { message } = await req.json();
-        console.log("[Chat API] Received message:", message);
+        const body = await req.json();
+        const { message, model, llmConfig } = body;
 
-        // 1. Get current status (or create default)
-        console.log("[Chat API] Fetching persona status...");// チャット時にデータ取得。フロントでも描画する
+        // デフォルト設定
+        const activeConfig: LLMConfig = llmConfig || {
+            provider: "gemini",
+            model: model || "gemini-2.5-flash"
+        };
+
+        console.log("[Chat API] Received message:", message);
+        console.log("[Chat API] LLM Provider:", activeConfig.provider);
+
+        // デフォルトのペルソナとユーザーを取得（独立したエンティティ）
+        const persona = await getDefaultPersona();
+        const user = await getDefaultUser();
+
+        // 1. 最新のステータスを取得 (なければ作成)
+        console.log("[Chat API] Fetching persona status...");
         let status = await prisma.personaStatus.findFirst({
+            where: { personaId: persona.id },
             orderBy: { updatedAt: 'desc' }
         });
 
         if (!status) {
             console.log("[Chat API] No status found, creating default.");
             status = await prisma.personaStatus.create({
-                data: { height: 160, weight: 50, health: 100, mood: 50, trust: 50 }
+                data: {
+                    personaId: persona.id,
+                    height: 160, weight: 50, health: 100, mood: 50, trust: 50
+                }
             });
         }
-        console.log("[Chat API] Current status:", status);
 
         // 2. Fetch relevant memories from ChromaDB
-        console.log("[Chat API] Querying memories from ChromaDB...");
         const memories = await queryMemories(message);
-        console.log("[Chat API] Retrieved memories:", memories);
 
-        // 3. Generate response with Flash
-        console.log("[Chat API] Generating response from Gemini...");
-        const aiResponse = await generateResponse(flashModel, message, {
+        // 3. Generate response with chosen LLM
+        console.log("[Chat API] Requesting AI response...");
+        const aiResponse = await generateLLMResponse(activeConfig, message, {
             status,
             memories: (memories as string[]) || []
         });
-        console.log("[Chat API] AI Response:", aiResponse);
+        console.log("[Chat API] AI Response received.");
 
-        // 4. Persistence
+        // 4. Prismaへの会話ログ保存 (User/Persona 両方のIDを独立して付与)
         console.log("[Chat API] Saving chat logs to Prisma...");
+        const chatData = [
+            { role: "user", content: message, userId: user.id, personaId: persona.id },
+            { role: "assistant", content: aiResponse, userId: user.id, personaId: persona.id }
+        ];
+
         await prisma.chatLog.createMany({
-            data: [
-                { role: "user", content: message },
-                { role: "assistant", content: aiResponse }
-            ]
+            data: chatData
         });
 
         // 5. Add to vector memory (Fragile memory)
         console.log("[Chat API] Adding message to ChromaDB...");
-        await addMemory(Date.now().toString(), message, { role: "user" });
+        await addMemory(Date.now().toString(), message, {
+            role: "user",
+            personaId: persona.id // ベクトルストア側にもメタデータを付与可能
+        });
 
         console.log("[Chat API] Success!");
         return NextResponse.json({
@@ -66,6 +83,13 @@ export async function POST(req: NextRequest) {
             stack: error.stack,
             cause: error.cause
         });
-        return NextResponse.json({ error: error.message }, { status: 500 });
+
+        // Gemini APIからの429エラーなどを検知して適切なステータスを返す
+        const status = error.message?.includes("429") || error.status === 429 ? 429 : 500;
+        const errorMessage = status === 429
+            ? "現在アクセスが集中しているか、利用枠を超えています。少し時間を置いてからお試しください。"
+            : error.message;
+
+        return NextResponse.json({ error: errorMessage }, { status });
     }
 }
