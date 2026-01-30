@@ -1,0 +1,201 @@
+{
+  "version": "1.0.0",
+  "darkMode": true,
+  "gridEnabling": false,
+  "detailLevel": "All",
+  "tablePositions": [
+    {
+      "name": "users",
+      "schemaName": "public",
+      "x": 0,
+      "y": 50
+    },
+    {
+      "name": "personas",
+      "schemaName": "public",
+      "x": 335.86474609375,
+      "y": 50
+    },
+    {
+      "name": "persona_statuses",
+      "schemaName": "public",
+      "x": 651.85498046875,
+      "y": 50
+    },
+    {
+      "name": "quantity_unchange_statuses",
+      "schemaName": "public",
+      "x": 965.794921875,
+      "y": 50
+    },
+    {
+      "name": "semiquantity_unchange_statuses",
+      "schemaName": "public",
+      "x": 0,
+      "y": 228
+    },
+    {
+      "name": "quantity_irreversible_statuses",
+      "schemaName": "public",
+      "x": 335.86474609375,
+      "y": 260
+    },
+    {
+      "name": "quantity_reversible_statuses",
+      "schemaName": "public",
+      "x": 651.85498046875,
+      "y": 388
+    },
+    {
+      "name": "semiquantity_reversible_statuses",
+      "schemaName": "public",
+      "x": 965.794921875,
+      "y": 356
+    },
+    {
+      "name": "chat_logs",
+      "schemaName": "public",
+      "x": 0,
+      "y": 502
+    }
+  ],
+  "tableGroupCollapseStates": [],
+  "stickyNoteLayouts": [],
+  "referencePaths": [
+    {
+      "firstFieldNames": [
+        "id"
+      ],
+      "firstTableName": "persona_statuses",
+      "firstSchemaName": "public",
+      "firstRelation": "1",
+      "secondFieldNames": [
+        "current_status_id"
+      ],
+      "secondTableName": "personas",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "id"
+      ],
+      "firstTableName": "personas",
+      "firstSchemaName": "public",
+      "firstRelation": "1",
+      "secondFieldNames": [
+        "persona_id"
+      ],
+      "secondTableName": "persona_statuses",
+      "secondSchemaName": "public",
+      "secondRelation": "*",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "id"
+      ],
+      "firstTableName": "quantity_unchange_statuses",
+      "firstSchemaName": "public",
+      "firstRelation": "1",
+      "secondFieldNames": [
+        "quantity_unchange_id"
+      ],
+      "secondTableName": "persona_statuses",
+      "secondSchemaName": "public",
+      "secondRelation": "*",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "id"
+      ],
+      "firstTableName": "semiquantity_unchange_statuses",
+      "firstSchemaName": "public",
+      "firstRelation": "1",
+      "secondFieldNames": [
+        "semiquantity_unchange_id"
+      ],
+      "secondTableName": "persona_statuses",
+      "secondSchemaName": "public",
+      "secondRelation": "*",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "id"
+      ],
+      "firstTableName": "quantity_irreversible_statuses",
+      "firstSchemaName": "public",
+      "firstRelation": "1",
+      "secondFieldNames": [
+        "quantity_irreversible_id"
+      ],
+      "secondTableName": "persona_statuses",
+      "secondSchemaName": "public",
+      "secondRelation": "*",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "id"
+      ],
+      "firstTableName": "quantity_reversible_statuses",
+      "firstSchemaName": "public",
+      "firstRelation": "1",
+      "secondFieldNames": [
+        "quantity_reversible_id"
+      ],
+      "secondTableName": "persona_statuses",
+      "secondSchemaName": "public",
+      "secondRelation": "*",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "id"
+      ],
+      "firstTableName": "semiquantity_reversible_statuses",
+      "firstSchemaName": "public",
+      "firstRelation": "1",
+      "secondFieldNames": [
+        "semiquantity_reversible_id"
+      ],
+      "secondTableName": "persona_statuses",
+      "secondSchemaName": "public",
+      "secondRelation": "*",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "id"
+      ],
+      "firstTableName": "users",
+      "firstSchemaName": "public",
+      "firstRelation": "1",
+      "secondFieldNames": [
+        "user_id"
+      ],
+      "secondTableName": "chat_logs",
+      "secondSchemaName": "public",
+      "secondRelation": "*",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "id"
+      ],
+      "firstTableName": "personas",
+      "firstSchemaName": "public",
+      "firstRelation": "1",
+      "secondFieldNames": [
+        "persona_id"
+      ],
+      "secondTableName": "chat_logs",
+      "secondSchemaName": "public",
+      "secondRelation": "*",
+      "checkPoints": []
+    }
+  ]
+}
