@@ -45,6 +45,7 @@ Reflecta（仮名）は、自己進化型のAIチャットボットを開発す�
 
 プロジェクトの詳細なドキュメントは `docs/` ディレクトリにあります。
 
+- [**プロジェクト詳細・設計思想 (README.md)**](./README.md)
 - [**処理フロー (シークエンス図)**](./docs/sequence.md)
 - [**人格再構築システム：内省処理**](./docs/reflection-process.md): AI が自らを振り返り、ステータスを更新する仕組みの解説。
 - [**Gemini API 実装仕様ガイド**](./docs/gemini-api-specs.md): モデルごとのパラメータ指定や JSON 構造の具体例について。
@@ -93,7 +94,7 @@ docker-compose up --build
 *   **Frontend**: [http://localhost:5173](http://localhost:5173)
 *   **Backend API**: [http://localhost:3001](http://localhost:3001)
 
-「Self Reflect」ボタンを押すと、AIがこれまでの会話を振り返り、自らのステータスを書き換える「自己進化ループ」が動作します。ぜひお試しください！
+「内省を実行する」ボタンを押すと、AIがこれまでの会話を振り返り、自らのステータスを書き換える「自己進化ループ」が動作します
 
 ## 📜 License
 
