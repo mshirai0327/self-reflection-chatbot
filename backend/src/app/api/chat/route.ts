@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { queryMemories, addMemory } from "@/lib/chroma";
-import { getDefaultPersona, getDefaultUser } from "@/lib/persona";
+import { getDefaultPersona, getDefaultUser, getLatestStatus, flattenStatus } from "@/lib/persona";
 import { generateResponse, LLMConfig } from "@/lib/llm";
 
 /**
@@ -26,22 +26,12 @@ export async function POST(req: NextRequest) {
         const persona = await getDefaultPersona();
         const user = await getDefaultUser();
 
-        // 1. 最新のステータスを取得 (なければ作成)
+        // 1. 最新のステータスを取得
         console.log("[Chat API] Fetching persona status...");
-        let status = await prisma.personaStatus.findFirst({
-            where: { personaId: persona.id },
-            orderBy: { updatedAt: 'desc' }
-        });
-
-        if (!status) {
-            console.log("[Chat API] No status found, creating default.");
-            status = await prisma.personaStatus.create({
-                data: {
-                    personaId: persona.id,
-                    height: 160, weight: 50, health: 100, mood: 50, trust: 50
-                }
-            });
-        }
+        const fullStatus = await getLatestStatus(persona.id);
+        const status = flattenStatus(fullStatus) || {
+            height: 160, weight: 50, health: 100, mood: 50, trust: 50
+        };
 
         // 2. Fetch relevant memories from ChromaDB
         const memories = await queryMemories(message);
@@ -130,7 +120,7 @@ export async function POST(req: NextRequest) {
 
             const errorAny = error as any;
             const isRateLimit = errorAny.message?.includes("429") || errorAny.status === 429;
-            
+
             if (isRateLimit) {
                 errorStatus = 429;
                 errorMessage = "現在アクセスが集中しているか、利用枠を超えています。少し時間を置いてからお試しください。";
@@ -138,7 +128,7 @@ export async function POST(req: NextRequest) {
         } else {
             errorDetails = { error };
         }
-        
+
         console.error("[Chat API Error] Details:", errorDetails);
 
         return NextResponse.json({ error: errorMessage }, { status: errorStatus });

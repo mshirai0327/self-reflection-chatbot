@@ -20,13 +20,7 @@ export interface LLMConfig {
 }
 
 export interface PersonaContext {
-    status: {
-        height: number;
-        weight: number;
-        health: number;
-        mood: number;
-        trust: number;
-    };
+    status: Record<string, any>;
     memories: string[];
 }
 

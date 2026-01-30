@@ -40,3 +40,57 @@ export async function getDefaultUser() {
         }
     });
 }
+
+/**
+ * ペルソナの最新ステータスを、リレーションを含めて取得します。
+ */
+export async function getLatestStatus(personaId: string) {
+    const persona = await prisma.persona.findUnique({
+        where: { id: personaId },
+        select: { statusId: true }
+    });
+
+    if (!persona?.statusId) return null;
+
+    return await prisma.personaStatus.findUnique({
+        where: { statusId: persona.statusId },
+        include: {
+            quantityUnchange: true,
+            semiquantityUnchange: true,
+            quantityIrreversible: true,
+            quantityReversible: true,
+            semiquantityReversible: true,
+        }
+    });
+}
+
+/**
+ * 複雑なStatus構造を、フロントエンドやLLMが扱いやすいフラットな形式に変換します。
+ */
+export function flattenStatus(fullStatus: any) {
+    if (!fullStatus) return null;
+
+    return {
+        // Lv1
+        birthDate: fullStatus.quantityUnchange?.birthDate,
+        gender: fullStatus.quantityUnchange?.gender,
+        bloodType: fullStatus.quantityUnchange?.bloodType,
+        chronotype: fullStatus.quantityUnchange?.chronotype,
+        intelligence: fullStatus.quantityUnchange?.intelligence,
+
+        ethics: fullStatus.semiquantityUnchange?.ethics,
+        passion: fullStatus.semiquantityUnchange?.passion,
+        curiosity: fullStatus.semiquantityUnchange?.curiosity,
+
+        // Lv2
+        height: fullStatus.quantityIrreversible?.height,
+        boneDensity: fullStatus.quantityIrreversible?.boneDensity,
+
+        // Lv3
+        weight: fullStatus.quantityReversible?.weight,
+        health: fullStatus.semiquantityReversible?.health,
+        mood: fullStatus.semiquantityReversible?.mood,
+        trust: fullStatus.semiquantityReversible?.trust,
+        friendliness: fullStatus.semiquantityReversible?.friendliness,
+    };
+}

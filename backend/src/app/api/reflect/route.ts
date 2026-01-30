@@ -2,19 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { addMemory } from "@/lib/chroma";
-import { getDefaultPersona } from "@/lib/persona";
+import { getDefaultPersona, getLatestStatus, flattenStatus } from "@/lib/persona";
 import { generateJson, LLMConfig } from "@/lib/llm";
 import { z } from "zod";
 
 // Zodスキーマを定義して、LLMの出力構造を保証する
 const reflectionSchema = z.object({
-  thought: z.string().describe("内省の思考過程、日本語で記述"),
-  statusUpdate: z.object({
-    health: z.number().int().describe("健康度の変化量 (例: 5, -10, 0)"),
-    mood: z.number().int().describe("情緒の変化量 (例: 5, -10, 0)"),
-    trust: z.number().int().describe("信頼度の変化量 (例: 5, -10, 0)"),
-  }),
-  permanentMemory: z.string().optional().describe("今後忘れてはいけない重要な教訓、日本語で記述。なければ省略。"),
+    thought: z.string().describe("内省の思考過程、日本語で記述"),
+    statusUpdate: z.object({
+        health: z.number().int().describe("健康度の変化量 (例: 5, -10, 0)"),
+        mood: z.number().int().describe("情緒の変化量 (例: 5, -10, 0)"),
+        trust: z.number().int().describe("信頼度の変化量 (例: 5, -10, 0)"),
+    }),
+    permanentMemory: z.string().optional().describe("今後忘れてはいけない重要な教訓、日本語で記述。なければ省略。"),
 });
 
 
@@ -58,14 +58,17 @@ export async function POST(req: NextRequest) {
         const logSummary = recentLogs.map((l) => `${l.role}: ${l.content}`).join("\n");
 
         // 2. 現在のペルソナステータスを取得
-        const status = await prisma.personaStatus.findFirst({
-            where: { personaId: persona.id },
-            orderBy: { updatedAt: 'desc' }
-        });
+        const fullStatus = await getLatestStatus(persona.id);
 
+        if (!fullStatus) {
+            console.error("[Reflect API] Persona status not found! (No status ID linked to persona)");
+            return NextResponse.json({ error: "Status ID not found on persona. Please run seed script." }, { status: 404 });
+        }
+
+        const status = flattenStatus(fullStatus);
         if (!status) {
-            console.error("[Reflect API] Persona status not found!");
-            return NextResponse.json({ error: "Status not found" }, { status: 404 });
+            console.error("[Reflect API] Failed to flatten status. Some sub-tables might be missing.");
+            return NextResponse.json({ error: "Incomplete status data" }, { status: 500 });
         }
         console.log("[Reflect API] Current status:", status);
 
@@ -101,17 +104,63 @@ ${logSummary}
         );
         console.log("[Reflect API] Parsed reflection successfully:", reflection);
 
-        // 5. RDB (MySQL) のステータスを更新
-        console.log("[Reflect API] Updating status in Prisma...");
-        await prisma.personaStatus.create({
+        // 5. RDB (MySQL) のステータスを更新 (Hubパターンの新スキーマに対応)
+        console.log("[Reflect API] Updating status in Prisma (Hub pattern)...");
+
+        const newPersonaStatus = await prisma.personaStatus.create({
             data: {
                 personaId: persona.id,
-                health: Math.min(100, Math.max(0, status.health + (reflection.statusUpdate.health || 0))),
-                mood: Math.min(100, Math.max(0, status.mood + (reflection.statusUpdate.mood || 0))),
-                trust: Math.min(100, Math.max(0, status.trust + (reflection.statusUpdate.trust || 0))),
-                height: status.height,
-                weight: status.weight
+
+                // Lv1, Lv2 は既存からコピー
+                quantityUnchange: {
+                    create: {
+                        birthDate: fullStatus.quantityUnchange?.birthDate,
+                        gender: fullStatus.quantityUnchange?.gender,
+                        bloodType: fullStatus.quantityUnchange?.bloodType,
+                        chronotype: fullStatus.quantityUnchange?.chronotype,
+                        intelligence: fullStatus.quantityUnchange?.intelligence,
+                    }
+                },
+                semiquantityUnchange: {
+                    create: {
+                        ethics: fullStatus.semiquantityUnchange?.ethics ?? 50,
+                        passion: fullStatus.semiquantityUnchange?.passion ?? 50,
+                        curiosity: fullStatus.semiquantityUnchange?.curiosity ?? 50,
+                        aggressiveness: fullStatus.semiquantityUnchange?.aggressiveness ?? 50,
+                        extroversion: fullStatus.semiquantityUnchange?.extroversion ?? 50,
+                    }
+                },
+                quantityIrreversible: {
+                    create: {
+                        height: status.height ?? 160.0,
+                        boneDensity: fullStatus.quantityIrreversible?.boneDensity ?? 1.0,
+                        version: (fullStatus.quantityIrreversible?.version || 0) + 1,
+                    }
+                },
+
+                // 変化があった Lv3 を更新
+                quantityReversible: {
+                    create: {
+                        weight: status.weight ?? 50.0,
+                        version: (fullStatus.quantityReversible?.version || 0) + 1,
+                    }
+                },
+                semiquantityReversible: {
+                    create: {
+                        health: Math.min(100, Math.max(0, (status.health ?? 100) + (reflection.statusUpdate.health || 0))),
+                        mood: Math.min(100, Math.max(0, (status.mood ?? 50) + (reflection.statusUpdate.mood || 0))),
+                        trust: Math.min(100, Math.max(0, (status.trust ?? 50) + (reflection.statusUpdate.trust || 0))),
+                        friendliness: fullStatus.semiquantityReversible?.friendliness ?? 50,
+                        version: (fullStatus.semiquantityReversible?.version || 0) + 1,
+                    }
+                }
             }
+        });
+
+        // Personaの最新ステータスIDを更新
+        await prisma.persona.update({
+            where: { id: persona.id },
+            data: { statusId: newPersonaStatus.statusId }
         });
 
         // 6. 内省イベントをデータベースに保存
