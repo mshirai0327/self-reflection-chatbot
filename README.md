@@ -1,6 +1,10 @@
 
 # Reflecta: The Self-Reflection Persona
 
+<div align="center">
+  <img src="./assets/Reflecta_logo.png" width="500" alt="Reflecta logo">
+</div>
+
 ## 概要
 
 人間性とはデータ管理で生まれるものか・・・？
@@ -31,7 +35,7 @@ Reflecta（仮名）は、自己進化型のAIチャットボットを開発す�
 ├── frontend/             # React (Vite) + Tailwind CSS + Framer Motion
 ├── backend/              # Next.js (App Router) + Prisma + Gemini API
 ├── docker-compose.yml    # MySQL, ChromaDB, Front/Back, GPUサポート
-├── prisma/               # RDBスキーマ定義 (PersonaStatus, ChatLog等)
+├── prisma/               # RDBスキーマ定義
 ├── docs/                 # 設計ドキュメント・シークエンス図
 └── README.md             # 起動手順と設計思想のまとめ
 
@@ -41,7 +45,6 @@ Reflecta（仮名）は、自己進化型のAIチャットボットを開発す�
 
 プロジェクトの詳細なドキュメントは `docs/` ディレクトリにあります。
 
-- [**プロジェクト詳細・設計思想 (README.md)**](./README.md)
 - [**処理フロー (シークエンス図)**](./docs/sequence.md)
 - [**人格再構築システム：内省処理**](./docs/reflection-process.md): AI が自らを振り返り、ステータスを更新する仕組みの解説。
 - [**Gemini API 実装仕様ガイド**](./docs/gemini-api-specs.md): モデルごとのパラメータ指定や JSON 構造の具体例について。
