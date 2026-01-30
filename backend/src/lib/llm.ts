@@ -6,7 +6,6 @@ import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { Embeddings } from "@langchain/core/embeddings";
 import { BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
-import { Runnable } from "@langchain/core/runnables";
 
 // --- Configuration Interfaces ---
 
