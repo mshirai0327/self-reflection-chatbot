@@ -70,6 +70,12 @@
 -   **データベーススキーマ**: データベースの変更は、`/backend/prisma/schema.prisma` ファイルを編集し、`npx prisma migrate dev` コマンドでマイグレーションファイルを生成してください。
 -   **コメント**: コードに処理に関するコメントをJSDoc形式で、日本語で記載してください。
 
+## コミットルール
+
+共同作業であることを明示するため、AIエージェントがコミットするときは、コミットメッセージの末尾に次の`Co-authored-byトレーラー`を加えてどのAIエージェントが作業したか分かるようにしてください。
+
+- Co-Authored-By: gemini <218195315+gemini-cli@users.noreply.github.com>
+
 ## TODO
 
 ここには直近でやるべきTODOを記載します。
