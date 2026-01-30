@@ -1,6 +1,10 @@
 
 # Reflecta: The Self-Reflection Persona
 
+<div align="center">
+  <img src="./assets/Reflecta_logo.png" width="500" alt="Reflecta logo">
+</div>
+
 ## 概要
 
 人間性とはデータ管理で生まれるものか・・・？
@@ -31,7 +35,7 @@ Reflecta（仮名）は、自己進化型のAIチャットボットを開発す�
 ├── frontend/             # React (Vite) + Tailwind CSS + Framer Motion
 ├── backend/              # Next.js (App Router) + Prisma + Gemini API
 ├── docker-compose.yml    # MySQL, ChromaDB, Front/Back, GPUサポート
-├── prisma/               # RDBスキーマ定義 (PersonaStatus, ChatLog等)
+├── prisma/               # RDBスキーマ定義
 ├── docs/                 # 設計ドキュメント・シークエンス図
 └── README.md             # 起動手順と設計思想のまとめ
 
@@ -90,7 +94,7 @@ docker-compose up --build
 *   **Frontend**: [http://localhost:5173](http://localhost:5173)
 *   **Backend API**: [http://localhost:3001](http://localhost:3001)
 
-「Self Reflect」ボタンを押すと、AIがこれまでの会話を振り返り、自らのステータスを書き換える「自己進化ループ」が動作します。ぜひお試しください！
+「内省を実行する」ボタンを押すと、AIがこれまでの会話を振り返り、自らのステータスを書き換える「自己進化ループ」が動作します
 
 ## 📜 License
 
