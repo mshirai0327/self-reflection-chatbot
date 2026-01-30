@@ -1,0 +1,84 @@
+name: Auto Label on Project Status Change
+
+on:
+  project_v2_item:
+    types: [edited]
+
+jobs:
+  label_issue:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      repository-projects: read
+    steps:
+      - name: Check Status and Add Label
+        uses: actions/github-script@v7
+        with:
+          # Project V2の情報を取得するには、GITHUB_TOKENでは権限が不足する場合があり、
+          # その場合はPROJECT_TOKEN (PAT) をSecretsに設定する必要があります。
+          github-token: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const nodeId = context.payload.project_v2_item.node_id;
+            
+            // GraphQLで現在のステータスとIssue情報を取得
+            const query = `
+              query($nodeId: ID!) {
+                node(id: $nodeId) {
+                  ... on ProjectV2Item {
+                    content {
+                      ... on Issue {
+                        number
+                        repository {
+                          name
+                          owner {
+                            login
+                          }
+                        }
+                      }
+                    }
+                    fieldValues(first: 20) {
+                      nodes {
+                        ... on ProjectV2ItemFieldSingleSelectValue {
+                          name
+                          field {
+                            ... on ProjectV2FieldCommon {
+                              name
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+            
+            try {
+              const result = await github.graphql(query, { nodeId });
+              const item = result.node;
+              
+              // Issueでない場合はスキップ
+              if (!item.content || !item.content.number) {
+                console.log("This item is not an issue. Skipping.");
+                return;
+              }
+
+              // Statusフィールドの値を確認
+              const statusField = item.fieldValues.nodes.find(node => node.field && node.field.name === 'Status');
+              const currentStatus = statusField ? statusField.name : 'No Status';
+              
+              console.log(`Current Status: ${currentStatus}`);
+
+              if (currentStatus === 'In Progress') {
+                await github.rest.issues.addLabels({
+                  owner: item.content.repository.owner.login,
+                  repo: item.content.repository.name,
+                  issue_number: item.content.number,
+                  labels: ['In Progress']
+                });
+                console.log(`Added "In Progress" label to Issue #${item.content.number}`);
+              }
+            } catch (error) {
+              console.error("Error during execution:", error);
+              core.setFailed(error.message);
+            }
