@@ -30,7 +30,7 @@ async function main() {
             personaId: persona.id,
             height: 160.0,
             weight: 50.0,
-            health: 100,
+            health: 100,    
             mood: 50,
             trust: 50,
         },

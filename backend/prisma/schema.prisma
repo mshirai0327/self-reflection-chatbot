@@ -20,9 +20,16 @@ model User {
 
 /// AI人格（ペルソナ）の定義。ユーザーからは独立したエンティティ。
 model Persona {
-  id               String            @id @default(uuid())
-  name             String            @default("Reflecta")
-  statuses         PersonaStatus[]
+  id   String @id @default(uuid())
+  name String @default("Reflecta")
+
+  // 最新ステータス (Optional)
+  statusId String?        @unique @map("status_id")
+  status   PersonaStatus? @relation("CurrentStatus", fields: [statusId], references: [statusId])
+
+  // ステータス履歴
+  statusHistory PersonaStatus[] @relation("StatusHistory")
+
   chatLogs         ChatLog[]
   reflectionEvents ReflectionEvent[]
   createdAt        DateTime          @default(now())
@@ -31,19 +38,113 @@ model Persona {
   @@map("personas")
 }
 
-/// ペルソナの動的なステータス。時系列で保存される。
+/// ステータスのハブテーブル（スナップショット）
 model PersonaStatus {
-  id        Int      @id @default(autoincrement())
-  personaId String
-  persona   Persona  @relation(fields: [personaId], references: [id])
-  height    Float    @default(160.0)
-  weight    Float    @default(50.0)
-  health    Int      @default(100)
-  mood      Int      @default(50)
-  trust     Int      @default(50)
-  updatedAt DateTime @updatedAt
+  statusId  String   @id @default(uuid()) @map("status_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Personaへの参照 (履歴の所有者)
+  personaId String  @map("persona_id")
+  persona   Persona @relation("StatusHistory", fields: [personaId], references: [id])
+
+  // Currentとしての逆参照用
+  currentPersona Persona? @relation("CurrentStatus")
+
+  // 各詳細ステータスからの逆参照
+  quantityUnchange       QuantityUnchangeStatus?
+  semiquantityUnchange   SemiquantityUnchangeStatus?
+  quantityIrreversible   QuantityIrreversibleStatus?
+  quantityReversible     QuantityReversibleStatus?
+  semiquantityReversible SemiquantityReversibleStatus?
 
   @@map("persona_statuses")
+}
+
+// Lv1-1: 完全不変・定量可能 (基本情報)
+model QuantityUnchangeStatus {
+  id String @id @default(uuid())
+
+  personaStatusId String        @unique @map("persona_status_id")
+  personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
+
+  birthDate       DateTime? @map("birth_date")
+  gender          String?
+  bloodType       String?   @map("blood_type")
+  chronotype      String?
+  bitternessSense Int?      @map("bitterness_sense")
+  intelligence    Int?
+
+  @@map("quantity_unchange_statuses")
+}
+
+// Lv1-2: 完全不変・定量困難 (性格特性・気質)
+model SemiquantityUnchangeStatus {
+  id String @id @default(uuid())
+
+  personaStatusId String        @unique @map("persona_status_id")
+  personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
+
+  ethics         Int @default(50)
+  passion        Int @default(50)
+  curiosity      Int @default(50)
+  aggressiveness Int @default(50)
+  extroversion   Int @default(50)
+
+  @@map("semiquantity_unchange_statuses")
+}
+
+// Lv2: 不可逆的変化・定量可能 (成長記録)
+model QuantityIrreversibleStatus {
+  id      String @id @default(uuid())
+  version Int    @default(1)
+
+  personaStatusId String        @unique @map("persona_status_id")
+  personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
+
+  height      Float?
+  boneDensity Float? @map("bone_density")
+
+  recordedAt DateTime @default(now()) @map("recorded_at")
+
+  @@map("quantity_irreversible_statuses")
+}
+
+// Lv3-1: 可変・定量可能 (バイタルデータ)
+model QuantityReversibleStatus {
+  id      String @id @default(uuid())
+  version Int    @default(1)
+
+  personaStatusId String        @unique @map("persona_status_id")
+  personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
+
+  weight           Float?
+  bloodSugar       Float? @map("blood_sugar")
+  bloodPressureSys Int?   @map("blood_pressure_sys")
+  bloodPressureDia Int?   @map("blood_pressure_dia")
+  sleepTime        Float? @map("sleep_time")
+  sleepQuality     Int?   @map("sleep_quality")
+
+  recordedAt DateTime @default(now()) @map("recorded_at")
+
+  @@map("quantity_reversible_statuses")
+}
+
+// Lv3-2: 可変・定量困難 (関係性・感情パラメータ)
+model SemiquantityReversibleStatus {
+  id      String @id @default(uuid())
+  version Int    @default(1)
+
+  personaStatusId String        @unique @map("persona_status_id")
+  personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
+
+  trust        Int @default(50)
+  friendliness Int @default(50)
+  mood         Int @default(50)
+  health       Int @default(100)
+
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@map("semiquantity_reversible_statuses")
 }
 
 // チャット。ユーザーとペルソナの対話。チャット履歴の親。
