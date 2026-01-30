@@ -37,18 +37,44 @@ function App() {
   const [isLeftOpen, setIsLeftOpen] = useState(true);
   const [isRightOpen, setIsRightOpen] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [chatModel, setChatModel] = useState<string>('gemini-2.5-flash');
-  const [reflectModel, setReflectModel] = useState<string>('gemini-2.5-pro');
-  const [llmSettings, setLlmSettings] = useState({
-    provider: 'gemini' as 'gemini' | 'local',
-    localEndpoint: 'http://localhost:11434/v1',
-    localModel: 'llama3',
-    availableModels: [] as string[]
+  const [chatModel, setChatModel] = useState<string>(() => localStorage.getItem('chatModel') || 'gemini-2.5-flash');
+  const [reflectModel, setReflectModel] = useState<string>(() => localStorage.getItem('reflectModel') || 'gemini-2.5-pro');
+  const [llmSettings, setLlmSettings] = useState(() => {
+    const saved = localStorage.getItem('llmSettings');
+    const defaultSettings = {
+      provider: 'gemini' as 'gemini' | 'local',
+      localEndpoint: 'http://localhost:11434/v1',
+      localModel: 'llama3',
+      availableModels: [] as string[]
+    };
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse llmSettings from localStorage', e);
+        localStorage.removeItem('llmSettings');
+        return defaultSettings;
+      }
+    }
+    return defaultSettings;
   });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // 設定の永続化
+  useEffect(() => {
+    localStorage.setItem('chatModel', chatModel);
+  }, [chatModel]);
+
+  useEffect(() => {
+    localStorage.setItem('reflectModel', reflectModel);
+  }, [reflectModel]);
+
+  useEffect(() => {
+    localStorage.setItem('llmSettings', JSON.stringify(llmSettings));
+  }, [llmSettings]);
 
   // ダークモードのクラス切り替え
   useEffect(() => {

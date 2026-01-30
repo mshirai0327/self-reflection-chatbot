@@ -29,6 +29,7 @@ type BotSidebarProps = {
     }>>;
 };
 
+// 動作確認用にも、gemmaは消さないでほしい。
 const MODELS = [
     { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
     { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },

@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { queryMemories, addMemory } from "@/lib/chroma";
 import { getDefaultPersona, getDefaultUser } from "@/lib/persona";
-import { generateLLMResponse, LLMConfig } from "@/lib/llm";
+import { generateResponse, LLMConfig } from "@/lib/llm";
 
 /**
  * 受信したチャットリクエストを処理します。
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
         // デフォルト設定
         const activeConfig: LLMConfig = llmConfig || {
             provider: "gemini",
-            model: model || "gemini-2.5-flash"
+            model: model || "gemini-1.5-flash"
         };
 
         console.log("[Chat API] Received message:", message);
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
 
         // 3. Generate response with chosen LLM
         console.log("[Chat API] Requesting AI response...");
-        const aiResponse = await generateLLMResponse(activeConfig, message, {
+        const aiResponse = await generateResponse(activeConfig, message, {
             status,
             memories: (memories as string[]) || []
         });
@@ -119,19 +119,28 @@ export async function POST(req: NextRequest) {
             status: status,
             chatId: targetChatId
         });
-    } catch (error: any) {
-        console.error("[Chat API Error] Details:", {
-            message: error.message,
-            stack: error.stack,
-            cause: error.cause
-        });
+    } catch (error: unknown) {
+        let errorMessage = "An unknown error occurred";
+        let errorStatus = 500;
+        let errorDetails: Record<string, unknown> = {};
 
-        // Gemini APIからの429エラーなどを検知して適切なステータスを返す
-        const status = error.message?.includes("429") || error.status === 429 ? 429 : 500;
-        const errorMessage = status === 429
-            ? "現在アクセスが集中しているか、利用枠を超えています。少し時間を置いてからお試しください。"
-            : error.message;
+        if (error instanceof Error) {
+            errorMessage = error.message;
+            errorDetails = { message: error.message, stack: error.stack, cause: (error as any).cause };
 
-        return NextResponse.json({ error: errorMessage }, { status });
+            const errorAny = error as any;
+            const isRateLimit = errorAny.message?.includes("429") || errorAny.status === 429;
+            
+            if (isRateLimit) {
+                errorStatus = 429;
+                errorMessage = "現在アクセスが集中しているか、利用枠を超えています。少し時間を置いてからお試しください。";
+            }
+        } else {
+            errorDetails = { error };
+        }
+        
+        console.error("[Chat API Error] Details:", errorDetails);
+
+        return NextResponse.json({ error: errorMessage }, { status: errorStatus });
     }
 }
