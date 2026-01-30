@@ -104,6 +104,7 @@ export async function addMemory(id: string, text: string, metadata: Record<strin
 
 /**
  * 与えられたテキストに意味的に近い記憶を検索します。
+ * デフォルトでは、3つの結果を返却します
  */
 export async function queryMemories(text: string, nResults: number = 3) {
     try {

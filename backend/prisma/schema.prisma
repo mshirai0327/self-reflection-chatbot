@@ -7,95 +7,260 @@ generator client {
   provider = "prisma-client-js"
 }
 
+/// ユーザー情報。AIとの対話者。
 model User {
   id        String    @id @default(uuid())
+  /// ユーザーの表示名
   name      String?
+  /// ログインに使用するメールアドレス
   email     String?   @unique
+  /// このユーザーが関わった会話ログ
   chatLogs  ChatLog[]
+  /// アカウント作成日時
   createdAt DateTime  @default(now())
+  /// このユーザーが開始したチャットセッション
   chats     Chat[]
 
   @@map("users")
 }
 
-/// AI人格（ペルソナ）の定義。ユーザーからは独立したエンティティ。
+/// AI人格（ペルソナ）の定義。ユーザーからは独立した個体として管理。
 model Persona {
-  id               String            @id @default(uuid())
-  name             String            @default("Reflecta")
-  statuses         PersonaStatus[]
+  id   String @id @default(uuid())
+  /// ペルソナの名前（例: Reflecta）
+  name String @default("Reflecta")
+
+  /// 最新ステータスのポインタ。常に最新の状態へ単一リレーションでアクセス可能。
+  statusId String?        @unique @map("status_id")
+  status   PersonaStatus? @relation("CurrentStatus", fields: [statusId], references: [statusId])
+
+  /// ステータスの履歴。過去から現在までのすべてのスナップショット。
+  statusHistory PersonaStatus[] @relation("StatusHistory")
+
+  /// ペルソナによる発言を含む会話ログ
   chatLogs         ChatLog[]
+  /// ペルソナが行った内省イベントの記録
   reflectionEvents ReflectionEvent[]
+  /// ペルソナの生成日時
   createdAt        DateTime          @default(now())
+  /// ペルソナが参加しているチャットセッション
   chats            Chat[]
 
   @@map("personas")
 }
 
-/// ペルソナの動的なステータス。時系列で保存される。
+/// ステータスのハブテーブル。ある時点での全生体・心理データのスナップショットを束ねる。
 model PersonaStatus {
-  id        Int      @id @default(autoincrement())
-  personaId String
-  persona   Persona  @relation(fields: [personaId], references: [id])
-  height    Float    @default(160.0)
-  weight    Float    @default(50.0)
-  health    Int      @default(100)
-  mood      Int      @default(50)
-  trust     Int      @default(50)
-  updatedAt DateTime @updatedAt
+  statusId  String   @id @default(uuid()) @map("status_id")
+  /// このスナップショットが作成された日時
+  createdAt DateTime @default(now()) @map("created_at")
+
+  /// 所有者であるペルソナのID
+  personaId String  @map("persona_id")
+  persona   Persona @relation("StatusHistory", fields: [personaId], references: [id])
+
+  /// このスナップショットが現時点での最新状態である場合の逆参照
+  currentPersona Persona? @relation("CurrentStatus")
+
+  /// Lv1-1: 基本情報へのリレーション
+  quantityUnchange       QuantityUnchangeStatus?
+  /// Lv1-2: 性格特性へのリレーション
+  semiquantityUnchange   SemiquantityUnchangeStatus?
+  /// Lv2: 成長記録へのリレーション
+  quantityIrreversible   QuantityIrreversibleStatus?
+  /// Lv3-1: バイタルデータへのリレーション
+  quantityReversible     QuantityReversibleStatus?
+  /// Lv3-2: 感情・健康パラメータへのリレーション
+  semiquantityReversible SemiquantityReversibleStatus?
 
   @@map("persona_statuses")
 }
 
-// チャット。ユーザーとペルソナの対話。チャット履歴の親。
+/// Lv1-1: 完全不変・定量可能。生物学的・遺伝的な基本情報。
+model QuantityUnchangeStatus {
+  id String @id @default(uuid())
+
+  personaStatusId String        @unique @map("persona_status_id")
+  personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
+
+  /// 生年月日。年齢の算出に使用。
+  birthDate       DateTime? @map("birth_date")
+  /// 性別。ホルモンバランスや対話スタイルの基礎。
+  gender          String?
+  /// 血液型。
+  bloodType       String?   @map("blood_type")
+  /// クロノタイプ。朝型・夜型などの活動周期。
+  chronotype      String?
+  /// 苦味感受性。味覚の鋭敏さなどの身体的特徴。
+  bitternessSense Int?      @map("bitterness_sense")
+  /// 知能。論理的思考能力のベースライン。
+  intelligence    Int?
+
+  @@map("quantity_unchange_statuses")
+}
+
+/// Lv1-2: 完全不変・定量困難。深層心理や根源的な性格特性。
+model SemiquantityUnchangeStatus {
+  id String @id @default(uuid())
+
+  personaStatusId String        @unique @map("persona_status_id")
+  personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
+
+  /// 倫理観。行動選択の基準（0-100）。
+  ethics         Int @default(50)
+  /// 情熱。物事への追求心やエネルギー（0-100）。
+  passion        Int @default(50)
+  /// 好奇心。未知のものへの関心（0-100）。
+  curiosity      Int @default(50)
+  /// 攻撃性。対立時の反応傾向（0-100）。
+  aggressiveness Int @default(50)
+  /// 外向性。社交性や外部へのエネルギー（0-100）。
+  extroversion   Int @default(50)
+
+  @@map("semiquantity_unchange_statuses")
+}
+
+/// Lv2: 不可逆的変化・定量可能。加齢や経験に伴う蓄積的な成長記録。
+model QuantityIrreversibleStatus {
+  id      String @id @default(uuid())
+  /// ステータスの更新回数（版数）
+  version Int    @default(1)
+
+  personaStatusId String        @unique @map("persona_status_id")
+  personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
+
+  /// 身長 (cm)。
+  height      Float?
+  /// 骨密度。加齢や健康状態の不可逆な指標。
+  boneDensity Float? @map("bone_density")
+
+  /// 記録された日時
+  recordedAt DateTime @default(now()) @map("recorded_at")
+
+  @@map("quantity_irreversible_statuses")
+}
+
+/// Lv3-1: 可変・定量可能。短中期的に変動する日常的なバイタルデータ。
+model QuantityReversibleStatus {
+  id      String @id @default(uuid())
+  version Int    @default(1)
+
+  personaStatusId String        @unique @map("persona_status_id")
+  personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
+
+  /// 体重 (kg)。
+  weight           Float?
+  /// 血糖値。空腹感やエネルギーレベルに関係。
+  bloodSugar       Float? @map("blood_sugar")
+  /// 最高血圧。緊張状態や興奮の指標。
+  bloodPressureSys Int?   @map("blood_pressure_sys")
+  /// 最低血圧。
+  bloodPressureDia Int?   @map("blood_pressure_dia")
+  /// 直近の睡眠時間 (h)。
+  sleepTime        Float? @map("sleep_time")
+  /// 睡眠の質（1-10）。
+  sleepQuality     Int?   @map("sleep_quality")
+
+  /// 記録された日時
+  recordedAt DateTime @default(now()) @map("recorded_at")
+
+  @@map("quantity_reversible_statuses")
+}
+
+/// Lv3-2: 可変・定量困難。感情の揺れや対人関係の流動的なパラメータ。
+model SemiquantityReversibleStatus {
+  id      String @id @default(uuid())
+  version Int    @default(1)
+
+  personaStatusId String        @unique @map("persona_status_id")
+  personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
+
+  /// 対ユーザー信頼度。会話の親密度に影響（0-100）。
+  trust        Int @default(50)
+  /// 対ユーザーへの親しみやすさ。反応の柔らかさ（0-100）。
+  friendliness Int @default(50)
+  /// 現在の情緒・気分（0-100）。
+  mood         Int @default(50)
+  /// 現在の総合的な健康感。疲労度など（0-100）。
+  health       Int @default(100)
+
+  /// 更新された日時
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@map("semiquantity_reversible_statuses")
+}
+
+/// チャットセッション。ユーザーとペルソナの対話をまとめる単位。
 model Chat {
   id        String    @id @default(uuid())
+  /// セッションのタイトル
   title     String    @default("New Chat")
+  /// 参加しているユーザー
   userId    String
   user      User      @relation(fields: [userId], references: [id])
+  /// 参加しているペルソナ
   personaId String
   persona   Persona   @relation(fields: [personaId], references: [id])
+  /// セッション開始日時
   createdAt DateTime  @default(now())
+  /// 最後に発言があった日時
   updatedAt DateTime  @updatedAt
+  /// このセッションに紐づく個別の発言
   chatLogs  ChatLog[]
 
   @@map("chats")
 }
 
-/// 会話履歴。特定のユーザーと特定のペルソナの対話を記録。
+/// 具体的な会話の一言。発言者と内容を記録。
 model ChatLog {
   id        String   @id @default(uuid())
+  /// 所属するチャットセッション
   chatId    String
   chat      Chat     @relation(fields: [chatId], references: [id])
+  /// 発言したユーザー
   userId    String
   user      User     @relation(fields: [userId], references: [id])
+  /// 対象となるペルソナ
   personaId String
   persona   Persona  @relation(fields: [personaId], references: [id])
-  role      String // "user" or "assistant"
+  /// 発言の役割（"user" または "assistant"）
+  role      String
+  /// 発言内容。
   content   String   @db.Text
+  /// 発言日時
   createdAt DateTime @default(now())
 
   @@map("chat_logs")
 }
 
-/// 内省処理（リフレクション）の実行記録
+/// AIが行った「内省（自己分析）」の記録。
 model ReflectionEvent {
   id              String   @id @default(uuid())
+  /// 内省を行ったペルソナ
   personaId       String
   persona         Persona  @relation(fields: [personaId], references: [id])
+  /// 内省によって得られた思考の要約
   thought         String   @db.Text
-  statusUpdate    Json // 推論されたステータスの増減値
+  /// 内省結果として算出されたステータスの変動値（JSON）
+  statusUpdate    Json
+  /// 今後の人格形成に引き継がれる恒久的な記憶
   permanentMemory String?  @db.Text
+  /// 内省が行われた日時
   createdAt       DateTime @default(now())
 
   @@map("reflection_events")
 }
 
-/// その他の一般的なイベントログ
+/// システム全体で発生したイベントの汎用的な記録。
 model EventLog {
   id        String   @id @default(uuid())
-  type      String // "physical", "emotional", "memory"
+  /// イベントの種別（"physical", "emotional", "memory" など）
+  type      String
+  /// イベントの詳細内容
   content   String   @db.Text
+  /// 数値が伴う場合のデータ値（例：ダメージ量、回復量など）
   value     Float?
+  /// 発生日時
   createdAt DateTime @default(now())
 
   @@map("event_logs")

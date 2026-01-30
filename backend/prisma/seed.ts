@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+
 const prisma = new PrismaClient()
 
 async function main() {
@@ -16,7 +17,7 @@ async function main() {
 
     // 2. デフォルトペルソナ
     const persona = await prisma.persona.upsert({
-        where: { id: 'default-persona-id' }, // 通常はUUIDだが、シード用に固定IDを試みるか、findFirstで代用
+        where: { id: 'default-persona-id' },
         update: {},
         create: {
             id: 'default-persona-id',
@@ -24,17 +25,81 @@ async function main() {
         },
     })
 
-    // 3. 初期ステータス
-    await prisma.personaStatus.create({
-        data: {
-            personaId: persona.id,
-            height: 160.0,
-            weight: 50.0,
-            health: 100,
-            mood: 50,
-            trust: 50,
-        },
+    // 3. 初期ステータス (Hub) の作成
+    const existingStatus = await prisma.persona.findUnique({
+        where: { id: persona.id },
+        include: { status: true }
     })
+
+    if (!existingStatus?.status) {
+        console.log('Creating initial status...')
+        const personaStatus = await prisma.personaStatus.create({
+            data: {
+                personaId: persona.id,
+
+                quantityUnchange: {
+                    create: {
+                        birthDate: new Date('2024-01-01'),
+                        gender: 'Female',
+                        bloodType: 'A',
+                        chronotype: 'Morning',
+                        bitternessSense: 50,
+                        intelligence: 120,
+                    }
+                },
+
+                semiquantityUnchange: {
+                    create: {
+                        ethics: 80,
+                        passion: 60,
+                        curiosity: 90,
+                        aggressiveness: 40,
+                        extroversion: 70,
+                    }
+                },
+
+                quantityIrreversible: {
+                    create: {
+                        height: 160.0,
+                        boneDensity: 1.0,
+                        version: 1,
+                    }
+                },
+
+                quantityReversible: {
+                    create: {
+                        weight: 50.0,
+                        bloodSugar: 90.0,
+                        bloodPressureSys: 110,
+                        bloodPressureDia: 70,
+                        sleepTime: 7.5,
+                        sleepQuality: 80,
+                        version: 1,
+                    }
+                },
+
+                semiquantityReversible: {
+                    create: {
+                        trust: 50,
+                        friendliness: 50,
+                        mood: 50,
+                        health: 100,
+                        version: 1,
+                    }
+                }
+            }
+        })
+
+        // Personaの最新ステータスを更新
+        await prisma.persona.update({
+            where: { id: persona.id },
+            data: {
+                statusId: personaStatus.statusId
+            }
+        })
+    } else {
+        console.log('Initial status already exists. Skipping.')
+    }
 
     console.log('Seeding finished.')
 }

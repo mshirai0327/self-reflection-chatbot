@@ -1,0 +1,95 @@
+
+// Use this file with a DBML renderer (e.g. dbdocs.io or VSCode extension) to visualize the schema.
+
+Table users {
+  id Int [pk]
+  name String
+  email String
+}
+
+Table personas {
+  id Int [pk]
+  name String
+  status_id Int [ref: - persona_statuses.status_id] // Link to current snapshot
+  created_at DateTime
+}
+
+// Intermediate Hub Table / Snapshot
+Table persona_statuses {
+  id Int [pk]
+  status_id Int [pk] // Renamed from id per request (Implementation: mapped to status_id)
+  persona_id Int [ref: > personas.id] // FK restored
+  created_at DateTime
+}
+
+// Lv1-1
+Table quantity_unchange_statuses {
+  id Int [pk]
+  persona_status_id Int [ref: - persona_statuses.status_id] // FK pointing to hub's status_id
+  // ... data
+  birth_date DateTime
+  gender String
+  blood_type String
+  chronotype String
+  bitterness_sense Int
+  intelligence Int
+}
+
+// Lv1-2
+Table semiquantity_unchange_statuses {
+  id Int [pk]
+  persona_status_id Int [ref: - persona_statuses.status_id]
+  // ... data
+  ethics Int
+  passion Int
+  curiosity Int
+  aggressiveness Int
+  extroversion Int
+}
+
+// Lv2
+Table quantity_irreversible_statuses {
+  id Int [pk]
+  persona_status_id Int [ref: - persona_statuses.status_id]
+  version Int
+  // ... data
+  height Float
+  bone_density Float
+  recorded_at DateTime
+}
+
+// Lv3-1
+Table quantity_reversible_statuses {
+  id Int [pk]
+  persona_status_id Int [ref: - persona_statuses.status_id]
+  version Int
+  // ... data
+  weight Float
+  blood_sugar Float
+  blood_pressure_sys Int
+  blood_pressure_dia Int
+  sleep_time Float
+  sleep_quality Int
+  recorded_at DateTime
+}
+
+// Lv3-2
+Table semiquantity_reversible_statuses {
+  id Int [pk]
+  persona_status_id Int [ref: - persona_statuses.status_id]
+  version Int
+  // ... data
+  trust Int
+  friendliness Int
+  mood Int
+  health Int
+  updated_at DateTime
+}
+
+Table chat_logs {
+  id Int [pk]
+  chat_id Int
+  user_id Int [ref: > users.id]
+  persona_id Int [ref: > personas.id]
+  content String
+}

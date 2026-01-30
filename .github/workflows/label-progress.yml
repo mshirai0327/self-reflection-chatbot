@@ -1,8 +1,9 @@
 name: Auto Label on Project Status Change
 
 on:
-  project_v2_item:
-    types: [edited]
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
 
 jobs:
   label_issue:
@@ -11,38 +12,77 @@ jobs:
       issues: write
       repository-projects: read
     steps:
-      - name: Check Status and Add Label
+      - name: Sync Project Status to Labels
         uses: actions/github-script@v7
         with:
-          # Project V2の情報を取得するには、GITHUB_TOKENでは権限が不足する場合があり、
-          # その場合はPROJECT_TOKEN (PAT) をSecretsに設定する必要があります。
           github-token: ${{ secrets.PROJECT_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const nodeId = context.payload.project_v2_item.node_id;
-            
-            // GraphQLで現在のステータスとIssue情報を取得
+            // プロジェクト番号（必要に応じて変更してください）
+            // ユーザーや組織のプロジェクトを特定するために必要
+            const PROJECT_NUMBER = 1; 
+            const OWNER = context.repo.owner;
+
             const query = `
-              query($nodeId: ID!) {
-                node(id: $nodeId) {
-                  ... on ProjectV2Item {
-                    content {
-                      ... on Issue {
-                        number
-                        repository {
-                          name
-                          owner {
-                            login
+              query($owner: String!, $number: Int!) {
+                user(login: $owner) {
+                  projectV2(number: $number) {
+                    items(first: 100) {
+                      nodes {
+                        id
+                        content {
+                          ... on Issue {
+                            id
+                            number
+                            repository {
+                              name
+                              owner {
+                                login
+                              }
+                            }
+                          }
+                        }
+                        fieldValues(first: 20) {
+                          nodes {
+                            ... on ProjectV2ItemFieldSingleSelectValue {
+                              name
+                              field {
+                                ... on ProjectV2FieldCommon {
+                                  name
+                                }
+                              }
+                            }
                           }
                         }
                       }
                     }
-                    fieldValues(first: 20) {
+                  }
+                }
+                organization(login: $owner) {
+                  projectV2(number: $number) {
+                    items(first: 100) {
                       nodes {
-                        ... on ProjectV2ItemFieldSingleSelectValue {
-                          name
-                          field {
-                            ... on ProjectV2FieldCommon {
+                        id
+                        content {
+                          ... on Issue {
+                            id
+                            number
+                            repository {
                               name
+                              owner {
+                                login
+                              }
+                            }
+                          }
+                        }
+                        fieldValues(first: 20) {
+                          nodes {
+                            ... on ProjectV2ItemFieldSingleSelectValue {
+                              name
+                              field {
+                                ... on ProjectV2FieldCommon {
+                                  name
+                                }
+                              }
                             }
                           }
                         }
@@ -52,33 +92,44 @@ jobs:
                 }
               }
             `;
-            
+
             try {
-              const result = await github.graphql(query, { nodeId });
-              const item = result.node;
+              const result = await github.graphql(query, { owner: OWNER, number: PROJECT_NUMBER });
               
-              // Issueでない場合はスキップ
-              if (!item.content || !item.content.number) {
-                console.log("This item is not an issue. Skipping.");
+              // UserまたはOrgからプロジェクトを取得
+              const project = (result.user && result.user.projectV2) || (result.organization && result.organization.projectV2);
+              
+              if (!project) {
+                console.error(`Project not found: ${OWNER}/projects/${PROJECT_NUMBER}`);
                 return;
               }
 
-              // Statusフィールドの値を確認
-              const statusField = item.fieldValues.nodes.find(node => node.field && node.field.name === 'Status');
-              const currentStatus = statusField ? statusField.name : 'No Status';
-              
-              console.log(`Current Status: ${currentStatus}`);
+              console.log(`Checking ${project.items.nodes.length} items in project...`);
 
-              if (currentStatus === 'In Progress') {
-                await github.rest.issues.addLabels({
-                  owner: item.content.repository.owner.login,
-                  repo: item.content.repository.name,
-                  issue_number: item.content.number,
-                  labels: ['In Progress']
-                });
-                console.log(`Added "In Progress" label to Issue #${item.content.number}`);
+              for (const item of project.items.nodes) {
+                if (!item.content || !item.content.number) continue;
+
+                const statusField = item.fieldValues.nodes.find(node => node.field && node.field.name === 'Status');
+                const currentStatus = statusField ? statusField.name : 'No Status';
+                const issueNumber = item.content.number;
+                const repoName = item.content.repository.name;
+                const repoOwner = item.content.repository.owner.login;
+
+                if (currentStatus === 'In Progress') {
+                  console.log(`Issue #${issueNumber} in ${repoName} is In Progress. Ensuring label exists.`);
+                  try {
+                    await github.rest.issues.addLabels({
+                      owner: repoOwner,
+                      repo: repoName,
+                      issue_number: issueNumber,
+                      labels: ['In Progress']
+                    });
+                  } catch (e) {
+                    console.error(`Failed to add label to #${issueNumber}: ${e.message}`);
+                  }
+                }
               }
             } catch (error) {
-              console.error("Error during execution:", error);
+              console.error("Error during synchronization:", error);
               core.setFailed(error.message);
             }

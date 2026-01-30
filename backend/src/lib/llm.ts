@@ -9,7 +9,7 @@ import { z } from "zod";
 
 // --- Configuration Interfaces ---
 
-export type LLMProvider = "gemini" | "openai";
+export type LLMProvider = "gemini" | "openai" | "local";
 
 export interface LLMConfig {
     provider: LLMProvider;
@@ -17,16 +17,11 @@ export interface LLMConfig {
     apiKey?: string;
     // For OpenAI-compatible endpoints (like local LLMs)
     baseURL?: string;
+    endpoint?: string; // Frontend uses 'endpoint'
 }
 
 export interface PersonaContext {
-    status: {
-        height: number;
-        weight: number;
-        health: number;
-        mood: number;
-        trust: number;
-    };
+    status: Record<string, any>;
     memories: string[];
 }
 
@@ -46,25 +41,24 @@ const DEFAULT_OPENAI_EMBEDDING_MODEL = "text-embedding-3-small";
  */
 export function createChatModel(config: LLMConfig): BaseChatModel {
     const provider = config.provider || "gemini";
+    const modelName = config.model || (provider === "gemini" ? DEFAULT_GEMINI_CHAT_MODEL : DEFAULT_OPENAI_CHAT_MODEL);
+    const baseURL = config.baseURL || config.endpoint;
 
-    switch (provider) {
-        case "openai":
-            return new ChatOpenAI({
-                apiKey: config.apiKey || process.env.OPENAI_API_KEY,
-                model: config.model || DEFAULT_OPENAI_CHAT_MODEL,
-                configuration: {
-                    baseURL: config.baseURL, // For local LLM proxy
-                },
-                // maxRetries: 3, // Optional: configure retries
-            });
-        case "gemini":
-        default:
-            return new ChatGoogleGenerativeAI({
-                apiKey: config.apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-                model: config.model || DEFAULT_GEMINI_CHAT_MODEL,
-                // maxRetries: 3,
-            });
+    if (provider === "openai" || provider === "local") {
+        return new ChatOpenAI({
+            apiKey: config.apiKey || process.env.OPENAI_API_KEY || "no-key-required",
+            model: modelName,
+            configuration: {
+                baseURL: baseURL, // For local LLM proxy
+            },
+        });
     }
+
+    // Default to Gemini
+    return new ChatGoogleGenerativeAI({
+        apiKey: config.apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+        model: modelName,
+    });
 }
 
 /**
@@ -76,23 +70,23 @@ export function createChatModel(config: LLMConfig): BaseChatModel {
  */
 export function createEmbeddingModel(config: LLMConfig): Embeddings {
     const provider = config.provider || "gemini";
+    const baseURL = config.baseURL || config.endpoint;
 
-    switch (provider) {
-        case "openai":
-            return new OpenAIEmbeddings({
-                apiKey: config.apiKey || process.env.OPENAI_API_KEY,
-                model: config.model || DEFAULT_OPENAI_EMBEDDING_MODEL,
-                configuration: {
-                    baseURL: config.baseURL,
-                },
-            });
-        case "gemini":
-        default:
-            return new GoogleGenerativeAIEmbeddings({
-                apiKey: config.apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-                model: config.model || DEFAULT_GEMINI_EMBEDDING_MODEL,
-            });
+    if (provider === "openai" || provider === "local") {
+        return new OpenAIEmbeddings({
+            apiKey: config.apiKey || process.env.OPENAI_API_KEY || "no-key-required",
+            model: config.model || DEFAULT_OPENAI_EMBEDDING_MODEL,
+            configuration: {
+                baseURL: baseURL,
+            },
+        });
     }
+
+    // Default to Gemini
+    return new GoogleGenerativeAIEmbeddings({
+        apiKey: config.apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+        model: config.model || DEFAULT_GEMINI_EMBEDDING_MODEL,
+    });
 }
 
 // --- Core Functions ---
