@@ -21,7 +21,7 @@ sequenceDiagram
     activate API
     %% 1. ステータス取得
     Note right of API: 人格データの全取得
-    API->>DB: findFirst Persona (include Status & relationships)
+    API->>DB: findUnique Persona (include Status & relationships)
     DB-->>API: Data: { User, Persona, Status(Lv1~Lv3) }
 
     %% 2. 記憶検索
@@ -123,7 +123,7 @@ sequenceDiagram
     API->>DB: create PersonaStatus (New Version)
     
     par 詳細テーブル作成
-        API->>DB: create QuantityReversible (Wiki + Delta)
+        API->>DB: create QuantityReversible (Prev + Delta)
         API->>DB: create SemiquantityReversible (Prev + Delta)
         API->>DB: connect UnchangeStatus (Lv1は維持)
     end
@@ -177,6 +177,9 @@ JSON形式で結果を受け取ります（`generateJson` 関数を使用）。
   "newMemory": "深夜の会話は楽しいが、エネルギーを消費する傾向があることを学んだ。"
 }
 ```
+
+Note: 将来的な実装であり、現在はmoodなどのみしか返却されない
+
 
 #### データベース更新手順 (Immutability Strategy)
 

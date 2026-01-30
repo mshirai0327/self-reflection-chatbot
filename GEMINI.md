@@ -80,7 +80,7 @@
 
 ここには直近でやるべきTODOを記載します。
 
-/home/mizuho/develop/self-reflection-chatbot/backend/src/lib/llm.ts
+./backend/src/lib/llm.ts
 
 現在のチャットの流れは
 1. ユーザの入力

@@ -5,7 +5,7 @@
 ## 機能要件
 
 人格データの分類
-/home/mizuho/develop/self-reflection-chatbot/docs/persona-status-data.md
+./docs/persona-status-data.md
 上記のファイルにあるようなレベル分けに従って、人格データを分類する仕組みを実装する
 
 まずは、RDBで管理されるデータを整理する
