@@ -41,12 +41,22 @@ function App() {
   const [reflectModel, setReflectModel] = useState<string>(() => localStorage.getItem('reflectModel') || 'gemini-2.5-pro');
   const [llmSettings, setLlmSettings] = useState(() => {
     const saved = localStorage.getItem('llmSettings');
-    return saved ? JSON.parse(saved) : {
+    const defaultSettings = {
       provider: 'gemini' as 'gemini' | 'local',
       localEndpoint: 'http://localhost:11434/v1',
       localModel: 'llama3',
       availableModels: [] as string[]
     };
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse llmSettings from localStorage', e);
+        localStorage.removeItem('llmSettings');
+        return defaultSettings;
+      }
+    }
+    return defaultSettings;
   });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
