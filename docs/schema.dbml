@@ -15,7 +15,6 @@ Table users {
 Table personas {
   id String [pk, note: 'UUID']
   name String [default: 'Reflecta', note: 'ペルソナの名前']
-  status_id String [unique, ref: - persona_statuses.status_id, note: '最新ステータスへのポインタ']
   created_at DateTime [default: `now()`, note: 'ペルソナの生成日時']
 }
 
