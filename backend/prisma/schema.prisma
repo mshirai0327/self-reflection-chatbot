@@ -30,12 +30,9 @@ model Persona {
   /// ペルソナの名前（例: Reflecta）
   name String @default("Reflecta")
 
-  /// 最新ステータスのポインタ。常に最新の状態へ単一リレーションでアクセス可能。
-  statusId String?        @unique @map("status_id")
-  status   PersonaStatus? @relation("CurrentStatus", fields: [statusId], references: [statusId])
-
   /// ステータスの履歴。過去から現在までのすべてのスナップショット。
-  statusHistory PersonaStatus[] @relation("StatusHistory")
+  /// 最新ステータスは createdAt でソートして取得する。
+  statusHistory PersonaStatus[]
 
   /// ペルソナによる発言を含む会話ログ
   chatLogs         ChatLog[]
@@ -51,16 +48,15 @@ model Persona {
 
 /// ステータスのハブテーブル。ある時点での全生体・心理データのスナップショットを束ねる。
 model PersonaStatus {
-  statusId  String   @id @default(uuid()) @map("status_id")
+  id        String   @id @default(uuid())
+  /// スナップショットの一意識別子（外部参照用）
+  statusId  String   @unique @default(uuid()) @map("status_id")
   /// このスナップショットが作成された日時
   createdAt DateTime @default(now()) @map("created_at")
 
   /// 所有者であるペルソナのID
   personaId String  @map("persona_id")
-  persona   Persona @relation("StatusHistory", fields: [personaId], references: [id])
-
-  /// このスナップショットが現時点での最新状態である場合の逆参照
-  currentPersona Persona? @relation("CurrentStatus")
+  persona   Persona @relation(fields: [personaId], references: [id])
 
   /// Lv1-1: 基本情報へのリレーション
   quantityUnchange       QuantityUnchangeStatus?
