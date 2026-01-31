@@ -177,7 +177,7 @@ export function BotSidebar({ isOpen, status, chatModel, setChatModel, reflectMod
                         onClick={() => setActiveTab('debug')}
                         className={`flex-1 py-3 text-sm font-medium transition-colors relative ${activeTab === 'debug' ? 'text-purple-600 dark:text-purple-400' : 'text-slate-500 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     >
-                        DEBUG (Lv4)
+                        DEBUG MODE
                         {activeTab === 'debug' && <motion.div layoutId="underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-600 dark:bg-purple-400" />}
                     </button>
                 </div>
