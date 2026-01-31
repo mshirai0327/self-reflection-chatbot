@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { MessageCircle, Clock, PlusCircle, Settings, CheckCircle, RefreshCw, ChevronDown, ChevronRight, Brain } from 'lucide-react';
+import { MessageCircle, PlusCircle, Settings, CheckCircle, RefreshCw, ChevronDown, ChevronRight, Brain } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -181,81 +181,6 @@ export function ChatHistory({
 
                 {/* チャットログリスト (Scrollable) */}
                 <div className="flex-1 overflow-y-auto min-h-0">
-
-                    {/* Reflection Result Accordion */}
-                    <AnimatePresence>
-                        {lastReflection && (
-                            <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="border-b border-slate-200 dark:border-slate-800"
-                            >
-                                <button
-                                    onClick={() => setIsReflectionOpen(!isReflectionOpen)}
-                                    className="w-full flex items-center justify-between p-3 bg-indigo-50 dark:bg-indigo-900/20 text-xs font-semibold text-indigo-700 dark:text-indigo-300"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <Brain className="w-4 h-4" />
-                                        Latest Introspection
-                                    </div>
-                                    {isReflectionOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                                </button>
-                                {isReflectionOpen && (
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        className="p-3 bg-slate-50 dark:bg-slate-900/50 text-xs space-y-3"
-                                    >
-                                        <div>
-                                            <span className="text-slate-400 block mb-1">Status Update</span>
-                                            <div className="grid grid-cols-4 gap-1 text-center font-mono">
-                                                <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
-                                                    <span className="block text-[10px] text-slate-400">HLTH</span>
-                                                    <span className={lastReflection.statusUpdate.health > 0 ? 'text-green-500' : lastReflection.statusUpdate.health < 0 ? 'text-red-500' : 'text-slate-500'}>
-                                                        {lastReflection.statusUpdate.health > 0 ? '+' : ''}{lastReflection.statusUpdate.health}
-                                                    </span>
-                                                </div>
-                                                <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
-                                                    <span className="block text-[10px] text-slate-400">MOOD</span>
-                                                    <span className={lastReflection.statusUpdate.mood > 0 ? 'text-green-500' : lastReflection.statusUpdate.mood < 0 ? 'text-red-500' : 'text-slate-500'}>
-                                                        {lastReflection.statusUpdate.mood > 0 ? '+' : ''}{lastReflection.statusUpdate.mood}
-                                                    </span>
-                                                </div>
-                                                <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
-                                                    <span className="block text-[10px] text-slate-400">TRST</span>
-                                                    <span className={lastReflection.statusUpdate.trust > 0 ? 'text-green-500' : lastReflection.statusUpdate.trust < 0 ? 'text-red-500' : 'text-slate-500'}>
-                                                        {lastReflection.statusUpdate.trust > 0 ? '+' : ''}{lastReflection.statusUpdate.trust}
-                                                    </span>
-                                                </div>
-                                                <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
-                                                    <span className="block text-[10px] text-slate-400">FRND</span>
-                                                    <span className={lastReflection.statusUpdate.friendliness > 0 ? 'text-green-500' : lastReflection.statusUpdate.friendliness < 0 ? 'text-red-500' : 'text-slate-500'}>
-                                                        {lastReflection.statusUpdate.friendliness > 0 ? '+' : ''}{lastReflection.statusUpdate.friendliness}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <span className="text-slate-400 block mb-1">Analysis</span>
-                                            <p className="text-slate-600 dark:text-slate-300 leading-relaxed bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700">
-                                                {lastReflection.thought}
-                                            </p>
-                                        </div>
-                                        {lastReflection.permanentMemory && (
-                                            <div>
-                                                <span className="text-slate-400 block mb-1">New Memory</span>
-                                                <p className="text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded border border-amber-100 dark:border-amber-900/50">
-                                                    {lastReflection.permanentMemory}
-                                                </p>
-                                            </div>
-                                        )}
-                                    </motion.div>
-                                )}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
                     {isLoading && chats.length === 0 ? (
                         <div className="p-4 text-center text-slate-400 text-sm">Loading...</div>
                     ) : chats.length === 0 ? (
@@ -284,8 +209,82 @@ export function ChatHistory({
                     )}
                 </div>
 
+                {/* Reflection Result Accordion (Moved to bottom) */}
+                <AnimatePresence>
+                    {lastReflection && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/80"
+                        >
+                            <button
+                                onClick={() => setIsReflectionOpen(!isReflectionOpen)}
+                                className="w-full flex items-center justify-between p-3 text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Brain className="w-4 h-4" />
+                                    Latest Reflection
+                                </div>
+                                {isReflectionOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                            </button>
+                            {isReflectionOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="p-3 pt-0 text-xs space-y-3 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700"
+                                >
+                                    <div>
+                                        <span className="text-slate-400 block mb-1">Status Update</span>
+                                        <div className="grid grid-cols-4 gap-1 text-center font-mono">
+                                            <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
+                                                <span className="block text-[10px] text-slate-400">Health</span>
+                                                <span className={lastReflection.statusUpdate.health > 0 ? 'text-green-500' : lastReflection.statusUpdate.health < 0 ? 'text-red-500' : 'text-slate-500'}>
+                                                    {lastReflection.statusUpdate.health > 0 ? '+' : ''}{lastReflection.statusUpdate.health}
+                                                </span>
+                                            </div>
+                                            <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
+                                                <span className="block text-[10px] text-slate-400">Mood</span>
+                                                <span className={lastReflection.statusUpdate.mood > 0 ? 'text-green-500' : lastReflection.statusUpdate.mood < 0 ? 'text-red-500' : 'text-slate-500'}>
+                                                    {lastReflection.statusUpdate.mood > 0 ? '+' : ''}{lastReflection.statusUpdate.mood}
+                                                </span>
+                                            </div>
+                                            <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
+                                                <span className="block text-[10px] text-slate-400">Trust</span>
+                                                <span className={lastReflection.statusUpdate.trust > 0 ? 'text-green-500' : lastReflection.statusUpdate.trust < 0 ? 'text-red-500' : 'text-slate-500'}>
+                                                    {lastReflection.statusUpdate.trust > 0 ? '+' : ''}{lastReflection.statusUpdate.trust}
+                                                </span>
+                                            </div>
+                                            <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
+                                                <span className="block text-[10px] text-slate-400">Like</span>
+                                                <span className={lastReflection.statusUpdate.friendliness > 0 ? 'text-green-500' : lastReflection.statusUpdate.friendliness < 0 ? 'text-red-500' : 'text-slate-500'}>
+                                                    {lastReflection.statusUpdate.friendliness > 0 ? '+' : ''}{lastReflection.statusUpdate.friendliness}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-400 block mb-1">Thought</span>
+                                        <p className="text-slate-600 dark:text-slate-300 leading-relaxed bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700">
+                                            {lastReflection.thought}
+                                        </p>
+                                    </div>
+                                    {lastReflection.permanentMemory && (
+                                        <div>
+                                            <span className="text-slate-400 block mb-1">New Memory</span>
+                                            <p className="text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded border border-amber-100 dark:border-amber-900/50">
+                                                {lastReflection.permanentMemory}
+                                            </p>
+                                        </div>
+                                    )}
+                                </motion.div>
+                            )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
                 {/* API Settings Footer */}
-                <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
+                <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex-shrink-0">
                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
                         <Settings className="w-3 h-3" /> API Config
                     </h3>

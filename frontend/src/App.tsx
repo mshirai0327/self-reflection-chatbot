@@ -153,6 +153,14 @@ function App() {
           content: log.content
         }));
         setMessages(history);
+
+        // 内省結果があればセット
+        if (res.data.latestReflection) {
+          console.log('[App] Found previous reflection:', res.data.latestReflection);
+          setLastReflection(res.data.latestReflection);
+        } else {
+          setLastReflection(null);
+        }
       } catch (error) {
         console.error('[App] Failed to fetch chat logs:', error);
       }
@@ -283,8 +291,6 @@ function App() {
         <BotSidebar
           isOpen={isLeftOpen}
           status={status}
-          llmSettings={llmSettings}
-          setLlmSettings={setLlmSettings}
           lastDebugInfo={lastDebugInfo}
         />
 

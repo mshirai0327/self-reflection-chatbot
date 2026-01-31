@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { Bot, Activity, Heart, Sparkles, Database, User, Terminal, FileText, Settings, CheckCircle, RefreshCw } from 'lucide-react';
+import { Bot, Activity, Heart, Sparkles, Database, User, Terminal, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
-import toast from 'react-hot-toast';
-import axios from 'axios';
 
-// Types (Sync with App.tsx) - kept for BotSidebar
+// Types (Sync with App.tsx)
 interface PersonaStatus {
     name?: string;
     birthDate?: string;
@@ -40,25 +38,10 @@ export interface DebugInfo {
 type BotSidebarProps = {
     isOpen: boolean;
     status: PersonaStatus;
-    // LLM Settings removed (Moved to ChatHistory)
-    llmSettings: {
-        provider: 'gemini' | 'local';
-        localEndpoint: string;
-        localModel: string;
-        availableModels: string[];
-    };
-    setLlmSettings: React.Dispatch<React.SetStateAction<{
-        provider: 'gemini' | 'local';
-        localEndpoint: string;
-        localModel: string;
-        availableModels: string[];
-    }>>;
     lastDebugInfo: DebugInfo | null;
 };
 
-// ... existing models list code REMOVED (No longer needed here) ...
-
-export function BotSidebar({ isOpen, status, llmSettings, setLlmSettings, lastDebugInfo }: BotSidebarProps) {
+export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
     const [activeTab, setActiveTab] = useState<'status' | 'debug'>('status');
 
     // Stats Categorization
@@ -91,31 +74,6 @@ export function BotSidebar({ isOpen, status, llmSettings, setLlmSettings, lastDe
         { label: 'Sleep', value: `${status.sleepTime || '?'}h` },
         { label: 'BP', value: `${status.bloodPressureSys || '?'}/${status.bloodPressureDia || '?'}` },
     ];
-
-    // Connection Test Logic (Kept for now if we want to add connection indicator, 
-    // but the settings UI is moving. For now, I'll remove the UI but keep props to satisfy TS from App.tsx until ChatHistory update)
-    // Actually, I should remove props from interface, but App.tsx is already passing them.
-    // Wait, I updated App.tsx to PASS them to ChatHistory and removed them from BotSidebar call.
-    // So I should REMOVE them from Props here.
-
-    // RE-READING App.tsx DIFF:
-    // -          chatModel={chatModel}
-    // -          setChatModel={setChatModel}
-    // -          reflectModel={reflectModel}
-    // -          setReflectModel={setReflectModel}
-    // llmSettings and setLlmSettings are STILL PASSED in the diff!
-    // Line 284: llmSettings={llmSettings}
-    // Line 285: setLlmSettings={setLlmSettings}
-    // So I must keep them in Props, but maybe I don't use them? 
-    // No, the user Plan said "Remove API Settings UI and props". 
-    // My App.tsx edit REMOVED chatModel/reflectModel but KEPT llmSettings. 
-    // Uh oh. I probably missed deleting those lines in the MultiReplace. 
-    // Let's check Step 55 diff.
-    // It shows removal of lines 282-285 (chatModel...setReflectModel).
-    // It DOES NOT show removal of llmSettings lines.
-    // So App.tsx is still passing llmSettings.
-    // I should keep receiving them or ignore them. 
-    // Better: Remove UI for them.
 
     return (
         <div className={`bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 flex-shrink-0 ${isOpen ? 'w-80' : 'w-0'
@@ -283,8 +241,6 @@ export function BotSidebar({ isOpen, status, llmSettings, setLlmSettings, lastDe
                             )}
                         </div>
                     )}
-
-                    {/* API Settings REMOVED */}
                 </div>
             </div>
         </div>
