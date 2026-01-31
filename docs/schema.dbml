@@ -1,95 +1,155 @@
-
 // Use this file with a DBML renderer (e.g. dbdocs.io or VSCode extension) to visualize the schema.
+// Generated from: backend/prisma/schema.prisma
+
+// ========================================
+// ユーザー・ペルソナ
+// ========================================
 
 Table users {
-  id Int [pk]
-  name String
-  email String
+  id String [pk, note: 'UUID']
+  name String [note: 'ユーザーの表示名']
+  email String [unique, note: 'ログインに使用するメールアドレス']
+  created_at DateTime [default: `now()`, note: 'アカウント作成日時']
 }
 
 Table personas {
-  id Int [pk]
-  name String
-  status_id Int [ref: - persona_statuses.status_id] // Link to current snapshot
-  created_at DateTime
+  id String [pk, note: 'UUID']
+  name String [default: 'Reflecta', note: 'ペルソナの名前']
+  status_id String [unique, ref: - persona_statuses.status_id, note: '最新ステータスへのポインタ']
+  created_at DateTime [default: `now()`, note: 'ペルソナの生成日時']
 }
 
-// Intermediate Hub Table / Snapshot
+// ========================================
+// ステータス（ハブテーブル）
+// ========================================
+
+// ある時点での全生体・心理データのスナップショットを束ねる
 Table persona_statuses {
-  id Int [pk]
-  status_id Int [pk] // Renamed from id per request (Implementation: mapped to status_id)
-  persona_id Int [ref: > personas.id] // FK restored
-  created_at DateTime
+  id String [pk, note: 'UUID']
+  status_id String [unique, note: 'UUID - スナップショットID']
+  persona_id String [ref: > personas.id, note: '所有者であるペルソナのID']
+  created_at DateTime [default: `now()`, note: 'スナップショット作成日時']
 }
 
-// Lv1-1
+// ========================================
+// Lv1-1: 完全不変・定量可能
+// 生物学的・遺伝的な基本情報
+// ========================================
+
 Table quantity_unchange_statuses {
-  id Int [pk]
-  persona_status_id Int [ref: - persona_statuses.status_id] // FK pointing to hub's status_id
-  // ... data
-  birth_date DateTime
-  gender String
-  blood_type String
-  chronotype String
-  bitterness_sense Int
-  intelligence Int
+  id String [pk, note: 'UUID']
+  persona_status_id String [unique, ref: - persona_statuses.status_id, note: 'ハブテーブルへのFK']
+  birth_date DateTime [note: '生年月日。年齢の算出に使用']
+  gender String [note: '性別。ホルモンバランスや対話スタイルの基礎']
+  blood_type String [note: '血液型']
+  chronotype String [note: 'クロノタイプ。朝型・夜型などの活動周期']
+  bitterness_sense Int [note: '苦味感受性。味覚の鋭敏さなどの身体的特徴']
+  intelligence Int [note: '知能。論理的思考能力のベースライン']
 }
 
-// Lv1-2
+// ========================================
+// Lv1-2: 完全不変・定量困難
+// 深層心理や根源的な性格特性
+// ========================================
+
 Table semiquantity_unchange_statuses {
-  id Int [pk]
-  persona_status_id Int [ref: - persona_statuses.status_id]
-  // ... data
-  ethics Int
-  passion Int
-  curiosity Int
-  aggressiveness Int
-  extroversion Int
+  id String [pk, note: 'UUID']
+  persona_status_id String [unique, ref: - persona_statuses.status_id, note: 'ハブテーブルへのFK']
+  ethics Int [default: 50, note: '倫理観。行動選択の基準（0-100）']
+  passion Int [default: 50, note: '情熱。物事への追求心やエネルギー（0-100）']
+  curiosity Int [default: 50, note: '好奇心。未知のものへの関心（0-100）']
+  aggressiveness Int [default: 50, note: '攻撃性。対立時の反応傾向（0-100）']
+  extroversion Int [default: 50, note: '外向性。社交性や外部へのエネルギー（0-100）']
 }
 
-// Lv2
+// ========================================
+// Lv2: 不可逆的変化・定量可能
+// 加齢や経験に伴う蓄積的な成長記録
+// ========================================
+
 Table quantity_irreversible_statuses {
-  id Int [pk]
-  persona_status_id Int [ref: - persona_statuses.status_id]
-  version Int
-  // ... data
-  height Float
-  bone_density Float
-  recorded_at DateTime
+  id String [pk, note: 'UUID']
+  persona_status_id String [unique, ref: - persona_statuses.status_id, note: 'ハブテーブルへのFK']
+  version Int [default: 1, note: 'ステータスの更新回数（版数）']
+  height Float [note: '身長 (cm)']
+  bone_density Float [note: '骨密度。加齢や健康状態の不可逆な指標']
+  recorded_at DateTime [default: `now()`, note: '記録された日時']
 }
 
-// Lv3-1
+// ========================================
+// Lv3-1: 可変・定量可能
+// 短中期的に変動する日常的なバイタルデータ
+// ========================================
+
 Table quantity_reversible_statuses {
-  id Int [pk]
-  persona_status_id Int [ref: - persona_statuses.status_id]
-  version Int
-  // ... data
-  weight Float
-  blood_sugar Float
-  blood_pressure_sys Int
-  blood_pressure_dia Int
-  sleep_time Float
-  sleep_quality Int
-  recorded_at DateTime
+  id String [pk, note: 'UUID']
+  persona_status_id String [unique, ref: - persona_statuses.status_id, note: 'ハブテーブルへのFK']
+  version Int [default: 1, note: 'ステータスの更新回数']
+  weight Float [note: '体重 (kg)']
+  blood_sugar Float [note: '血糖値。空腹感やエネルギーレベルに関係']
+  blood_pressure_sys Int [note: '最高血圧。緊張状態や興奮の指標']
+  blood_pressure_dia Int [note: '最低血圧']
+  sleep_time Float [note: '直近の睡眠時間 (h)']
+  sleep_quality Int [note: '睡眠の質（1-10）']
+  recorded_at DateTime [default: `now()`, note: '記録された日時']
 }
 
-// Lv3-2
+// ========================================
+// Lv3-2: 可変・定量困難
+// 感情の揺れや対人関係の流動的なパラメータ
+// ========================================
+
 Table semiquantity_reversible_statuses {
-  id Int [pk]
-  persona_status_id Int [ref: - persona_statuses.status_id]
-  version Int
-  // ... data
-  trust Int
-  friendliness Int
-  mood Int
-  health Int
-  updated_at DateTime
+  id String [pk, note: 'UUID']
+  persona_status_id String [unique, ref: - persona_statuses.status_id, note: 'ハブテーブルへのFK']
+  version Int [default: 1, note: 'ステータスの更新回数']
+  trust Int [default: 50, note: '対ユーザー信頼度。会話の親密度に影響（0-100）']
+  friendliness Int [default: 50, note: '対ユーザーへの親しみやすさ。反応の柔らかさ（0-100）']
+  mood Int [default: 50, note: '現在の情緒・気分（0-100）']
+  health Int [default: 100, note: '現在の総合的な健康感。疲労度など（0-100）']
+  updated_at DateTime [default: `now()`, note: '更新された日時']
+}
+
+// ========================================
+// チャット・会話
+// ========================================
+
+Table chats {
+  id String [pk, note: 'UUID']
+  title String [default: 'New Chat', note: 'セッションのタイトル']
+  user_id String [ref: > users.id, note: '参加しているユーザー']
+  persona_id String [ref: > personas.id, note: '参加しているペルソナ']
+  created_at DateTime [default: `now()`, note: 'セッション開始日時']
+  updated_at DateTime [note: '最後に発言があった日時']
 }
 
 Table chat_logs {
-  id Int [pk]
-  chat_id Int
-  user_id Int [ref: > users.id]
-  persona_id Int [ref: > personas.id]
-  content String
+  id String [pk, note: 'UUID']
+  chat_id String [ref: > chats.id, note: '所属するチャットセッション']
+  user_id String [ref: > users.id, note: '発言したユーザー']
+  persona_id String [ref: > personas.id, note: '対象となるペルソナ']
+  role String [note: '発言の役割（"user" または "assistant"）']
+  content Text [note: '発言内容']
+  created_at DateTime [default: `now()`, note: '発言日時']
+}
+
+// ========================================
+// 内省・イベントログ
+// ========================================
+
+Table reflection_events {
+  id String [pk, note: 'UUID']
+  persona_id String [ref: > personas.id, note: '内省を行ったペルソナ']
+  thought Text [note: '内省によって得られた思考の要約']
+  status_update Json [note: '内省結果として算出されたステータスの変動値']
+  permanent_memory Text [note: '今後の人格形成に引き継がれる恒久的な記憶']
+  created_at DateTime [default: `now()`, note: '内省が行われた日時']
+}
+
+Table event_logs {
+  id String [pk, note: 'UUID']
+  type String [note: 'イベントの種別（"physical", "emotional", "memory" など）']
+  content Text [note: 'イベントの詳細内容']
+  value Float [note: '数値が伴う場合のデータ値（例：ダメージ量、回復量など）']
+  created_at DateTime [default: `now()`, note: '発生日時']
 }
