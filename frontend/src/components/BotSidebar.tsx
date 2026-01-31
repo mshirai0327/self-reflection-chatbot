@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Bot, Activity, Heart, Sparkles, Database, Settings, RefreshCw, CheckCircle, Brain, User, Terminal, FileText, ChevronDown, ChevronRight, Info } from 'lucide-react';
-import axios from 'axios';
+import { Bot, Activity, Heart, Sparkles, Database, User, Terminal, FileText, Settings, CheckCircle, RefreshCw } from 'lucide-react';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
+import axios from 'axios';
 
-// Types (Sync with App.tsx)
+// Types (Sync with App.tsx) - kept for BotSidebar
 interface PersonaStatus {
     name?: string;
     birthDate?: string;
@@ -40,10 +40,7 @@ export interface DebugInfo {
 type BotSidebarProps = {
     isOpen: boolean;
     status: PersonaStatus;
-    chatModel: string;
-    setChatModel: (model: string) => void;
-    reflectModel: string;
-    setReflectModel: (model: string) => void;
+    // LLM Settings removed (Moved to ChatHistory)
     llmSettings: {
         provider: 'gemini' | 'local';
         localEndpoint: string;
@@ -59,24 +56,9 @@ type BotSidebarProps = {
     lastDebugInfo: DebugInfo | null;
 };
 
-// ... existing models list code ...
-const MODELS = [
-    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
-    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-    { value: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash-Lite' },
-    { value: 'gemini-pro-latest', label: 'Gemini Pro Latest' },
-    { value: 'gemini-flash-latest', label: 'Gemini Flash Latest' },
-    { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro Preview' },
-    { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash Preview' },
-    { value: 'gemma-3-27b-it', label: 'Gemma 3 27B' },
-    { value: 'gemma-3-12b-it', label: 'Gemma 3 12B' },
-    { value: 'gemma-3-4b-it', label: 'Gemma 3 4B' },
-    { value: 'gemma-3-1b-it', label: 'Gemma 3 1B' },
-];
+// ... existing models list code REMOVED (No longer needed here) ...
 
-export function BotSidebar({ isOpen, status, chatModel, setChatModel, reflectModel, setReflectModel, llmSettings, setLlmSettings, lastDebugInfo }: BotSidebarProps) {
+export function BotSidebar({ isOpen, status, llmSettings, setLlmSettings, lastDebugInfo }: BotSidebarProps) {
     const [activeTab, setActiveTab] = useState<'status' | 'debug'>('status');
 
     // Stats Categorization
@@ -110,45 +92,30 @@ export function BotSidebar({ isOpen, status, chatModel, setChatModel, reflectMod
         { label: 'BP', value: `${status.bloodPressureSys || '?'}/${status.bloodPressureDia || '?'}` },
     ];
 
-    const testConnection = async () => {
-        const loadingToast = toast.loading('接続を確認中...');
-        try {
-            const res = await axios.post('/api/llm/test', {
-                endpoint: llmSettings.localEndpoint
-            });
-            if (res.data.success) {
-                toast.success('接続に成功しました！', { id: loadingToast });
-            } else {
-                toast.error('接続に失敗しました。URLを確認してください。', { id: loadingToast });
-            }
-        } catch (error: any) {
-            console.error('Connection test failed:', error);
-            toast.error('疎通エラー: サーバーに到達できませんでした。', { id: loadingToast });
-        }
-    };
+    // Connection Test Logic (Kept for now if we want to add connection indicator, 
+    // but the settings UI is moving. For now, I'll remove the UI but keep props to satisfy TS from App.tsx until ChatHistory update)
+    // Actually, I should remove props from interface, but App.tsx is already passing them.
+    // Wait, I updated App.tsx to PASS them to ChatHistory and removed them from BotSidebar call.
+    // So I should REMOVE them from Props here.
 
-    const fetchModels = async () => {
-        const loadingToast = toast.loading('モデル一覧を取得中...');
-        try {
-            const res = await axios.post('/api/llm/models', {
-                endpoint: llmSettings.localEndpoint
-            });
-            const models = res.data.models;
-            if (models && models.length > 0) {
-                setLlmSettings(prev => ({
-                    ...prev,
-                    availableModels: models,
-                    localModel: models[0] // 最初のモデルをデフォルトに設定
-                }));
-                toast.success(`${models.length} 個のモデルを取得しました`, { id: loadingToast });
-            } else {
-                toast.error('モデルが見つかりませんでした', { id: loadingToast });
-            }
-        } catch (error: any) {
-            console.error('Failed to fetch models:', error);
-            toast.error('モデルの取得に失敗しました。エンドポイントを確認してください。', { id: loadingToast });
-        }
-    };
+    // RE-READING App.tsx DIFF:
+    // -          chatModel={chatModel}
+    // -          setChatModel={setChatModel}
+    // -          reflectModel={reflectModel}
+    // -          setReflectModel={setReflectModel}
+    // llmSettings and setLlmSettings are STILL PASSED in the diff!
+    // Line 284: llmSettings={llmSettings}
+    // Line 285: setLlmSettings={setLlmSettings}
+    // So I must keep them in Props, but maybe I don't use them? 
+    // No, the user Plan said "Remove API Settings UI and props". 
+    // My App.tsx edit REMOVED chatModel/reflectModel but KEPT llmSettings. 
+    // Uh oh. I probably missed deleting those lines in the MultiReplace. 
+    // Let's check Step 55 diff.
+    // It shows removal of lines 282-285 (chatModel...setReflectModel).
+    // It DOES NOT show removal of llmSettings lines.
+    // So App.tsx is still passing llmSettings.
+    // I should keep receiving them or ignore them. 
+    // Better: Remove UI for them.
 
     return (
         <div className={`bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 flex-shrink-0 ${isOpen ? 'w-80' : 'w-0'
@@ -183,7 +150,7 @@ export function BotSidebar({ isOpen, status, chatModel, setChatModel, reflectMod
                 </div>
 
                 {/* Scrollable Content */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
+                <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700 pb-20">
 
                     {activeTab === 'status' ? (
                         <div className="space-y-6">
@@ -241,10 +208,10 @@ export function BotSidebar({ isOpen, status, chatModel, setChatModel, reflectMod
                                 </div>
                             </div>
 
-                            {/* Personality Chart (Simulated with progress bars) */}
+                            {/* Personality Chart */}
                             <div>
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 flex items-center gap-1">
-                                    <Brain className="w-3 h-3" /> Personality (Lv2)
+                                    <Terminal className="w-3 h-3" /> Personality (Lv2)
                                 </h3>
                                 <div className="space-y-3">
                                     {personalityStats.map((stat, i) => (
@@ -317,70 +284,7 @@ export function BotSidebar({ isOpen, status, chatModel, setChatModel, reflectMod
                         </div>
                     )}
 
-                    {/* API Settings Section (Collapsible in future, kept at bottom) */}
-                    <div className="pt-4 mt-4 border-t border-slate-200 dark:border-slate-800">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                            <Settings className="w-3 h-3" /> API Configuration
-                        </h3>
-                        <div className="space-y-3">
-                            <div>
-                                <label className="text-xs text-slate-500 dark:text-slate-400 block mb-1">Provider</label>
-                                <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
-                                    <button
-                                        onClick={() => setLlmSettings(prev => ({ ...prev, provider: 'gemini' }))}
-                                        className={`flex-1 text-[10px] py-1.5 rounded-md transition-all ${llmSettings.provider === 'gemini'
-                                            ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400 font-bold'
-                                            : 'text-slate-500'
-                                            }`}
-                                    >
-                                        Gemini
-                                    </button>
-                                    <button
-                                        onClick={() => setLlmSettings(prev => ({ ...prev, provider: 'local' }))}
-                                        className={`flex-1 text-[10px] py-1.5 rounded-md transition-all ${llmSettings.provider === 'local'
-                                            ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400 font-bold'
-                                            : 'text-slate-500'
-                                            }`}
-                                    >
-                                        Local
-                                    </button>
-                                </div>
-                            </div>
-
-                            {llmSettings.provider === 'gemini' ? (
-                                <div className="space-y-2">
-                                    <div>
-                                        <label className="text-[10px] text-slate-500 block mb-1">Chat Model</label>
-                                        <select value={chatModel} onChange={(e) => setChatModel(e.target.value)} className="w-full text-xs bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded p-1.5">
-                                            {MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] text-slate-500 block mb-1">Reflection Model</label>
-                                        <select value={reflectModel} onChange={(e) => setReflectModel(e.target.value)} className="w-full text-xs bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded p-1.5">
-                                            {MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    <div className="flex gap-2">
-                                        <input
-                                            value={llmSettings.localEndpoint}
-                                            onChange={(e) => setLlmSettings(p => ({ ...p, localEndpoint: e.target.value }))}
-                                            className="flex-1 text-xs bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded p-1.5"
-                                            placeholder="Endpoint"
-                                        />
-                                        <button onClick={testConnection} className="p-1.5 bg-emerald-100 text-emerald-600 rounded"><CheckCircle size={14} /></button>
-                                        <button onClick={fetchModels} className="p-1.5 bg-blue-100 text-blue-600 rounded"><RefreshCw size={14} /></button>
-                                    </div>
-                                    <select value={llmSettings.localModel} onChange={(e) => setLlmSettings(p => ({ ...p, localModel: e.target.value }))} className="w-full text-xs bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded p-1.5">
-                                        {llmSettings.availableModels.length ? llmSettings.availableModels.map(m => <option key={m} value={m}>{m}</option>) : <option>{llmSettings.localModel}</option>}
-                                    </select>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                    {/* API Settings REMOVED */}
                 </div>
             </div>
         </div>

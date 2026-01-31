@@ -63,6 +63,7 @@ function App() {
     trust: 50
   });
   const [lastDebugInfo, setLastDebugInfo] = useState<DebugInfo | null>(null);
+  const [lastReflection, setLastReflection] = useState<any | null>(null);
 
   const [isLeftOpen, setIsLeftOpen] = useState(true);
   const [isRightOpen, setIsRightOpen] = useState(true);
@@ -213,6 +214,7 @@ function App() {
 
       const res = await axios.post(`${API_URL}/api/reflect`, { llmConfig });
       alert(`内省完了: ${res.data.reflection.permanentMemory}`);
+      setLastReflection(res.data.reflection);
 
       const followUpMessage = "内省が終わったようですね。今の気分はどうですか？";
       setMessages(prev => [...prev, { role: 'user', content: followUpMessage }]);
@@ -281,10 +283,6 @@ function App() {
         <BotSidebar
           isOpen={isLeftOpen}
           status={status}
-          chatModel={chatModel}
-          setChatModel={setChatModel}
-          reflectModel={reflectModel}
-          setReflectModel={setReflectModel}
           llmSettings={llmSettings}
           setLlmSettings={setLlmSettings}
           lastDebugInfo={lastDebugInfo}
@@ -378,6 +376,13 @@ function App() {
           onSelectChat={(id: string) => setCurrentChatId(id)}
           currentChatId={currentChatId}
           onNewChat={() => setCurrentChatId(null)}
+          chatModel={chatModel}
+          setChatModel={setChatModel}
+          reflectModel={reflectModel}
+          setReflectModel={setReflectModel}
+          llmSettings={llmSettings}
+          setLlmSettings={setLlmSettings}
+          lastReflection={lastReflection}
         />
       </div>
     </div>
