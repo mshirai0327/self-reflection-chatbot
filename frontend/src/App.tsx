@@ -13,11 +13,40 @@ interface Message {
 }
 
 interface PersonaStatus {
+  // Lv1 & Lv2 (Immutable/Semi-immutable)
+  name?: string;
+  birthDate?: string;
+  gender?: string;
+  bloodType?: string;
+  chronotype?: string;
+  intelligence?: number;
+  ethics?: number;
+  passion?: number;
+  curiosity?: number;
+  aggressiveness?: number;
+  extroversion?: number;
+
+  // Physical (Variable)
   height: number;
   weight: number;
+  boneDensity?: number;
+  bloodSugar?: number;
+  bloodPressureSys?: number;
+  bloodPressureDia?: number;
+  sleepTime?: number;
+  sleepQuality?: number;
+
+  // Status (Volatile)
   health: number;
   mood: number;
   trust: number;
+  friendliness?: number;
+}
+
+export interface DebugInfo {
+  systemPrompt: string;
+  userPrompt: string;
+  contextMemories: string[];
 }
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -33,6 +62,7 @@ function App() {
     mood: 50,
     trust: 50
   });
+  const [lastDebugInfo, setLastDebugInfo] = useState<DebugInfo | null>(null);
 
   const [isLeftOpen, setIsLeftOpen] = useState(true);
   const [isRightOpen, setIsRightOpen] = useState(true);
@@ -163,6 +193,7 @@ function App() {
       const aiMsg: Message = { role: 'assistant', content: res.data.response };
       setMessages(prev => [...prev, aiMsg]);
       if (res.data.status) setStatus(res.data.status);
+      if (res.data.debug) setLastDebugInfo(res.data.debug);
       setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       handleApiError(error, 'メッセージの送信に失敗しました');
@@ -256,6 +287,7 @@ function App() {
           setReflectModel={setReflectModel}
           llmSettings={llmSettings}
           setLlmSettings={setLlmSettings}
+          lastDebugInfo={lastDebugInfo}
         />
 
         {/* Main Chat Area */}

@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { queryMemories, addMemory } from "@/lib/chroma";
 import { getDefaultPersona, getDefaultUser, getLatestStatus, flattenStatus } from "@/lib/persona";
-import { generateResponse, LLMConfig } from "@/lib/llm";
+import { generateResponse, LLMConfig, buildSystemInstruction } from "@/lib/llm";
 
 /**
  * 受信したチャットリクエストを処理します。
@@ -107,7 +107,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
             response: aiResponse,
             status: status,
-            chatId: targetChatId
+            chatId: targetChatId,
+            debug: {
+                systemPrompt: buildSystemInstruction({
+                    status: status,
+                    memories: (memories as string[]) || []
+                }),
+                userPrompt: message,
+                contextMemories: memories || []
+            }
         });
     } catch (error: unknown) {
         let errorMessage = "An unknown error occurred";

@@ -98,7 +98,7 @@ export function createEmbeddingModel(config: LLMConfig): Embeddings {
  * @param context - ペルソナの現在のステータスと、関連する記憶のリスト。
  * @returns 構築されたシステムプロンプト文字列。
  */
-function buildSystemInstruction(context: PersonaContext): string {
+export function buildSystemInstruction(context: PersonaContext): string {
     // 内省によって更新された最新のステータスを反映したシステムプロンプトを構築
     const s = context.status;
     return `あなたは自己進化型AI「Reflecta」です。
