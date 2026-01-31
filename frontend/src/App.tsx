@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Send, Menu, ChevronLeft, Database, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Toaster } from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import { BotSidebar } from './components/BotSidebar';
 import { ChatHistory } from './components/ChatHistory';
 import { handleApiError } from './utils/errorHandler';
@@ -221,7 +221,17 @@ function App() {
       };
 
       const res = await axios.post(`${API_URL}/api/reflect`, { llmConfig });
-      alert(`内省完了: ${res.data.reflection.permanentMemory}`);
+      toast.success(`内省完了: ${res.data.reflection.permanentMemory || "新たな気付きはありませんでした"}`, {
+        duration: 5000,
+        style: {
+          background: '#10B981', // Emerald 500
+          color: '#fff',
+        },
+        iconTheme: {
+          primary: '#fff',
+          secondary: '#10B981',
+        },
+      });
       setLastReflection(res.data.reflection);
 
       const followUpMessage = "内省が終わったようですね。今の気分はどうですか？";
