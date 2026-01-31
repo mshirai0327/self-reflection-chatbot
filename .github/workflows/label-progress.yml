@@ -85,7 +85,7 @@ jobs:
                 const repoName = item.content.repository.name;
                 const repoOwner = item.content.repository.owner.login;
 
-                if (currentStatus === 'In Progress') {
+                if (currentStatus === 'In progress') {
                   console.log(`Issue #${issueNumber} in ${repoName} is In Progress. Ensuring label exists.`);
                   try {
                     await github.rest.issues.addLabels({
