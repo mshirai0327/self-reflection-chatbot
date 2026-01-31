@@ -12,11 +12,25 @@ export async function getDefaultPersona() {
         console.error("[PersonaLib] CRITICAL ERROR: prisma.persona is undefined! Available keys:", Object.keys(prisma));
         throw new Error("Prisma Client is not synced with schema. Please restart containers.");
     }
-    // 1. デフォルトペルソナを取得、なければ作成
+
+    // 1. statusHistoryを持つペルソナを優先的に取得
     let persona = await prisma.persona.findFirst({
-        where: { name: DEFAULT_PERSONA_NAME }
+        where: {
+            name: DEFAULT_PERSONA_NAME,
+            statusHistory: {
+                some: {} // 最低1つのステータスを持つペルソナを優先
+            }
+        }
     });
 
+    // 2. なければ、名前で検索
+    if (!persona) {
+        persona = await prisma.persona.findFirst({
+            where: { name: DEFAULT_PERSONA_NAME }
+        });
+    }
+
+    // 3. それもなければ作成
     if (!persona) {
         console.log("[PersonaLib] Creating default persona...");
         persona = await prisma.persona.create({
@@ -26,6 +40,7 @@ export async function getDefaultPersona() {
         });
     }
 
+    console.log(`[PersonaLib] Using persona: ${persona.id}`);
     return persona;
 }
 
@@ -46,6 +61,7 @@ export async function getDefaultUser() {
  * statusHistoryから最新（createdAtが最も新しい）のものを取得します。
  */
 export async function getLatestStatus(personaId: string) {
+    console.log(`[PersonaLib] Getting latest status for personaId: ${personaId}`);
     const latestStatus = await prisma.personaStatus.findFirst({
         where: { personaId },
         orderBy: { createdAt: 'desc' },
@@ -57,6 +73,7 @@ export async function getLatestStatus(personaId: string) {
             semiquantityReversible: true,
         }
     });
+    console.log(`[PersonaLib] Latest status found:`, latestStatus ? 'Yes' : 'No');
 
     return latestStatus;
 }

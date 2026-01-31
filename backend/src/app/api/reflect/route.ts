@@ -61,8 +61,8 @@ export async function POST(req: NextRequest) {
         const fullStatus = await getLatestStatus(persona.id);
 
         if (!fullStatus) {
-            console.error("[Reflect API] Persona status not found! (No status ID linked to persona)");
-            return NextResponse.json({ error: "Status ID not found on persona. Please run seed script." }, { status: 404 });
+            console.error("[Reflect API] Persona status not found! (No statusHistory entries)");
+            return NextResponse.json({ error: "No status history found for persona. Please run seed script." }, { status: 404 });
         }
 
         const status = flattenStatus(fullStatus);
@@ -158,11 +158,9 @@ ${logSummary}
             }
         });
 
-        // Personaの最新ステータスIDを更新
-        await prisma.persona.update({
-            where: { id: persona.id },
-            data: { statusId: newPersonaStatus.statusId }
-        });
+        // NOTE: 循環参照解消により、PersonaからstatusIdを削除したため、
+        // 最新ステータスはstatusHistoryから createdAt でソートして取得する設計に変更。
+        // ここでの更新は不要。
 
         // 6. 内省イベントをデータベースに保存
         console.log("[Reflect API] Saving reflection event to DB...");
