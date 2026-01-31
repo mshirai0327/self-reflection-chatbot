@@ -196,7 +196,7 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
                             {!lastDebugInfo ? (
                                 <div className="text-center py-10 text-slate-400">
                                     <Terminal className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                    <p className="text-sm">No internal logs yet.<br />Start a conversation.</p>
+                                    <p className="text-sm">チャットが始まるまで表示されません<br />Start a conversation.</p>
                                 </div>
                             ) : (
                                 <>
