@@ -1,8 +1,11 @@
 name: Auto Label on Project Status Change
 
 on:
-  schedule:
-    - cron: '*/30 * * * *'
+  # NOTE: PROJECT_TOKEN シークレットが設定されていないため、スケジュール実行を無効化しています。
+  # GitHub Projects V2 へのアクセスには、project権限を持つPATが必要です。
+  # PATを設定後、以下のscheduleをアンコメントしてください：
+  # schedule:
+  #   - cron: '*/30 * * * *'
   workflow_dispatch:
 
 jobs:
