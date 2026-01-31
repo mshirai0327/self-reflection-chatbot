@@ -1,11 +1,8 @@
 name: Auto Label on Project Status Change
 
 on:
-  # NOTE: PROJECT_TOKEN シークレットが設定されていないため、スケジュール実行を無効化しています。
-  # GitHub Projects V2 へのアクセスには、project権限を持つPATが必要です。
-  # PATを設定後、以下のscheduleをアンコメントしてください：
-  # schedule:
-  #   - cron: '*/30 * * * *'
+  schedule:
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -25,42 +22,11 @@ jobs:
             const PROJECT_NUMBER = 1; 
             const OWNER = context.repo.owner;
 
+            // 個人ユーザーのプロジェクトのみを取得するクエリ
+            // （organizationクエリを含めるとNOT_FOUNDエラーが発生するため削除）
             const query = `
               query($owner: String!, $number: Int!) {
                 user(login: $owner) {
-                  projectV2(number: $number) {
-                    items(first: 100) {
-                      nodes {
-                        id
-                        content {
-                          ... on Issue {
-                            id
-                            number
-                            repository {
-                              name
-                              owner {
-                                login
-                              }
-                            }
-                          }
-                        }
-                        fieldValues(first: 20) {
-                          nodes {
-                            ... on ProjectV2ItemFieldSingleSelectValue {
-                              name
-                              field {
-                                ... on ProjectV2FieldCommon {
-                                  name
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-                organization(login: $owner) {
                   projectV2(number: $number) {
                     items(first: 100) {
                       nodes {
@@ -99,11 +65,12 @@ jobs:
             try {
               const result = await github.graphql(query, { owner: OWNER, number: PROJECT_NUMBER });
               
-              // UserまたはOrgからプロジェクトを取得
-              const project = (result.user && result.user.projectV2) || (result.organization && result.organization.projectV2);
+              // ユーザープロジェクトを取得
+              const project = result.user && result.user.projectV2;
               
               if (!project) {
-                console.error(`Project not found: ${OWNER}/projects/${PROJECT_NUMBER}`);
+                console.log(`Project not found: ${OWNER}/projects/${PROJECT_NUMBER}`);
+                console.log('This is expected if no project exists or permissions are insufficient.');
                 return;
               }
 
@@ -132,6 +99,8 @@ jobs:
                   }
                 }
               }
+              
+              console.log('Synchronization completed successfully.');
             } catch (error) {
               console.error("Error during synchronization:", error);
               core.setFailed(error.message);
