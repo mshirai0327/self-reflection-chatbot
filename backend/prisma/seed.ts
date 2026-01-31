@@ -26,14 +26,20 @@ async function main() {
     })
 
     // 3. 初期ステータス (Hub) の作成
-    const existingStatus = await prisma.persona.findUnique({
+    // 最新ステータスはstatusHistoryから取得する（循環参照解消のため）
+    const existingPersona = await prisma.persona.findUnique({
         where: { id: persona.id },
-        include: { status: true }
+        include: {
+            statusHistory: {
+                orderBy: { createdAt: 'desc' },
+                take: 1
+            }
+        }
     })
 
-    if (!existingStatus?.status) {
+    if (!existingPersona?.statusHistory?.length) {
         console.log('Creating initial status...')
-        const personaStatus = await prisma.personaStatus.create({
+        await prisma.personaStatus.create({
             data: {
                 personaId: persona.id,
 
@@ -87,14 +93,6 @@ async function main() {
                         version: 1,
                     }
                 }
-            }
-        })
-
-        // Personaの最新ステータスを更新
-        await prisma.persona.update({
-            where: { id: persona.id },
-            data: {
-                statusId: personaStatus.statusId
             }
         })
     } else {

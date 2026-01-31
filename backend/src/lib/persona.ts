@@ -43,17 +43,12 @@ export async function getDefaultUser() {
 
 /**
  * ペルソナの最新ステータスを、リレーションを含めて取得します。
+ * statusHistoryから最新（createdAtが最も新しい）のものを取得します。
  */
 export async function getLatestStatus(personaId: string) {
-    const persona = await prisma.persona.findUnique({
-        where: { id: personaId },
-        select: { statusId: true }
-    });
-
-    if (!persona?.statusId) return null;
-
-    return await prisma.personaStatus.findUnique({
-        where: { statusId: persona.statusId },
+    const latestStatus = await prisma.personaStatus.findFirst({
+        where: { personaId },
+        orderBy: { createdAt: 'desc' },
         include: {
             quantityUnchange: true,
             semiquantityUnchange: true,
@@ -62,6 +57,8 @@ export async function getLatestStatus(personaId: string) {
             semiquantityReversible: true,
         }
     });
+
+    return latestStatus;
 }
 
 /**
