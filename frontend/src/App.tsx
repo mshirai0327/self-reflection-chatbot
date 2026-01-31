@@ -49,6 +49,18 @@ export interface DebugInfo {
   contextMemories: string[];
 }
 
+export interface ReflectionResult {
+  thought: string;
+  statusUpdate: {
+    health: number;
+    mood: number;
+    trust: number;
+    friendliness: number;
+  };
+  permanentMemory?: string;
+  prompt?: string;
+}
+
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 function App() {
@@ -63,7 +75,7 @@ function App() {
     trust: 50
   });
   const [lastDebugInfo, setLastDebugInfo] = useState<DebugInfo | null>(null);
-  const [lastReflection, setLastReflection] = useState<any | null>(null);
+  const [lastReflection, setLastReflection] = useState<ReflectionResult | null>(null);
 
   const [isLeftOpen, setIsLeftOpen] = useState(true);
   const [isRightOpen, setIsRightOpen] = useState(true);

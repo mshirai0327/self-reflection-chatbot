@@ -22,6 +22,7 @@ interface ReflectionResult {
         friendliness: number;
     };
     permanentMemory?: string;
+    prompt?: string;
 }
 
 type ChatHistoryProps = {
@@ -275,6 +276,14 @@ export function ChatHistory({
                                             <p className="text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded border border-amber-100 dark:border-amber-900/50">
                                                 {lastReflection.permanentMemory}
                                             </p>
+                                        </div>
+                                    )}
+                                    {lastReflection.prompt && (
+                                        <div>
+                                            <span className="text-slate-400 block mb-1">System Prompt (Reflection)</span>
+                                            <div className="bg-slate-900 text-slate-300 p-2 rounded text-[10px] font-mono whitespace-pre-wrap border border-slate-800">
+                                                {lastReflection.prompt}
+                                            </div>
                                         </div>
                                     )}
                                 </motion.div>

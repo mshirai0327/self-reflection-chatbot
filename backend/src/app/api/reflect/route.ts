@@ -193,7 +193,8 @@ ${logSummary}
                 personaId: persona.id,
                 thought: reflection.thought,
                 statusUpdate: reflection.statusUpdate,
-                permanentMemory: reflection.permanentMemory
+                permanentMemory: reflection.permanentMemory,
+                prompt: reflectionPrompt
             }
         });
 
@@ -212,7 +213,12 @@ ${logSummary}
         }
 
         console.log("[Reflect API] Reflection process completed successfully.");
-        return NextResponse.json({ reflection });
+        return NextResponse.json({
+            reflection: {
+                ...reflection,
+                prompt: reflectionPrompt
+            }
+        });
 
     } catch (error: unknown) {
         let errorMessage = "An unknown error occurred during reflection";
