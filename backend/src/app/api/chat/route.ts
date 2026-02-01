@@ -100,7 +100,6 @@ export async function POST(req: NextRequest) {
         });
 
         // 5. Add to vector memory (Fragile memory)
-        // todo: チャンク化をしていないので長文が入る可能性がある。100字くらいでどうか
         console.log("[Chat API] Adding message to ChromaDB...");
         await addMemory(ulid(), message, {
             role: "user",

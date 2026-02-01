@@ -200,7 +200,6 @@ ${logSummary}
         });
 
         // 7. ベクトルストア (ChromaDB) への「恒久的な記憶」の保存
-        // todo: チャンク化をしていないので長文が入る可能性がある。200字くらいでオーバーラップを20字持たせる
         if (reflection.permanentMemory) {
             console.log("[Reflect API] Saving permanent memory to ChromaDB...");
             await addMemory(
