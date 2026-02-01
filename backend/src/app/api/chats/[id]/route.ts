@@ -25,7 +25,13 @@ export async function GET(
             return NextResponse.json({ error: "Chat not found" }, { status: 404 });
         }
 
-        return NextResponse.json(chat);
+        // このチャットに関連するペルソナの最新の内省結果を取得
+        const latestReflection = await prisma.reflectionEvent.findFirst({
+            where: { personaId: chat.personaId },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        return NextResponse.json({ ...chat, latestReflection });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }

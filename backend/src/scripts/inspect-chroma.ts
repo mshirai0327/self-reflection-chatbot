@@ -10,6 +10,8 @@ console.warn = (...args) => {
     originalWarn(...args);
 };
 
+const SAMPLE_LIMIT = 80;
+
 async function main() {
     let chromaPath = process.env.CHROMA_URL || "http://localhost:8000";
 
@@ -60,7 +62,7 @@ async function main() {
             if (count > 0) {
                 // peekの代わりにgetを使用して、明示的にincludeを指定します
                 const result: any = await (collection as any).get({
-                    limit: 7,
+                    limit: SAMPLE_LIMIT,
                     include: ["embeddings", "documents", "metadatas"]
                 });
 
@@ -68,7 +70,7 @@ async function main() {
                     const dim = result.embeddings[0].length;
                     console.log(`  Embedding dimension: ${dim}`);
                     console.log(`  Sample records:`);
-                    for (let i = 0; i < Math.min(result.documents.length, 7); i++) {
+                    for (let i = 0; i < Math.min(result.documents.length, SAMPLE_LIMIT); i++) {
                         const doc = result.documents[i];
                         const metadata = result.metadatas[i];
                         console.log(`    [${i}] ${doc?.substring(0, 50)}${doc && doc.length > 50 ? "..." : ""}`);

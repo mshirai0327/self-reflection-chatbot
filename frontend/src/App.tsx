@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Send, Menu, ChevronLeft, Database, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Toaster } from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import { BotSidebar } from './components/BotSidebar';
 import { ChatHistory } from './components/ChatHistory';
 import { handleApiError } from './utils/errorHandler';
@@ -13,11 +13,52 @@ interface Message {
 }
 
 interface PersonaStatus {
+  // Lv1 & Lv2 (Immutable/Semi-immutable)
+  name?: string;
+  birthDate?: string;
+  gender?: string;
+  bloodType?: string;
+  chronotype?: string;
+  intelligence?: number;
+  ethics?: number;
+  passion?: number;
+  curiosity?: number;
+  aggressiveness?: number;
+  extroversion?: number;
+
+  // Physical (Variable)
   height: number;
   weight: number;
+  boneDensity?: number;
+  bloodSugar?: number;
+  bloodPressureSys?: number;
+  bloodPressureDia?: number;
+  sleepTime?: number;
+  sleepQuality?: number;
+
+  // Status (Volatile)
   health: number;
   mood: number;
   trust: number;
+  friendliness?: number;
+}
+
+export interface DebugInfo {
+  systemPrompt: string;
+  userPrompt: string;
+  contextMemories: { content: string | null; distance: number | null }[];
+}
+
+export interface ReflectionResult {
+  thought: string;
+  statusUpdate: {
+    health: number;
+    mood: number;
+    trust: number;
+    friendliness: number;
+  };
+  permanentMemory?: string;
+  prompt?: string;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -33,6 +74,8 @@ function App() {
     mood: 50,
     trust: 50
   });
+  const [lastDebugInfo, setLastDebugInfo] = useState<DebugInfo | null>(null);
+  const [lastReflection, setLastReflection] = useState<ReflectionResult | null>(null);
 
   const [isLeftOpen, setIsLeftOpen] = useState(true);
   const [isRightOpen, setIsRightOpen] = useState(true);
@@ -122,6 +165,14 @@ function App() {
           content: log.content
         }));
         setMessages(history);
+
+        // 内省結果があればセット
+        if (res.data.latestReflection) {
+          console.log('[App] Found previous reflection:', res.data.latestReflection);
+          setLastReflection(res.data.latestReflection);
+        } else {
+          setLastReflection(null);
+        }
       } catch (error) {
         console.error('[App] Failed to fetch chat logs:', error);
       }
@@ -163,6 +214,7 @@ function App() {
       const aiMsg: Message = { role: 'assistant', content: res.data.response };
       setMessages(prev => [...prev, aiMsg]);
       if (res.data.status) setStatus(res.data.status);
+      if (res.data.debug) setLastDebugInfo(res.data.debug);
       setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       handleApiError(error, 'メッセージの送信に失敗しました');
@@ -181,7 +233,18 @@ function App() {
       };
 
       const res = await axios.post(`${API_URL}/api/reflect`, { llmConfig });
-      alert(`内省完了: ${res.data.reflection.permanentMemory}`);
+      toast.success(`内省完了: ${res.data.reflection.permanentMemory || "新たな気付きはありませんでした"}`, {
+        duration: 5000,
+        style: {
+          background: '#10B981', // Emerald 500
+          color: '#fff',
+        },
+        iconTheme: {
+          primary: '#fff',
+          secondary: '#10B981',
+        },
+      });
+      setLastReflection(res.data.reflection);
 
       const followUpMessage = "内省が終わったようですね。今の気分はどうですか？";
       setMessages(prev => [...prev, { role: 'user', content: followUpMessage }]);
@@ -250,12 +313,7 @@ function App() {
         <BotSidebar
           isOpen={isLeftOpen}
           status={status}
-          chatModel={chatModel}
-          setChatModel={setChatModel}
-          reflectModel={reflectModel}
-          setReflectModel={setReflectModel}
-          llmSettings={llmSettings}
-          setLlmSettings={setLlmSettings}
+          lastDebugInfo={lastDebugInfo}
         />
 
         {/* Main Chat Area */}
@@ -346,6 +404,13 @@ function App() {
           onSelectChat={(id: string) => setCurrentChatId(id)}
           currentChatId={currentChatId}
           onNewChat={() => setCurrentChatId(null)}
+          chatModel={chatModel}
+          setChatModel={setChatModel}
+          reflectModel={reflectModel}
+          setReflectModel={setReflectModel}
+          llmSettings={llmSettings}
+          setLlmSettings={setLlmSettings}
+          lastReflection={lastReflection}
         />
       </div>
     </div>

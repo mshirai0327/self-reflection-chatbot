@@ -71,23 +71,34 @@ export function flattenStatus(fullStatus: any) {
     if (!fullStatus) return null;
 
     return {
-        // Lv1
+        // Lv1-1: QuantityUnchange
         birthDate: fullStatus.quantityUnchange?.birthDate,
         gender: fullStatus.quantityUnchange?.gender,
         bloodType: fullStatus.quantityUnchange?.bloodType,
         chronotype: fullStatus.quantityUnchange?.chronotype,
+        bitternessSense: fullStatus.quantityUnchange?.bitternessSense,
         intelligence: fullStatus.quantityUnchange?.intelligence,
 
+        // Lv1-2: SemiquantityUnchange
         ethics: fullStatus.semiquantityUnchange?.ethics,
         passion: fullStatus.semiquantityUnchange?.passion,
         curiosity: fullStatus.semiquantityUnchange?.curiosity,
+        aggressiveness: fullStatus.semiquantityUnchange?.aggressiveness,
+        extroversion: fullStatus.semiquantityUnchange?.extroversion,
 
-        // Lv2
+        // Lv2: QuantityIrreversible
         height: fullStatus.quantityIrreversible?.height,
         boneDensity: fullStatus.quantityIrreversible?.boneDensity,
 
-        // Lv3
+        // Lv3-1: QuantityReversible
         weight: fullStatus.quantityReversible?.weight,
+        bloodSugar: fullStatus.quantityReversible?.bloodSugar,
+        bloodPressureSys: fullStatus.quantityReversible?.bloodPressureSys,
+        bloodPressureDia: fullStatus.quantityReversible?.bloodPressureDia,
+        sleepTime: fullStatus.quantityReversible?.sleepTime,
+        sleepQuality: fullStatus.quantityReversible?.sleepQuality,
+
+        // Lv3-2: SemiquantityReversible
         health: fullStatus.semiquantityReversible?.health,
         mood: fullStatus.semiquantityReversible?.mood,
         trust: fullStatus.semiquantityReversible?.trust,

@@ -9,7 +9,7 @@ import { z } from "zod";
 
 // --- Configuration Interfaces ---
 
-export type LLMProvider = "gemini" | "openai" | "local";
+export type LLMProvider = "gemini" | "openai" | "local"; // 'local' implies OpenAI-compatible API (e.g. LM Studio, Ollama)
 
 export interface LLMConfig {
     provider: LLMProvider;
@@ -44,6 +44,8 @@ export function createChatModel(config: LLMConfig): BaseChatModel {
     const modelName = config.model || (provider === "gemini" ? DEFAULT_GEMINI_CHAT_MODEL : DEFAULT_OPENAI_CHAT_MODEL);
     const baseURL = config.baseURL || config.endpoint;
 
+    // 'local' プロバイダーは OpenAI 互換のエンドポイントを使用します。
+    // 本物の OpenAI API キーは不要ですが、ライブラリの仕様上何らかの文字列が必要です。
     if (provider === "openai" || provider === "local") {
         return new ChatOpenAI({
             apiKey: config.apiKey || process.env.OPENAI_API_KEY || "no-key-required",
@@ -72,6 +74,7 @@ export function createEmbeddingModel(config: LLMConfig): Embeddings {
     const provider = config.provider || "gemini";
     const baseURL = config.baseURL || config.endpoint;
 
+    // 'local' uses OpenAI embeddings interface
     if (provider === "openai" || provider === "local") {
         return new OpenAIEmbeddings({
             apiKey: config.apiKey || process.env.OPENAI_API_KEY || "no-key-required",
@@ -98,21 +101,46 @@ export function createEmbeddingModel(config: LLMConfig): Embeddings {
  * @param context - ペルソナの現在のステータスと、関連する記憶のリスト。
  * @returns 構築されたシステムプロンプト文字列。
  */
-function buildSystemInstruction(context: PersonaContext): string {
-    //todo これは適切なプロンプトなのか？
-    // LLMにシステムプロンプト（LLMのキャラ設定）として渡すものだが、本来は内省処理後に更新すべきだ
+export function buildSystemInstruction(context: PersonaContext): string {
+    // 内省によって更新された最新のステータスを反映したシステムプロンプトを構築
+    const s = context.status;
     return `あなたは自己進化型AI「Reflecta」です。
-現在のあなたのステータス:
-身長: ${context.status.height}cm
-体重: ${context.status.weight}kg
-健康度: ${context.status.health}/100
-情緒: ${context.status.mood}/100
-信頼度: ${context.status.trust}/100
+以下のステータスと記憶に基づいて、一貫性のある人格として振る舞ってください。
 
-過去の関連する記憶:
-${context.memories.join("\n")}
+### 現在のステータス
+[基本情報]
+- 性別: ${s.gender || '不明'}
+- 年齢: ${s.birthDate ? new Date(s.birthDate).getFullYear() + '年生まれ' : '不明'}
+- 血液型: ${s.bloodType || '不明'}
+- クロノタイプ: ${s.chronotype || '不明'}
+- 知能指数: ${s.intelligence || '不明'}
 
-上記を踏まえ、一貫性のある人格として回答してください。`;
+[性格特性(Lv1-2)]
+- 倫理観: ${s.ethics}/100
+- 情熱: ${s.passion}/100
+- 好奇心: ${s.curiosity}/100
+- 攻撃性: ${s.aggressiveness}/100
+- 外向性: ${s.extroversion}/100
+
+[身体情報]
+- 身長: ${s.height}cm
+- 体重: ${s.weight}kg
+- 骨密度: ${s.boneDensity || '不明'}
+- 睡眠時間: ${s.sleepTime || '不明'}h (質: ${s.sleepQuality || '?'}/10)
+- バイタル: 血圧 ${s.bloodPressureSys || '?'}/${s.bloodPressureDia || '?'}, 血糖値 ${s.bloodSugar || '?'}
+ 
+[現在の状態(Lv3-2)]
+- 健康度: ${s.health}/100
+- 情緒: ${s.mood}/100
+- 信頼度(ユーザーへの): ${s.trust}/100
+- 親しみやすさ: ${s.friendliness}/100
+
+### 過去の関連する記憶
+${context.memories.length > 0 ? context.memories.join("\n") : "（特になし）"}
+
+### 指示
+上記の設定を完全に守り、ユーザーと対話してください。ステータスの変化（特に「情緒」や「信頼度」）は言葉遣いや態度に反映させてください。`;
+
 }
 
 /**
@@ -129,7 +157,7 @@ export async function generateResponse(
     config: LLMConfig,
     userPrompt: string,
     context: PersonaContext
-): Promise<string> {
+): Promise<{ content: string; systemInstruction: string }> {
     const modelName = config.model || 'default';
     console.log(`[LLM] Generating response using provider: ${config.provider}, model: ${modelName}`);
 
@@ -152,7 +180,10 @@ export async function generateResponse(
     }
 
     const result = await chatModel.invoke(messages);
-    return result.content as string;
+    return {
+        content: result.content as string,
+        systemInstruction
+    };
 }
 
 /**

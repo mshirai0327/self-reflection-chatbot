@@ -3,7 +3,8 @@ export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { queryMemories, addMemory } from "@/lib/chroma";
 import { getDefaultPersona, getDefaultUser, getLatestStatus, flattenStatus } from "@/lib/persona";
-import { generateResponse, LLMConfig } from "@/lib/llm";
+import { generateResponse, LLMConfig, buildSystemInstruction } from "@/lib/llm";
+import { ulid } from "ulid";
 
 /**
  * 受信したチャットリクエストを処理します。
@@ -38,10 +39,13 @@ export async function POST(req: NextRequest) {
 
         // 3. Generate response with chosen LLM
         console.log("[Chat API] Requesting AI response...");
-        const aiResponse = await generateResponse(activeConfig, message, {
+        const memoryStrings = memories.map(m => m.content).filter((c): c is string => c !== null);
+        const { content: aiResponse, systemInstruction } = await generateResponse(activeConfig, message, {
             status,
-            memories: (memories as string[]) || []
+            memories: memoryStrings
         });
+
+
         console.log("[Chat API] AI Response received.");
 
         // 4. Prismaへの会話ログ保存
@@ -97,7 +101,7 @@ export async function POST(req: NextRequest) {
 
         // 5. Add to vector memory (Fragile memory)
         console.log("[Chat API] Adding message to ChromaDB...");
-        await addMemory(Date.now().toString(), message, {
+        await addMemory(ulid(), message, {
             role: "user",
             personaId: persona.id,
             chatId: targetChatId // メタデータにchatIdを保持
@@ -107,7 +111,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
             response: aiResponse,
             status: status,
-            chatId: targetChatId
+            chatId: targetChatId,
+            debug: {
+                systemPrompt: systemInstruction,
+                userPrompt: message,
+                contextMemories: memories || []
+            }
         });
     } catch (error: unknown) {
         let errorMessage = "An unknown error occurred";

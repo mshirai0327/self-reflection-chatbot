@@ -243,6 +243,8 @@ model ReflectionEvent {
   thought         String   @db.Text
   /// 内省結果として算出されたステータスの変動値（JSON）
   statusUpdate    Json
+  /// 内省に使用されたシステムプロンプト
+  prompt          String?  @db.Text
   /// 今後の人格形成に引き継がれる恒久的な記憶
   permanentMemory String?  @db.Text
   /// 内省が行われた日時

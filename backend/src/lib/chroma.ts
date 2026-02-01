@@ -1,4 +1,5 @@
 import { ChromaClient, EmbeddingFunction } from "chromadb";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { embedTexts, LLMConfig } from "./llm";
 
 /** ChromaDBの接続URL（環境変数から取得） */
@@ -49,6 +50,7 @@ class DynamicEmbeddingFunction implements EmbeddingFunction {
             model: process.env.GOOGLE_EMBEDDING_MODEL || "text-embedding-004",
         };
         console.log(`[ChromaDB] Initialized DynamicEmbeddingFunction with provider: ${this.config.provider}`);
+        console.log(`[ChromaDB] using embedding model: ${this.config.model}`);
     }
 
     /**
@@ -92,13 +94,26 @@ export async function getCollection() {
 
 /**
  * 新しい記憶をベクトルストアに保存します。
+ * 200文字ごとにチャンク分割し、オーバーラップ20文字を持たせます。
+ * RecursiveCharacterTextSplitter を使用します。
  */
 export async function addMemory(id: string, text: string, metadata: Record<string, any>) {
     const collection = await getCollection();
+
+    const splitter = new RecursiveCharacterTextSplitter({
+        chunkSize: 200,
+        chunkOverlap: 20,
+    });
+
+    const docs = await splitter.createDocuments([text]);
+    const chunks = docs.map(doc => doc.pageContent);
+
+    // 分割されたチャンクを保存
+    // IDは "originalID_chunkIndex" の形式にする
     await collection.add({
-        ids: [id],
-        documents: [text],
-        metadatas: [metadata],
+        ids: chunks.map((_, i) => chunks.length > 1 ? `${id}_${i}` : id),
+        documents: chunks,
+        metadatas: chunks.map(() => metadata),
     });
 }
 
@@ -114,11 +129,21 @@ export async function queryMemories(text: string, nResults: number = 3) {
             queryTexts: [text],
             nResults,
         });
+        console.log("[ChromaDB] Query Text:", text);
+        console.log("[ChromaDB] Result Distances:", results.distances);
         console.log("[ChromaDB] Query results:", results.documents);
         if (!results.documents || results.documents.length === 0) {
             return [];
         }
-        return results.documents[0] as string[];
+        const docs = results.documents[0];
+        const dists = results.distances ? results.distances[0] : [];
+
+        return docs.map((doc, i) => ({
+            content: doc,
+            distance: dists[i] ?? null
+        }))
+            .filter(item => item.content !== null)
+            .filter(item => item.distance !== null && item.distance < 0.5);
     } catch (error: unknown) {
         console.error("[ChromaDB Error] queryMemories failed:", error);
         if (error instanceof Error) {

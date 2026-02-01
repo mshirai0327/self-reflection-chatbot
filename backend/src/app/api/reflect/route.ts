@@ -5,6 +5,7 @@ import { addMemory } from "@/lib/chroma";
 import { getDefaultPersona, getLatestStatus, flattenStatus } from "@/lib/persona";
 import { generateJson, LLMConfig } from "@/lib/llm";
 import { z } from "zod";
+import { ulid } from "ulid";
 
 // Zodスキーマを定義して、LLMの出力構造を保証する
 const reflectionSchema = z.object({
@@ -13,6 +14,7 @@ const reflectionSchema = z.object({
         health: z.number().int().describe("健康度の変化量 (例: 5, -10, 0)"),
         mood: z.number().int().describe("情緒の変化量 (例: 5, -10, 0)"),
         trust: z.number().int().describe("信頼度の変化量 (例: 5, -10, 0)"),
+        friendliness: z.number().int().describe("親しみやすさの変化量 (例: 5, -10, 0)"),
     }),
     permanentMemory: z.string().optional().describe("今後忘れてはいけない重要な教訓、日本語で記述。なければ省略。"),
 });
@@ -81,18 +83,39 @@ export async function POST(req: NextRequest) {
 ${logSummary}
 
 ### 現在のあなたのステータス:
+[基本情報]
+- 性別: ${status.gender || '不明'}
+- 年齢: ${status.birthDate ? new Date(status.birthDate).getFullYear() + '年生まれ' : '不明'}
+- 血液型: ${status.bloodType || '不明'}
+- クロノタイプ: ${status.chronotype || '不明'}
+- 知能指数: ${status.intelligence || '不明'}
+
+[性格特性(Lv1-2)]
+- 倫理観: ${status.ethics}/100
+- 情熱: ${status.passion}/100
+- 好奇心: ${status.curiosity}/100
+- 攻撃性: ${status.aggressiveness}/100
+- 外向性: ${status.extroversion}/100
+
+[身体情報]
 - 身長: ${status.height}cm
 - 体重: ${status.weight}kg
+- 骨密度: ${status.boneDensity || '不明'}
+- 睡眠時間: ${status.sleepTime || '不明'}h (質: ${status.sleepQuality || '?'}/10)
+- バイタル: 血圧 ${status.bloodPressureSys || '?'}/${status.bloodPressureDia || '?'}, 血糖値 ${status.bloodSugar || '?'}
+
+[現在の状態(Lv3-2)]
 - 健康度: ${status.health}/100
 - 情緒: ${status.mood}/100
-- 信頼度: ${status.trust}/100
+- 信頼度(ユーザーへの): ${status.trust}/100
+- 親しみやすさ: ${status.friendliness}/100
 
 ### 指示:
 会話履歴と現在のステータスを深く考察し、必ず以下の**JSON形式**で回答を出力してください。
             余計な解説やMarkdownのコードブロック（\`\`\`json ... \`\`\`）は含めず、純粋なJSONオブジェクトのみを出力してください。
 
 1.  **thought**: この会話を通じて何を感じ、何を考えたのか。あなたの内面的な思考プロセスを記述してください。
-2.  **statusUpdate**: 分析の結果、あなたの「健康度」「情緒」「信頼度」はどのように変化すべきですか？増加、減少、または変化なし（0）を具体的な整数で示してください。
+2.  **statusUpdate**: 分析の結果、あなたの「健康度」「情緒」「信頼度」「親しみやすさ」はどのように変化すべきですか？増加、減少、または変化なし（0）を具体的な整数で示してください。
 3.  **permanentMemory**: この会話から得られた、今後の人格形成に不可欠な重要な教訓や学びは何ですか？もし特筆すべきものがなければ、省略するか空文字にしてください。
 `;
 
@@ -151,7 +174,7 @@ ${logSummary}
                         health: Math.min(100, Math.max(0, (status.health ?? 100) + (reflection.statusUpdate.health || 0))),
                         mood: Math.min(100, Math.max(0, (status.mood ?? 50) + (reflection.statusUpdate.mood || 0))),
                         trust: Math.min(100, Math.max(0, (status.trust ?? 50) + (reflection.statusUpdate.trust || 0))),
-                        friendliness: fullStatus.semiquantityReversible?.friendliness ?? 50,
+                        friendliness: Math.min(100, Math.max(0, (status.friendliness ?? 50) + (reflection.statusUpdate.friendliness || 0))),
                         version: (fullStatus.semiquantityReversible?.version || 0) + 1,
                     }
                 }
@@ -171,7 +194,8 @@ ${logSummary}
                 personaId: persona.id,
                 thought: reflection.thought,
                 statusUpdate: reflection.statusUpdate,
-                permanentMemory: reflection.permanentMemory
+                permanentMemory: reflection.permanentMemory,
+                prompt: reflectionPrompt
             }
         });
 
@@ -179,7 +203,7 @@ ${logSummary}
         if (reflection.permanentMemory) {
             console.log("[Reflect API] Saving permanent memory to ChromaDB...");
             await addMemory(
-                `ref_${Date.now()}`,
+                ulid(),
                 reflection.permanentMemory,
                 {
                     type: "reflection",
@@ -190,7 +214,12 @@ ${logSummary}
         }
 
         console.log("[Reflect API] Reflection process completed successfully.");
-        return NextResponse.json({ reflection });
+        return NextResponse.json({
+            reflection: {
+                ...reflection,
+                prompt: reflectionPrompt
+            }
+        });
 
     } catch (error: unknown) {
         let errorMessage = "An unknown error occurred during reflection";
