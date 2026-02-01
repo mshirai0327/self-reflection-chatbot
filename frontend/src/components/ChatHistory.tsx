@@ -124,7 +124,7 @@ export function ChatHistory({
     const testConnection = async () => {
         const loadingToast = toast.loading('接続を確認中...');
         try {
-            const res = await axios.post('/api/llm/test', {
+            const res = await axios.post(`${API_URL}/api/llm/test`, {
                 endpoint: llmSettings.localEndpoint
             });
             if (res.data.success) {
@@ -141,7 +141,7 @@ export function ChatHistory({
     const fetchModels = async () => {
         const loadingToast = toast.loading('モデル一覧を取得中...');
         try {
-            const res = await axios.post('/api/llm/models', {
+            const res = await axios.post(`${API_URL}/api/llm/models`, {
                 endpoint: llmSettings.localEndpoint
             });
             const models = res.data.models;
