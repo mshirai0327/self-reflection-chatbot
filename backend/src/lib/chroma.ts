@@ -47,7 +47,7 @@ class DynamicEmbeddingFunction implements EmbeddingFunction {
         // デフォルトはGeminiの埋め込みモデルを使用
         this.config = config || {
             provider: "gemini",
-            model: process.env.GOOGLE_EMBEDDING_MODEL,
+            model: process.env.GOOGLE_EMBEDDING_MODEL || "gemini-embedding-001",
         };
         console.log(`[ChromaDB] Initialized DynamicEmbeddingFunction with provider: ${this.config.provider}`);
         console.log(`[ChromaDB] using embedding model: ${this.config.model}`);
