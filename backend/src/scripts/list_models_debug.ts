@@ -2,6 +2,13 @@
 import "dotenv/config";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+interface GoogleModel {
+    name: string;
+    version?: string;
+    displayName?: string;
+    description?: string;
+}
+
 async function main() {
     console.log("=== Listing Available Models ===");
 
@@ -23,14 +30,14 @@ async function main() {
 
         if (data.models) {
             console.log(`Found ${data.models.length} models.`);
-            const embeddingModels = data.models.filter((m: any) => m.name.includes("embedding"));
+            const embeddingModels = data.models.filter((m: GoogleModel) => m.name.includes("embedding"));
 
             console.log("\n--- Embedding Models ---");
-            embeddingModels.forEach((m: any) => {
+            embeddingModels.forEach((m: GoogleModel) => {
                 console.log(`Name: ${m.name}`);
                 console.log(`   Version: ${m.version}`);
                 console.log(`   Display Name: ${m.displayName}`);
-                console.log(`   Description: ${m.description.substring(0, 50)}...`);
+                console.log(`   Description: ${m.description?.substring(0, 50) ?? "N/A"}...`);
             });
 
             console.log("\n--- Other Models (First 5) ---");
