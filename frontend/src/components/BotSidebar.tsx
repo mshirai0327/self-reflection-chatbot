@@ -74,8 +74,8 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
     const bodyStats = [
         { label: 'Height', value: `${status.height}cm` },
         { label: 'Weight', value: `${status.weight}kg` },
-        { label: 'Sleep', value: `${status.sleepTime || '?'}h` },
-        { label: 'BP', value: `${status.bloodPressureSys || '?'}/${status.bloodPressureDia || '?'}` },
+        { label: 'Sleep', value: `${status.sleepTime ?? '?'}h` },
+        { label: 'BP', value: `${status.bloodPressureSys ?? '?'}/${status.bloodPressureDia ?? '?'}` },
     ];
 
     return (
