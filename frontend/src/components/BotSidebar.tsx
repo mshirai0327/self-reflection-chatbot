@@ -32,8 +32,11 @@ interface PersonaStatus {
 export interface DebugInfo {
     systemPrompt: string;
     userPrompt: string;
-    contextMemories: string[];
+    contextMemories: { content: string | null; distance: number | null }[];
 }
+
+
+
 
 type BotSidebarProps = {
     isOpen: boolean;
@@ -212,18 +215,35 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
 
                                     {/* Vector Memories */}
                                     <div>
-                                        <h3 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                                            <Database className="w-3 h-3" /> Retrieved Memories (RAG)
+                                        <h3 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 tracking-wider mb-2 flex items-center gap-2">
+                                            <Database className="w-3 h-3" /> ChromaDB Memories
                                         </h3>
                                         <div className="space-y-2">
                                             {lastDebugInfo.contextMemories.length === 0 ? (
                                                 <div className="text-xs text-slate-400 italic p-2">No relevant memories found.</div>
                                             ) : (
-                                                lastDebugInfo.contextMemories.map((mem, i) => (
-                                                    <div key={i} className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-900 dark:text-emerald-100 p-2 rounded text-xs border border-emerald-100 dark:border-emerald-800/50">
-                                                        "{mem}"
-                                                    </div>
-                                                ))
+                                                <div className="overflow-hidden rounded border border-emerald-100 dark:border-emerald-800/30">
+                                                    <table className="w-full text-xs text-left border-collapse">
+                                                        <thead className="bg-emerald-50 dark:bg-emerald-900/10">
+                                                            <tr>
+                                                                <th className="p-1 px-2 border-b border-emerald-100 dark:border-emerald-800/30 text-emerald-700 dark:text-emerald-300 font-mono text-[10px] w-16">Dist</th>
+                                                                <th className="p-1 px-2 border-b border-emerald-100 dark:border-emerald-800/30 text-emerald-700 dark:text-emerald-300 font-mono text-[10px]">Content</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {lastDebugInfo.contextMemories.map((mem, i) => (
+                                                                <tr key={i} className="border-b border-emerald-50 dark:border-emerald-800/20 last:border-0 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 transition-colors">
+                                                                    <td className="p-1 px-2 align-top font-mono text-emerald-600 dark:text-emerald-500 text-[10px]">
+                                                                        {mem.distance !== null ? mem.distance.toFixed(3) : '-'}
+                                                                    </td>
+                                                                    <td className="p-1 px-2 align-top text-emerald-900 dark:text-emerald-100 opacity-90 break-words max-w-[200px]">
+                                                                        {mem.content}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
                                             )}
                                         </div>
                                     </div>

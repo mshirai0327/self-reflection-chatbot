@@ -38,10 +38,13 @@ export async function POST(req: NextRequest) {
 
         // 3. Generate response with chosen LLM
         console.log("[Chat API] Requesting AI response...");
+        const memoryStrings = memories.map(m => m.content).filter((c): c is string => c !== null);
         const { content: aiResponse, systemInstruction } = await generateResponse(activeConfig, message, {
             status,
-            memories: (memories as string[]) || []
+            memories: memoryStrings
         });
+
+
         console.log("[Chat API] AI Response received.");
 
         // 4. Prismaへの会話ログ保存

@@ -118,7 +118,13 @@ export async function queryMemories(text: string, nResults: number = 3) {
         if (!results.documents || results.documents.length === 0) {
             return [];
         }
-        return results.documents[0] as string[];
+        const docs = results.documents[0];
+        const dists = results.distances ? results.distances[0] : [];
+
+        return docs.map((doc, i) => ({
+            content: doc,
+            distance: dists[i] ?? null
+        })).filter(item => item.content !== null);
     } catch (error: unknown) {
         console.error("[ChromaDB Error] queryMemories failed:", error);
         if (error instanceof Error) {

@@ -46,7 +46,7 @@ interface PersonaStatus {
 export interface DebugInfo {
   systemPrompt: string;
   userPrompt: string;
-  contextMemories: string[];
+  contextMemories: { content: string | null; distance: number | null }[];
 }
 
 export interface ReflectionResult {
