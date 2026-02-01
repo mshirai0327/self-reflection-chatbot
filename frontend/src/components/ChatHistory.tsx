@@ -270,14 +270,18 @@ export function ChatHistory({
                                             {lastReflection.thought}
                                         </p>
                                     </div>
-                                    {lastReflection.permanentMemory && (
-                                        <div>
-                                            <span className="text-slate-400 block mb-1">New Memory</span>
+                                    <div>
+                                        <span className="text-slate-400 block mb-1">New Memory</span>
+                                        {lastReflection.permanentMemory ? (
                                             <p className="text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded border border-amber-100 dark:border-amber-900/50">
                                                 {lastReflection.permanentMemory}
                                             </p>
-                                        </div>
-                                    )}
+                                        ) : (
+                                            <p className="text-slate-400 dark:text-slate-600 text-xs italic pl-1">
+                                                新しい気付きはありませんでした
+                                            </p>
+                                        )}
+                                    </div>
                                     {lastReflection.prompt && (
                                         <div>
                                             <span className="text-slate-400 block mb-1">System Prompt (Reflection)</span>
