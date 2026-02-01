@@ -154,7 +154,7 @@ export async function generateResponse(
     config: LLMConfig,
     userPrompt: string,
     context: PersonaContext
-): Promise<string> {
+): Promise<{ content: string; systemInstruction: string }> {
     const modelName = config.model || 'default';
     console.log(`[LLM] Generating response using provider: ${config.provider}, model: ${modelName}`);
 
@@ -177,7 +177,10 @@ export async function generateResponse(
     }
 
     const result = await chatModel.invoke(messages);
-    return result.content as string;
+    return {
+        content: result.content as string,
+        systemInstruction
+    };
 }
 
 /**

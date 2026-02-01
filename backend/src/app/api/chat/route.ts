@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
         // 3. Generate response with chosen LLM
         console.log("[Chat API] Requesting AI response...");
-        const aiResponse = await generateResponse(activeConfig, message, {
+        const { content: aiResponse, systemInstruction } = await generateResponse(activeConfig, message, {
             status,
             memories: (memories as string[]) || []
         });
@@ -109,10 +109,7 @@ export async function POST(req: NextRequest) {
             status: status,
             chatId: targetChatId,
             debug: {
-                systemPrompt: buildSystemInstruction({
-                    status: status,
-                    memories: (memories as string[]) || []
-                }),
+                systemPrompt: systemInstruction,
                 userPrompt: message,
                 contextMemories: memories || []
             }
