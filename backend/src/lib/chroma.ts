@@ -49,6 +49,7 @@ class DynamicEmbeddingFunction implements EmbeddingFunction {
             model: process.env.GOOGLE_EMBEDDING_MODEL || "text-embedding-004",
         };
         console.log(`[ChromaDB] Initialized DynamicEmbeddingFunction with provider: ${this.config.provider}`);
+        console.log(`[ChromaDB] using embedding model: ${this.config.model}`);
     }
 
     /**
