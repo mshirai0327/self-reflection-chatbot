@@ -82,6 +82,7 @@ export async function getCollection() {
         return await client.getOrCreateCollection({
             name: collectionName,
             embeddingFunction: defaultEmbeddingFunction,
+            metadata: { "hnsw:space": "cosine" },
         });
     } catch (error) {
         console.error("[ChromaDB] getOrCreateCollection failed. Check CHROMA_URL:", process.env.CHROMA_URL);
