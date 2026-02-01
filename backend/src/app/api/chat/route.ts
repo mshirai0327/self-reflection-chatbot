@@ -99,6 +99,8 @@ export async function POST(req: NextRequest) {
         });
 
         // 5. Add to vector memory (Fragile memory)
+        // todo: idをDate.now()にしているが、重複する可能性があるので、UUIDに変更する
+        // rodo: チャンク化をしていないので長文が入る可能性がある。100字くらいでどうか
         console.log("[Chat API] Adding message to ChromaDB...");
         await addMemory(Date.now().toString(), message, {
             role: "user",
