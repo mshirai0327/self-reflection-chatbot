@@ -93,7 +93,6 @@ export async function getCollection() {
 
 /**
  * 新しい記憶をベクトルストアに保存します。
- * todo: idをDate.now()にしているが、重複する可能性があるので、UUIDに変更する
  */
 export async function addMemory(id: string, text: string, metadata: Record<string, any>) {
     const collection = await getCollection();
@@ -107,7 +106,6 @@ export async function addMemory(id: string, text: string, metadata: Record<strin
 /**
  * 与えられたテキストに意味的に近い記憶を検索します。
  * デフォルトでは、3つの結果を返却します
- * todo: 現状は距離によるフィルタリングがされない。2.0 だろうが 10.0 だろうが、上位3件を必ず返してしまう
  */
 export async function queryMemories(text: string, nResults: number = 3) {
     try {
@@ -129,7 +127,9 @@ export async function queryMemories(text: string, nResults: number = 3) {
         return docs.map((doc, i) => ({
             content: doc,
             distance: dists[i] ?? null
-        })).filter(item => item.content !== null);
+        }))
+            .filter(item => item.content !== null)
+            .filter(item => item.distance !== null && item.distance < 0.5);
     } catch (error: unknown) {
         console.error("[ChromaDB Error] queryMemories failed:", error);
         if (error instanceof Error) {

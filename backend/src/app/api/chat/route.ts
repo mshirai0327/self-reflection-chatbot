@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { queryMemories, addMemory } from "@/lib/chroma";
 import { getDefaultPersona, getDefaultUser, getLatestStatus, flattenStatus } from "@/lib/persona";
 import { generateResponse, LLMConfig, buildSystemInstruction } from "@/lib/llm";
+import { ulid } from "ulid";
 
 /**
  * 受信したチャットリクエストを処理します。
@@ -99,10 +100,9 @@ export async function POST(req: NextRequest) {
         });
 
         // 5. Add to vector memory (Fragile memory)
-        // todo: idをDate.now()にしているが、重複する可能性があるので、UUIDに変更する
-        // rodo: チャンク化をしていないので長文が入る可能性がある。100字くらいでどうか
+        // todo: チャンク化をしていないので長文が入る可能性がある。100字くらいでどうか
         console.log("[Chat API] Adding message to ChromaDB...");
-        await addMemory(Date.now().toString(), message, {
+        await addMemory(ulid(), message, {
             role: "user",
             personaId: persona.id,
             chatId: targetChatId // メタデータにchatIdを保持
