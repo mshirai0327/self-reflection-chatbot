@@ -109,11 +109,16 @@ export async function addMemory(id: string, text: string, metadata: Record<strin
     const docs = await splitter.createDocuments([text]);
     const chunks = docs.map(doc => doc.pageContent);
 
+    // 明示的にEmbeddingを生成
+    const embeddingFunction = new DynamicEmbeddingFunction();
+    const embeddings = await embeddingFunction.generate(chunks);
+
     // 分割されたチャンクを保存
     // IDは "originalID_chunkIndex" の形式にする
     await collection.add({
         ids: chunks.map((_, i) => chunks.length > 1 ? `${id}_${i}` : id),
         documents: chunks,
+        embeddings: embeddings, // 明示的に渡す
         metadatas: chunks.map(() => metadata),
     });
 }
@@ -126,13 +131,20 @@ export async function queryMemories(text: string, nResults: number = 3) {
     try {
         console.log("[ChromaDB] Querying for text:", text);
         const collection = await getCollection();
+
+        // 明示的にEmbeddingを生成して精度を確保
+        const embeddingFunction = new DynamicEmbeddingFunction();
+        const queryEmbeddings = await embeddingFunction.generate([text]);
+
         const results = await collection.query({
-            queryTexts: [text],
+            queryEmbeddings: queryEmbeddings, // queryTextsの代わりにEmbeddingを直接渡す
             nResults,
         });
+
         console.log("[ChromaDB] Query Text:", text);
         console.log("[ChromaDB] Result Distances:", results.distances);
         console.log("[ChromaDB] Query results:", results.documents);
+
         if (!results.documents || results.documents.length === 0) {
             return [];
         }
