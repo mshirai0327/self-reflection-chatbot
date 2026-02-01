@@ -9,7 +9,7 @@ import { z } from "zod";
 
 // --- Configuration Interfaces ---
 
-export type LLMProvider = "gemini" | "openai" | "local";
+export type LLMProvider = "gemini" | "openai" | "local"; // 'local' implies OpenAI-compatible API (e.g. LM Studio, Ollama)
 
 export interface LLMConfig {
     provider: LLMProvider;
@@ -44,6 +44,8 @@ export function createChatModel(config: LLMConfig): BaseChatModel {
     const modelName = config.model || (provider === "gemini" ? DEFAULT_GEMINI_CHAT_MODEL : DEFAULT_OPENAI_CHAT_MODEL);
     const baseURL = config.baseURL || config.endpoint;
 
+    // 'local' プロバイダーは OpenAI 互換のエンドポイントを使用します。
+    // 本物の OpenAI API キーは不要ですが、ライブラリの仕様上何らかの文字列が必要です。
     if (provider === "openai" || provider === "local") {
         return new ChatOpenAI({
             apiKey: config.apiKey || process.env.OPENAI_API_KEY || "no-key-required",
@@ -72,6 +74,7 @@ export function createEmbeddingModel(config: LLMConfig): Embeddings {
     const provider = config.provider || "gemini";
     const baseURL = config.baseURL || config.endpoint;
 
+    // 'local' uses OpenAI embeddings interface
     if (provider === "openai" || provider === "local") {
         return new OpenAIEmbeddings({
             apiKey: config.apiKey || process.env.OPENAI_API_KEY || "no-key-required",

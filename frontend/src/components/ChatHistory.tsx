@@ -316,7 +316,7 @@ export function ChatHistory({
                                     : 'text-slate-500'
                                     }`}
                             >
-                                Local
+                                Local (OpenAI互換)
                             </button>
                         </div>
 
