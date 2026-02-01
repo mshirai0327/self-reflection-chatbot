@@ -1,4 +1,5 @@
 import { ChromaClient, EmbeddingFunction } from "chromadb";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { embedTexts, LLMConfig } from "./llm";
 
 /** ChromaDBの接続URL（環境変数から取得） */
@@ -93,13 +94,26 @@ export async function getCollection() {
 
 /**
  * 新しい記憶をベクトルストアに保存します。
+ * 200文字ごとにチャンク分割し、オーバーラップ20文字を持たせます。
+ * RecursiveCharacterTextSplitter を使用します。
  */
 export async function addMemory(id: string, text: string, metadata: Record<string, any>) {
     const collection = await getCollection();
+
+    const splitter = new RecursiveCharacterTextSplitter({
+        chunkSize: 200,
+        chunkOverlap: 20,
+    });
+
+    const docs = await splitter.createDocuments([text]);
+    const chunks = docs.map(doc => doc.pageContent);
+
+    // 分割されたチャンクを保存
+    // IDは "originalID_chunkIndex" の形式にする
     await collection.add({
-        ids: [id],
-        documents: [text],
-        metadatas: [metadata],
+        ids: chunks.map((_, i) => chunks.length > 1 ? `${id}_${i}` : id),
+        documents: chunks,
+        metadatas: chunks.map(() => metadata),
     });
 }
 
