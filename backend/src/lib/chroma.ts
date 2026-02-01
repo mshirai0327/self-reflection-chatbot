@@ -116,6 +116,8 @@ export async function queryMemories(text: string, nResults: number = 3) {
             queryTexts: [text],
             nResults,
         });
+        console.log("[ChromaDB] Query Text:", text);
+        console.log("[ChromaDB] Result Distances:", results.distances);
         console.log("[ChromaDB] Query results:", results.documents);
         if (!results.documents || results.documents.length === 0) {
             return [];
