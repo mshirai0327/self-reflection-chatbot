@@ -1,5 +1,6 @@
 
-// Based on backend/prisma/schema.prisma
+// Based on Normalized Database Proposal
+// Reflecta Database Schema
 
 Table users {
   id String [pk] // UUID
@@ -19,82 +20,157 @@ Table personas {
 Table persona_statuses {
   status_id String [pk] // UUID
   created_at DateTime [default: `now()`]
-  persona_id String 
+  persona_id String [ref: > personas.id]
 }
 
-// Lv1-1: Biological/Genetic info
-Table quantity_unchange_statuses {
+// -----------------------------------------------------------------------------
+// Lv1-1: QuantityUnchange (Biological/Genetic info)
+// -----------------------------------------------------------------------------
+Table quantity_unchange_items {
   id String [pk]
-  persona_status_id String [unique]
-  birth_date DateTime
-  gender String
-  blood_type String
-  chronotype String
-  bitterness_sense Int
-  intelligence Int
+  name String [unique, note: "e.g. 'birth_date', 'gender'"]
+  label String [note: "Display name"]
+  data_type String [note: "'date', 'string', 'int', 'float'"]
 }
 
-// Lv1-2: Deep psychological traits
-Table semiquantity_unchange_statuses {
+Table quantity_unchange_values {
   id String [pk]
-  persona_status_id String [unique]
-  ethics Int [default: 50]
-  passion Int [default: 50]
-  curiosity Int [default: 50]
-  aggressiveness Int [default: 50]
-  extroversion Int [default: 50]
+  persona_status_id String [ref: > persona_statuses.status_id]
+  item_id String [ref: > quantity_unchange_items.id]
+  
+  // Typed value columns
+  val_date DateTime
+  val_string String
+  val_int Int
+  val_float Float
+  
+  indexes {
+    (persona_status_id, item_id) [unique]
+  }
 }
 
-// Lv2: Cumulative growth
-Table quantity_irreversible_statuses {
+// -----------------------------------------------------------------------------
+// Lv1-2: SemiquantityUnchange (Deep psychological traits)
+// -----------------------------------------------------------------------------
+Table semiquantity_unchange_items {
   id String [pk]
+  name String [unique, note: "e.g. 'ethics', 'passion'"]
+  label String
+  data_type String
+}
+
+Table semiquantity_unchange_values {
+  id String [pk]
+  persona_status_id String [ref: > persona_statuses.status_id]
+  item_id String [ref: > semiquantity_unchange_items.id]
+  
+  val_int Int [default: 50]
+  // Other types reserved for future use
+  val_string String
+  val_float Float
+  
+  indexes {
+    (persona_status_id, item_id) [unique]
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Lv2: QuantityIrreversible (Cumulative growth)
+// -----------------------------------------------------------------------------
+Table quantity_irreversible_items {
+  id String [pk]
+  name String [unique, note: "e.g. 'height', 'bone_density'"]
+  label String
+  data_type String
+}
+
+Table quantity_irreversible_values {
+  id String [pk]
+  persona_status_id String [ref: > persona_statuses.status_id]
+  item_id String [ref: > quantity_irreversible_items.id]
   version Int [default: 1]
-  persona_status_id String [unique]
-  height Float
-  bone_density Float
+  
+  val_float Float
+  val_int Int
+  val_string String
+  
   recorded_at DateTime [default: `now()`]
+  
+  indexes {
+    (persona_status_id, item_id) [unique]
+  }
 }
 
-// Lv3-1: Daily vitals
-Table quantity_reversible_statuses {
+// -----------------------------------------------------------------------------
+// Lv3-1: QuantityReversible (Daily vitals)
+// -----------------------------------------------------------------------------
+Table quantity_reversible_items {
   id String [pk]
+  name String [unique, note: "e.g. 'weight', 'blood_sugar'"]
+  label String
+  data_type String
+}
+
+Table quantity_reversible_values {
+  id String [pk]
+  persona_status_id String [ref: > persona_statuses.status_id]
+  item_id String [ref: > quantity_reversible_items.id]
   version Int [default: 1]
-  persona_status_id String [unique]
-  weight Float
-  blood_sugar Float
-  blood_pressure_sys Int
-  blood_pressure_dia Int
-  sleep_time Float
-  sleep_quality Int
+  
+  val_float Float
+  val_int Int
+  val_string String
+  
   recorded_at DateTime [default: `now()`]
+  
+  indexes {
+    (persona_status_id, item_id) [unique]
+  }
 }
 
-// Lv3-2: Mood and dynamic traits
-Table semiquantity_reversible_statuses {
+// -----------------------------------------------------------------------------
+// Lv3-2: SemiquantityReversible (Mood and dynamic traits)
+// -----------------------------------------------------------------------------
+Table semiquantity_reversible_items {
   id String [pk]
+  name String [unique, note: "e.g. 'mood', 'trust', 'health'"]
+  label String
+  data_type String
+}
+
+Table semiquantity_reversible_values {
+  id String [pk]
+  persona_status_id String [ref: > persona_statuses.status_id]
+  item_id String [ref: > semiquantity_reversible_items.id]
   version Int [default: 1]
-  persona_status_id String [unique]
-  trust Int [default: 50]
-  friendliness Int [default: 50]
-  mood Int [default: 50]
-  health Int [default: 100]
+  
+  val_int Int [default: 50]
+  val_string String
+  
   updated_at DateTime [default: `now()`]
+  
+  indexes {
+    (persona_status_id, item_id) [unique]
+  }
 }
 
+// -----------------------------------------------------------------------------
+// Chat & Events
+// -----------------------------------------------------------------------------
 Table chats {
   id String [pk]
   title String [default: 'New Chat']
-  user_id String
-  persona_id String
+  user_id String [ref: > users.id]
+  persona_id String [ref: > personas.id]
   created_at DateTime [default: `now()`]
   updated_at DateTime
 }
 
 Table chat_logs {
   id String [pk]
-  chat_id String
-  user_id String
-  persona_id String
+  chat_id String [ref: > chats.id]
+  user_id String [ref: > users.id]
+  persona_id String [ref: > personas.id]
   role String
   content String
   created_at DateTime [default: `now()`]
@@ -102,7 +178,7 @@ Table chat_logs {
 
 Table reflection_events {
   id String [pk]
-  persona_id String
+  persona_id String [ref: > personas.id]
   thought String
   status_update Json
   prompt String
@@ -118,29 +194,8 @@ Table event_logs {
   created_at DateTime [default: `now()`]
 }
 
-// Relations
+// Relations for Persona / Status are handled by Ref comments or inline [ref: > ...] 
+// Note: Inline ref syntax is preferred in DBML 2.0 but standard `Ref:` at bottom also works.
+// Specific relationships to Status Hub:
 
-// A Persona stores its current status ID
 Ref: personas.status_id - persona_statuses.status_id
-
-// A PersonaStatus belongs to a Persona
-Ref: persona_statuses.persona_id > personas.id
-
-// Status details (1:1 with PersonaStatus)
-Ref: quantity_unchange_statuses.persona_status_id - persona_statuses.status_id
-Ref: semiquantity_unchange_statuses.persona_status_id - persona_statuses.status_id
-Ref: quantity_irreversible_statuses.persona_status_id - persona_statuses.status_id
-Ref: quantity_reversible_statuses.persona_status_id - persona_statuses.status_id
-Ref: semiquantity_reversible_statuses.persona_status_id - persona_statuses.status_id
-
-// Chat relations
-Ref: chats.user_id > users.id
-Ref: chats.persona_id > personas.id
-
-// ChatLog relations
-Ref: chat_logs.chat_id > chats.id
-Ref: chat_logs.user_id > users.id
-Ref: chat_logs.persona_id > personas.id
-
-// ReflectionEvent relations
-Ref: reflection_events.persona_id > personas.id
