@@ -1,32 +1,31 @@
 
-// Use this file with a DBML renderer (e.g. dbdocs.io or VSCode extension) to visualize the schema.
+// Based on backend/prisma/schema.prisma
 
 Table users {
-  id Int [pk]
+  id String [pk] // UUID
   name String
-  email String
+  email String [unique]
+  created_at DateTime [default: `now()`]
 }
 
 Table personas {
-  id Int [pk]
-  name String
-  status_id Int [ref: - persona_statuses.status_id] // Link to current snapshot
-  created_at DateTime
+  id String [pk] // UUID
+  name String [default: 'Reflecta']
+  status_id String [unique] // Link to current snapshot
+  created_at DateTime [default: `now()`]
 }
 
 // Intermediate Hub Table / Snapshot
 Table persona_statuses {
-  id Int [pk]
-  status_id Int [pk] // Renamed from id per request (Implementation: mapped to status_id)
-  persona_id Int [ref: > personas.id] // FK restored
-  created_at DateTime
+  status_id String [pk] // UUID
+  created_at DateTime [default: `now()`]
+  persona_id String 
 }
 
-// Lv1-1
+// Lv1-1: Biological/Genetic info
 Table quantity_unchange_statuses {
-  id Int [pk]
-  persona_status_id Int [ref: - persona_statuses.status_id] // FK pointing to hub's status_id
-  // ... data
+  id String [pk]
+  persona_status_id String [unique]
   birth_date DateTime
   gender String
   blood_type String
@@ -35,61 +34,113 @@ Table quantity_unchange_statuses {
   intelligence Int
 }
 
-// Lv1-2
+// Lv1-2: Deep psychological traits
 Table semiquantity_unchange_statuses {
-  id Int [pk]
-  persona_status_id Int [ref: - persona_statuses.status_id]
-  // ... data
-  ethics Int
-  passion Int
-  curiosity Int
-  aggressiveness Int
-  extroversion Int
+  id String [pk]
+  persona_status_id String [unique]
+  ethics Int [default: 50]
+  passion Int [default: 50]
+  curiosity Int [default: 50]
+  aggressiveness Int [default: 50]
+  extroversion Int [default: 50]
 }
 
-// Lv2
+// Lv2: Cumulative growth
 Table quantity_irreversible_statuses {
-  id Int [pk]
-  persona_status_id Int [ref: - persona_statuses.status_id]
-  version Int
-  // ... data
+  id String [pk]
+  version Int [default: 1]
+  persona_status_id String [unique]
   height Float
   bone_density Float
-  recorded_at DateTime
+  recorded_at DateTime [default: `now()`]
 }
 
-// Lv3-1
+// Lv3-1: Daily vitals
 Table quantity_reversible_statuses {
-  id Int [pk]
-  persona_status_id Int [ref: - persona_statuses.status_id]
-  version Int
-  // ... data
+  id String [pk]
+  version Int [default: 1]
+  persona_status_id String [unique]
   weight Float
   blood_sugar Float
   blood_pressure_sys Int
   blood_pressure_dia Int
   sleep_time Float
   sleep_quality Int
-  recorded_at DateTime
+  recorded_at DateTime [default: `now()`]
 }
 
-// Lv3-2
+// Lv3-2: Mood and dynamic traits
 Table semiquantity_reversible_statuses {
-  id Int [pk]
-  persona_status_id Int [ref: - persona_statuses.status_id]
-  version Int
-  // ... data
-  trust Int
-  friendliness Int
-  mood Int
-  health Int
+  id String [pk]
+  version Int [default: 1]
+  persona_status_id String [unique]
+  trust Int [default: 50]
+  friendliness Int [default: 50]
+  mood Int [default: 50]
+  health Int [default: 100]
+  updated_at DateTime [default: `now()`]
+}
+
+Table chats {
+  id String [pk]
+  title String [default: 'New Chat']
+  user_id String
+  persona_id String
+  created_at DateTime [default: `now()`]
   updated_at DateTime
 }
 
 Table chat_logs {
-  id Int [pk]
-  chat_id Int
-  user_id Int [ref: > users.id]
-  persona_id Int [ref: > personas.id]
+  id String [pk]
+  chat_id String
+  user_id String
+  persona_id String
+  role String
   content String
+  created_at DateTime [default: `now()`]
 }
+
+Table reflection_events {
+  id String [pk]
+  persona_id String
+  thought String
+  status_update Json
+  prompt String
+  permanent_memory String
+  created_at DateTime [default: `now()`]
+}
+
+Table event_logs {
+  id String [pk]
+  type String
+  content String
+  value Float
+  created_at DateTime [default: `now()`]
+}
+
+// Relations
+
+// A Persona stores its current status ID
+Ref: personas.status_id - persona_statuses.status_id
+
+// A PersonaStatus belongs to a Persona
+Ref: persona_statuses.persona_id > personas.id
+
+// Status details (1:1 with PersonaStatus)
+Ref: quantity_unchange_statuses.persona_status_id - persona_statuses.status_id
+Ref: semiquantity_unchange_statuses.persona_status_id - persona_statuses.status_id
+Ref: quantity_irreversible_statuses.persona_status_id - persona_statuses.status_id
+Ref: quantity_reversible_statuses.persona_status_id - persona_statuses.status_id
+Ref: semiquantity_reversible_statuses.persona_status_id - persona_statuses.status_id
+
+// Chat relations
+Ref: chats.user_id > users.id
+Ref: chats.persona_id > personas.id
+
+// ChatLog relations
+Ref: chat_logs.chat_id > chats.id
+Ref: chat_logs.user_id > users.id
+Ref: chat_logs.persona_id > personas.id
+
+// ReflectionEvent relations
+Ref: reflection_events.persona_id > personas.id
