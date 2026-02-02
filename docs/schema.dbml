@@ -12,13 +12,13 @@ Table users {
 Table personas {
   id String [pk] // UUID
   name String [default: 'Reflecta']
-  status_id String [unique] // Link to current snapshot
   created_at DateTime [default: `now()`]
 }
 
 // Intermediate Hub Table / Snapshot
 Table persona_statuses {
-  status_id String [pk] // UUID
+  id String [pk] // UUID
+  status_id String
   created_at DateTime [default: `now()`]
   persona_id String [ref: > personas.id]
 }
@@ -193,9 +193,3 @@ Table event_logs {
   value Float
   created_at DateTime [default: `now()`]
 }
-
-// Relations for Persona / Status are handled by Ref comments or inline [ref: > ...] 
-// Note: Inline ref syntax is preferred in DBML 2.0 but standard `Ref:` at bottom also works.
-// Specific relationships to Status Hub:
-
-Ref: personas.status_id - persona_statuses.status_id
