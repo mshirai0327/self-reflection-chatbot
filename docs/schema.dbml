@@ -14,69 +14,69 @@ Table personas {
 }
 
 
-// Lv1-1
+// Lv1-1: 完全不変・定量可能
 Table quantity_unchange_statuses {
   id Int [pk]
   persona_status_id Int [ref: - personas.status_id] // FK pointing to hub's status_id
-  // ... data
-  birth_date DateTime
-  gender String
-  blood_type String
-  chronotype String
-  bitterness_sense Int
-  intelligence Int
+  
+  birth_date DateTime [note: '生年月日']
+  gender String [note: '性別']
+  blood_type String [note: '血液型']
+  chronotype String [note: 'クロノタイプ（朝型/夜型）']
+  bitterness_sense Int [note: '苦味感受性の強さ']
+  intelligence Int [note: '相対的な知能。世代の中での割合を意味する。']
 }
 
-// Lv1-2
+// Lv1-2: 完全不変・定量困難
 Table semiquantity_unchange_statuses {
   id Int [pk]
   persona_status_id Int [ref: - personas.status_id]
-  // ... data
-  ethics Int
-  passion Int
-  curiosity Int
-  aggressiveness Int
-  extroversion Int
+  
+  ethics Int [note: '倫理観 (0-100)']
+  passion Int [note: '情熱・エネルギー (0-100)']
+  curiosity Int [note: '好奇心 (0-100)']
+  aggressiveness Int [note: '攻撃性・対立時の反応 (0-100)']
+  extroversion Int [note: '外向性・社交性 (0-100)']
 }
 
-// Lv2
+// Lv2: 不可逆的変化・定量可能
 Table quantity_irreversible_statuses {
   id Int [pk]
   persona_status_id Int [ref: - personas.status_id]
   version Int
-  // ... data
-  height Float
-  bone_density Float
-  recorded_at DateTime
-  recorded_for_persona DateTime// persojnaにとっての記録日時。過去の時間も入る。
+  
+  height Float [note: '身長 (cm)']
+  bone_density Float [note: '骨密度']
+  recorded_at DateTime [note: 'システム上の記録日時']
+  recorded_for_persona DateTime [note: 'personaにとっての記録日時。過去の時間も入る。']
 }
 
-// Lv3-1
+// Lv3-1: 可変・定量可能
 Table quantity_reversible_statuses {
   id Int [pk]
   persona_status_id Int [ref: - personas.status_id]
   version Int
-  // ... data
-  weight Float
-  blood_sugar Float
-  blood_pressure_sys Int
-  blood_pressure_dia Int
-  sleep_time Float
-  sleep_quality Int
-  recorded_at DateTime
+  
+  weight Float [note: '体重 (kg)']
+  blood_sugar Float [note: '血糖値']
+  blood_pressure_sys Int [note: '収縮期血圧（上）']
+  blood_pressure_dia Int [note: '拡張期血圧（下）']
+  sleep_time Float [note: '直近の睡眠時間 (h)']
+  sleep_quality Int [note: '睡眠の質 (1-10)']
+  recorded_at DateTime [note: '記録日時']
 }
 
-// Lv3-2
+// Lv3-2: 可変・定量困難
 Table semiquantity_reversible_statuses {
   id Int [pk]
   persona_status_id Int [ref: - personas.status_id]
   version Int
-  // ... data
-  trust Int
-  friendliness Int
-  mood Int
-  health Int
-  updated_at DateTime
+  
+  trust Int [note: 'ユーザーへの信頼度 (0-100)']
+  friendliness Int [note: '親しみやすさ (0-100)']
+  mood Int [note: '現在の気分 (0-100)']
+  health Int [note: '総合的な健康状態 (0-100)']
+  recorded_at DateTime [note: '記録日時']
 }
 
 Table chat_logs {
