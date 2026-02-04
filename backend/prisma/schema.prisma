@@ -31,11 +31,7 @@ model Persona {
   name String @default("Reflecta")
 
   /// 最新ステータスのポインタ。常に最新の状態へ単一リレーションでアクセス可能。
-  statusId String?        @unique @map("status_id")
-  status   PersonaStatus? @relation("CurrentStatus", fields: [statusId], references: [statusId])
-
-  /// ステータスの履歴。過去から現在までのすべてのスナップショット。
-  statusHistory PersonaStatus[] @relation("StatusHistory")
+  status PersonaStatus?
 
   /// Lv1-1: 完全不変・定量可能。生物学的・遺伝的な基本情報。
   quantityUnchange     QuantityUnchangeStatus?
@@ -55,24 +51,22 @@ model Persona {
 }
 
 /// ステータスのハブテーブル。ある時点での全生体・心理データのスナップショットを束ねる。
+/// NOTE: 1:1でPersonaと紐づき、ここがHubとなる。履歴は配下のテーブルが持つ。
 model PersonaStatus {
   statusId  String   @id @default(uuid()) @map("status_id")
-  /// このスナップショットが作成された日時
+  /// Hubの作成日時
   createdAt DateTime @default(now()) @map("created_at")
 
   /// 所有者であるペルソナのID
-  personaId String  @map("persona_id")
-  persona   Persona @relation("StatusHistory", fields: [personaId], references: [id])
+  personaId String  @unique @map("persona_id")
+  persona   Persona @relation(fields: [personaId], references: [id])
 
-  /// このスナップショットが現時点での最新状態である場合の逆参照
-  currentPersona Persona? @relation("CurrentStatus")
-
-  /// Lv2: 成長記録へのリレーション
-  quantityIrreversible   QuantityIrreversibleStatus?
-  /// Lv3-1: バイタルデータへのリレーション
-  quantityReversible     QuantityReversibleStatus?
-  /// Lv3-2: 感情・健康パラメータへのリレーション
-  semiquantityReversible SemiquantityReversibleStatus?
+  /// Lv2: 成長記録へのリレーション (1:N - History)
+  quantityIrreversible   QuantityIrreversibleStatus[]
+  /// Lv3-1: バイタルデータへのリレーション (1:N - History)
+  quantityReversible     QuantityReversibleStatus[]
+  /// Lv3-2: 感情・健康パラメータへのリレーション (1:N - History)
+  semiquantityReversible SemiquantityReversibleStatus[]
 
   @@map("persona_statuses")
 }
@@ -127,7 +121,8 @@ model QuantityIrreversibleStatus {
   /// ステータスの更新回数（版数）
   version Int    @default(1)
 
-  personaStatusId String        @unique @map("persona_status_id")
+  /// NOTE: 1:N Relation (No @unique on FK)
+  personaStatusId String        @map("persona_status_id")
   personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
 
   /// 身長 (cm)。
@@ -156,7 +151,8 @@ model QuantityReversibleStatus {
   id      String @id @default(uuid())
   version Int    @default(1)
 
-  personaStatusId String        @unique @map("persona_status_id")
+  /// NOTE: 1:N Relation (No @unique on FK)
+  personaStatusId String        @map("persona_status_id")
   personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
 
   /// バイタルデータのJSON値。以下の形式のオブジェクトの配列として管理。
@@ -178,7 +174,8 @@ model SemiquantityReversibleStatus {
   id      String @id @default(uuid())
   version Int    @default(1)
 
-  personaStatusId String        @unique @map("persona_status_id")
+  /// NOTE: 1:N Relation (No @unique on FK)
+  personaStatusId String        @map("persona_status_id")
   personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
 
   /// 感情・状態データのJSON値。以下の形式のオブジェクトの配列として管理。
