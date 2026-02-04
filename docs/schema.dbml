@@ -7,17 +7,23 @@ Table users {
 }
 
 Table personas {
-  id Int [pk]
-  name String
-  status_id Int
-  created_at DateTime
+  id String [pk]
+  name String 
+  created_at DateTime [default: `now()`]
+}
+
+// Hub table for statuses. Linked 1:1 to Persona.
+Table persona_statuses {
+  status_id String [pk]
+  created_at DateTime [default: `now()`]
+  persona_id String [unique, ref: - personas.id] // 1:1 Relation
 }
 
 
 // Lv1-1: 完全不変・定量可能
 Table quantity_unchange_statuses {
-  id Int [pk]
-  persona_status_id Int [ref: - personas.id] // FK pointing to hub's status_id
+  id String [pk]
+  persona_id String [unique, ref: - personas.id]
   
   birth_date DateTime [note: '生年月日']
   gender String [note: '性別']
@@ -29,8 +35,8 @@ Table quantity_unchange_statuses {
 
 // Lv1-2: 完全不変・定量困難
 Table semiquantity_unchange_statuses {
-  id Int [pk]
-  persona_status_id Int [ref: - personas.id]
+  id String [pk]
+  persona_id String [unique, ref: - personas.id]
   
   ethics Int [note: '倫理観 (0-100)']
   passion Int [note: '情熱・エネルギー (0-100)']
@@ -39,11 +45,11 @@ Table semiquantity_unchange_statuses {
   extroversion Int [note: '外向性・社交性 (0-100)']
 }
 
-// Lv2: 不可逆的変化・定量可能
+// Lv2: 不可逆的変化・定量可能 (History 1:N)
 Table quantity_irreversible_statuses {
-  id Int [pk]
-  persona_status_id Int [ref: - personas.status_id]
-  version Int
+  id String [pk]
+  version Int [default: 1]
+  persona_status_id String [ref: > persona_statuses.status_id] // 1:N Relation
   
   height Float [note: '身長 (cm)']
   bone_density Float [note: '骨密度(g/cm^2)']
@@ -55,40 +61,59 @@ Table quantity_irreversible_statuses {
   recorded_for_persona DateTime [note: 'personaにとっての記録日時。過去の時間も入る。']
 }
 
-// Lv3-1: 可変・定量可能
+// Lv3-1: 可変・定量可能 (History 1:N)
 Table quantity_reversible_statuses {
-  id Int [pk]
-  persona_status_id Int [ref: - personas.status_id]
-  version Int
+  id String [pk]
+  version Int [default: 1]
+  persona_status_id String [ref: > persona_statuses.status_id] // 1:N Relation
   
-  weight Float [note: '体重 (kg)']
-  body_fat_percentage Float [note: '体脂肪率 (%)']
-  body_temperature Float [note: '体温(℃)']
-  blood_sugar Float [note: '血糖値']// 気分や集中力の指標になる
-  blood_pressure_sys Int [note: '収縮期血圧（上）']// 100以下なら朝に弱い
-  blood_pressure_dia Int [note: '拡張期血圧（下）']
-  sleep_time Float [note: '睡眠時間 (h)']
-  sleep_quality Int [note: '睡眠の質 (1-10)']
+  value Json [note: 'JSON Array: [{label, value, unit}]']
   recorded_at DateTime [note: '記録日時']
 }
 
-// Lv3-2: 可変・定量困難
+// Lv3-2: 可変・定量困難 (History 1:N)
 Table semiquantity_reversible_statuses {
-  id Int [pk]
-  persona_status_id Int [ref: - personas.status_id]
-  version Int
+  id String [pk]
+  version Int [default: 1]
+  persona_status_id String [ref: > persona_statuses.status_id] // 1:N Relation
   
-  trust Int [note: 'ユーザーへの信頼度 (0-100)']
-  friendliness Int [note: '親しみやすさ (0-100)']
-  mood Int [note: '現在の気分 (0-100)']
-  health Int [note: '総合的な健康状態 (0-100)']
+  value Json [note: 'JSON Array: [{label, value, unit}]']
   recorded_at DateTime [note: '記録日時']
+}
+
+Table chats {
+  id String [pk]
+  title String
+  user_id String [ref: > users.id]
+  persona_id String [ref: > personas.id]
+  created_at DateTime
+  updated_at DateTime
 }
 
 Table chat_logs {
-  id Int [pk]
-  chat_id Int
-  user_id Int [ref: > users.id]
-  persona_id Int [ref: > personas.id]
+  id String [pk]
+  chat_id String [ref: > chats.id]
+  user_id String [ref: > users.id]
+  persona_id String [ref: > personas.id]
+  role String
   content String
+  created_at DateTime
+}
+
+Table reflection_events {
+  id String [pk]
+  persona_id String [ref: > personas.id]
+  thought String
+  status_update Json
+  prompt String
+  permanent_memory String
+  created_at DateTime
+}
+
+Table event_logs {
+  id String [pk]
+  type String
+  content String
+  value Float
+  created_at DateTime
 }
