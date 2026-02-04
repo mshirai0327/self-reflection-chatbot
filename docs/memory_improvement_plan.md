@@ -59,7 +59,7 @@ ChromaDBを「ゴミ箱」ではなく「重要なエピソード記憶」の保
 その後、フェーズ2（長期記憶の戦略変更）について、具体的なトリガー（いつ保存するか）を検討し実装します。
 
 ### 次のステップ (TODO)
-- [ ] `docs/memory_improvement_plan.md` (本ファイル) の作成
-- [ ] [`backend/src/app/api/chat/route.ts`] 会話履歴取得ロジックの追加
-- [ ] [`backend/src/lib/llm.ts`] プロンプトへの会話履歴埋め込みの実装
+- [x] `docs/memory_improvement_plan.md` (本ファイル) の作成
+- [x] [`backend/src/app/api/chat/route.ts`] 会話履歴取得ロジックの追加
+- [x] [`backend/src/lib/llm.ts`] プロンプトへの会話履歴埋め込みの実装
 - [ ] 動作確認（会話のキャッチボールができるかテスト）

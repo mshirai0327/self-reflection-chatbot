@@ -4,7 +4,7 @@ import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { Embeddings } from "@langchain/core/embeddings";
-import { BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { BaseMessage, HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 import { z } from "zod";
 
 // --- Configuration Interfaces ---
@@ -23,6 +23,7 @@ export interface LLMConfig {
 export interface PersonaContext {
     status: Record<string, any>;
     memories: string[];
+    history?: { role: string; content: string }[]; // 直近の会話履歴
 }
 
 // --- Model Instantiation ---
@@ -167,15 +168,28 @@ export async function generateResponse(
     const isSystemInstructionSupported = !modelName.toLowerCase().startsWith("gemma");
 
     let messages: BaseMessage[];
+
+    // 履歴をLangChainのメッセージ形式に変換
+    const historyMessages: BaseMessage[] = (context.history || []).map(h => {
+        if (h.role === 'user') {
+            return new HumanMessage(h.content);
+        } else {
+            return new AIMessage(h.content);
+        }
+    });
+
     if (isSystemInstructionSupported) {
         messages = [
             new SystemMessage(systemInstruction),
+            ...historyMessages,
             new HumanMessage(userPrompt),
         ];
     } else {
         // System Instruction未サポートモデルへのフォールバック
+        // 履歴もテキストとして埋め込む
+        const historyText = (context.history || []).map(h => `${h.role}: ${h.content}`).join("\n");
         messages = [
-            new HumanMessage(`System Instruction:\n${systemInstruction}\n\nUser Message: ${userPrompt}`),
+            new HumanMessage(`System Instruction:\n${systemInstruction}\n\nChat History:\n${historyText}\n\nUser Message: ${userPrompt}`),
         ];
     }
 

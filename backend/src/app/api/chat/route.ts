@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { queryMemories, addMemory } from "@/lib/chroma";
 import { getDefaultPersona, getDefaultUser, getLatestStatus, flattenStatus } from "@/lib/persona";
-import { generateResponse, LLMConfig, buildSystemInstruction } from "@/lib/llm";
+import { generateResponse, LLMConfig } from "@/lib/llm";
 import { ulid } from "ulid";
 
 /**
@@ -37,12 +37,32 @@ export async function POST(req: NextRequest) {
         // 2. Fetch relevant memories from ChromaDB
         const memories = await queryMemories(message);
 
+        // 2.5 Fetch conversation history (Short-term memory)
+        let history: { role: string; content: string }[] = [];
+        if (body.chatId) {
+            try {
+                const logs = await prisma.chatLog.findMany({
+                    where: { chatId: body.chatId },
+                    orderBy: { createdAt: 'desc' },
+                    take: 10,
+                });
+                history = logs.reverse().map(log => ({
+                    role: log.role,
+                    content: log.content
+                }));
+                console.log(`[Chat API] Fetched ${history.length} history items for context.`);
+            } catch (err) {
+                console.error("[Chat API] Failed to fetch chat history:", err);
+            }
+        }
+
         // 3. Generate response with chosen LLM
         console.log("[Chat API] Requesting AI response...");
         const memoryStrings = memories.map(m => m.content).filter((c): c is string => c !== null);
         const { content: aiResponse, systemInstruction } = await generateResponse(activeConfig, message, {
             status,
-            memories: memoryStrings
+            memories: memoryStrings,
+            history
         });
 
 
