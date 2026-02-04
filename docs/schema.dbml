@@ -1,31 +1,23 @@
 
-// Use this file with a DBML renderer (e.g. dbdocs.io or VSCode extension) to visualize the schema.
-
 Table users {
-  id Int [pk]
+  id String [pk]
   name String
-  email String
+  email String [unique]
+  created_at DateTime [default: `now()`]
 }
 
 Table personas {
   id Int [pk]
   name String
-  status_id Int [ref: - persona_statuses.status_id] // Link to current snapshot
+  status_id Int
   created_at DateTime
 }
 
-// Intermediate Hub Table / Snapshot
-Table persona_statuses {
-  id Int [pk]
-  status_id Int [pk] // Renamed from id per request (Implementation: mapped to status_id)
-  persona_id Int [ref: > personas.id] // FK restored
-  created_at DateTime
-}
 
 // Lv1-1
 Table quantity_unchange_statuses {
   id Int [pk]
-  persona_status_id Int [ref: - persona_statuses.status_id] // FK pointing to hub's status_id
+  persona_status_id Int [ref: - personas.status_id] // FK pointing to hub's status_id
   // ... data
   birth_date DateTime
   gender String
@@ -38,7 +30,7 @@ Table quantity_unchange_statuses {
 // Lv1-2
 Table semiquantity_unchange_statuses {
   id Int [pk]
-  persona_status_id Int [ref: - persona_statuses.status_id]
+  persona_status_id Int [ref: - personas.status_id]
   // ... data
   ethics Int
   passion Int
@@ -50,7 +42,7 @@ Table semiquantity_unchange_statuses {
 // Lv2
 Table quantity_irreversible_statuses {
   id Int [pk]
-  persona_status_id Int [ref: - persona_statuses.status_id]
+  persona_status_id Int [ref: - personas.status_id]
   version Int
   // ... data
   height Float
@@ -61,7 +53,7 @@ Table quantity_irreversible_statuses {
 // Lv3-1
 Table quantity_reversible_statuses {
   id Int [pk]
-  persona_status_id Int [ref: - persona_statuses.status_id]
+  persona_status_id Int [ref: - personas.status_id]
   version Int
   // ... data
   weight Float
@@ -76,7 +68,7 @@ Table quantity_reversible_statuses {
 // Lv3-2
 Table semiquantity_reversible_statuses {
   id Int [pk]
-  persona_status_id Int [ref: - persona_statuses.status_id]
+  persona_status_id Int [ref: - personas.status_id]
   version Int
   // ... data
   trust Int
