@@ -62,10 +62,12 @@ Table quantity_reversible_statuses {
   version Int
   
   weight Float [note: '体重 (kg)']
-  blood_sugar Float [note: '血糖値']
-  blood_pressure_sys Int [note: '収縮期血圧（上）']
+  body_fat_percentage Float [note: '体脂肪率 (%)']
+  body_temperature Float [note: '体温(℃)']
+  blood_sugar Float [note: '血糖値']// 気分や集中力の指標になる
+  blood_pressure_sys Int [note: '収縮期血圧（上）']// 100以下なら朝に弱い
   blood_pressure_dia Int [note: '拡張期血圧（下）']
-  sleep_time Float [note: '直近の睡眠時間 (h)']
+  sleep_time Float [note: '睡眠時間 (h)']
   sleep_quality Int [note: '睡眠の質 (1-10)']
   recorded_at DateTime [note: '記録日時']
 }
