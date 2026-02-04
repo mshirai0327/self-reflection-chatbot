@@ -42,26 +42,45 @@ export async function getDefaultUser() {
 }
 
 /**
- * ペルソナの最新ステータスを、リレーションを含めて取得します。
+ * ペルソナの最新ステータスを、リレーション (不変・可変含む) を含めて取得します。
  */
 export async function getLatestStatus(personaId: string) {
     const persona = await prisma.persona.findUnique({
         where: { id: personaId },
-        select: { statusId: true }
-    });
-
-    if (!persona?.statusId) return null;
-
-    return await prisma.personaStatus.findUnique({
-        where: { statusId: persona.statusId },
         include: {
             quantityUnchange: true,
             semiquantityUnchange: true,
-            quantityIrreversible: true,
-            quantityReversible: true,
-            semiquantityReversible: true,
+            status: {
+                include: {
+                    quantityIrreversible: { orderBy: { version: 'desc' }, take: 1 },
+                    quantityReversible: { orderBy: { version: 'desc' }, take: 1 },
+                    semiquantityReversible: { orderBy: { version: 'desc' }, take: 1 },
+                }
+            }
         }
     });
+
+    if (!persona?.status) return null;
+
+    // 最新の1件を取得してマージ
+    return {
+        ...persona.status,
+        quantityUnchange: persona.quantityUnchange,
+        semiquantityUnchange: persona.semiquantityUnchange,
+        // 配列の最初の要素（最新）を展開
+        quantityIrreversible: persona.status.quantityIrreversible[0] || null,
+        quantityReversible: persona.status.quantityReversible[0] || null,
+        semiquantityReversible: persona.status.semiquantityReversible[0] || null,
+    };
+}
+
+/**
+ * JSON配列から特定のラベルの値を取得するヘルパー関数
+ */
+function getVal(json: any, label: string): number | undefined {
+    if (!Array.isArray(json)) return undefined;
+    const item = json.find((i: any) => i.label === label);
+    return item ? Number(item.value) : undefined;
 }
 
 /**
@@ -70,7 +89,12 @@ export async function getLatestStatus(personaId: string) {
 export function flattenStatus(fullStatus: any) {
     if (!fullStatus) return null;
 
+    // JSONデータの取得 (fullStatusには既に最新の1件が入っている前提)
+    const reversibleVal = fullStatus.quantityReversible?.value;
+    const semiReversibleVal = fullStatus.semiquantityReversible?.value;
+
     return {
+        id: fullStatus.statusId, // Status ID explicitly included
         // Lv1-1: QuantityUnchange
         birthDate: fullStatus.quantityUnchange?.birthDate,
         gender: fullStatus.quantityUnchange?.gender,
@@ -90,18 +114,18 @@ export function flattenStatus(fullStatus: any) {
         height: fullStatus.quantityIrreversible?.height,
         boneDensity: fullStatus.quantityIrreversible?.boneDensity,
 
-        // Lv3-1: QuantityReversible
-        weight: fullStatus.quantityReversible?.weight,
-        bloodSugar: fullStatus.quantityReversible?.bloodSugar,
-        bloodPressureSys: fullStatus.quantityReversible?.bloodPressureSys,
-        bloodPressureDia: fullStatus.quantityReversible?.bloodPressureDia,
-        sleepTime: fullStatus.quantityReversible?.sleepTime,
-        sleepQuality: fullStatus.quantityReversible?.sleepQuality,
+        // Lv3-1: QuantityReversible (JSON parsing)
+        weight: getVal(reversibleVal, "weight"),
+        bloodSugar: getVal(reversibleVal, "bloodSugar"),
+        bloodPressureSys: getVal(reversibleVal, "bloodPressureSys"),
+        bloodPressureDia: getVal(reversibleVal, "bloodPressureDia"),
+        sleepTime: getVal(reversibleVal, "sleepTime"),
+        sleepQuality: getVal(reversibleVal, "sleepQuality"),
 
-        // Lv3-2: SemiquantityReversible
-        health: fullStatus.semiquantityReversible?.health,
-        mood: fullStatus.semiquantityReversible?.mood,
-        trust: fullStatus.semiquantityReversible?.trust,
-        friendliness: fullStatus.semiquantityReversible?.friendliness,
+        // Lv3-2: SemiquantityReversible (JSON parsing)
+        health: getVal(semiReversibleVal, "health"),
+        mood: getVal(semiReversibleVal, "mood"),
+        trust: getVal(semiReversibleVal, "trust"),
+        friendliness: getVal(semiReversibleVal, "friendliness"),
     };
 }

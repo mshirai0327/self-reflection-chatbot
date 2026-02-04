@@ -31,11 +31,12 @@ model Persona {
   name String @default("Reflecta")
 
   /// 最新ステータスのポインタ。常に最新の状態へ単一リレーションでアクセス可能。
-  statusId String?        @unique @map("status_id")
-  status   PersonaStatus? @relation("CurrentStatus", fields: [statusId], references: [statusId])
+  status PersonaStatus?
 
-  /// ステータスの履歴。過去から現在までのすべてのスナップショット。
-  statusHistory PersonaStatus[] @relation("StatusHistory")
+  /// Lv1-1: 完全不変・定量可能。生物学的・遺伝的な基本情報。
+  quantityUnchange     QuantityUnchangeStatus?
+  /// Lv1-2: 完全不変・定量困難。深層心理や根源的な性格特性。
+  semiquantityUnchange SemiquantityUnchangeStatus?
 
   /// ペルソナによる発言を含む会話ログ
   chatLogs         ChatLog[]
@@ -50,28 +51,22 @@ model Persona {
 }
 
 /// ステータスのハブテーブル。ある時点での全生体・心理データのスナップショットを束ねる。
+/// NOTE: 1:1でPersonaと紐づき、ここがHubとなる。履歴は配下のテーブルが持つ。
 model PersonaStatus {
   statusId  String   @id @default(uuid()) @map("status_id")
-  /// このスナップショットが作成された日時
+  /// Hubの作成日時
   createdAt DateTime @default(now()) @map("created_at")
 
   /// 所有者であるペルソナのID
-  personaId String  @map("persona_id")
-  persona   Persona @relation("StatusHistory", fields: [personaId], references: [id])
+  personaId String  @unique @map("persona_id")
+  persona   Persona @relation(fields: [personaId], references: [id])
 
-  /// このスナップショットが現時点での最新状態である場合の逆参照
-  currentPersona Persona? @relation("CurrentStatus")
-
-  /// Lv1-1: 基本情報へのリレーション
-  quantityUnchange       QuantityUnchangeStatus?
-  /// Lv1-2: 性格特性へのリレーション
-  semiquantityUnchange   SemiquantityUnchangeStatus?
-  /// Lv2: 成長記録へのリレーション
-  quantityIrreversible   QuantityIrreversibleStatus?
-  /// Lv3-1: バイタルデータへのリレーション
-  quantityReversible     QuantityReversibleStatus?
-  /// Lv3-2: 感情・健康パラメータへのリレーション
-  semiquantityReversible SemiquantityReversibleStatus?
+  /// Lv2: 成長記録へのリレーション (1:N - History)
+  quantityIrreversible   QuantityIrreversibleStatus[]
+  /// Lv3-1: バイタルデータへのリレーション (1:N - History)
+  quantityReversible     QuantityReversibleStatus[]
+  /// Lv3-2: 感情・健康パラメータへのリレーション (1:N - History)
+  semiquantityReversible SemiquantityReversibleStatus[]
 
   @@map("persona_statuses")
 }
@@ -80,8 +75,8 @@ model PersonaStatus {
 model QuantityUnchangeStatus {
   id String @id @default(uuid())
 
-  personaStatusId String        @unique @map("persona_status_id")
-  personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
+  personaId String  @unique @map("persona_id")
+  persona   Persona @relation(fields: [personaId], references: [id])
 
   /// 生年月日。年齢の算出に使用。
   birthDate       DateTime? @map("birth_date")
@@ -103,8 +98,8 @@ model QuantityUnchangeStatus {
 model SemiquantityUnchangeStatus {
   id String @id @default(uuid())
 
-  personaStatusId String        @unique @map("persona_status_id")
-  personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
+  personaId String  @unique @map("persona_id")
+  persona   Persona @relation(fields: [personaId], references: [id])
 
   /// 倫理観。行動選択の基準（0-100）。
   ethics         Int @default(50)
@@ -126,40 +121,46 @@ model QuantityIrreversibleStatus {
   /// ステータスの更新回数（版数）
   version Int    @default(1)
 
-  personaStatusId String        @unique @map("persona_status_id")
+  /// NOTE: 1:N Relation (No @unique on FK)
+  personaStatusId String        @map("persona_status_id")
   personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
 
   /// 身長 (cm)。
-  height      Float?
+  height             Float?
   /// 骨密度。加齢や健康状態の不可逆な指標。
-  boneDensity Float? @map("bone_density")
-
-  /// 記録された日時
-  recordedAt DateTime @default(now()) @map("recorded_at")
+  boneDensity        Float?    @map("bone_density")
+  /// 最大筋力（握力）(kg)
+  gripStrength       Float?    @map("grip_strength")
+  /// 声の高さ（基本周波数）(Hz) 85-300
+  voicePitch         Float?    @map("voice_pitch")
+  /// 視力 0.1-2.0
+  eyesight           Float?
+  /// 聴力 (db) 0-70db
+  hearingAbility     Float?    @map("hearing_ability")
+  /// システム上の記録日時
+  recordedAt         DateTime  @default(now()) @map("recorded_at")
+  /// personaにとっての記録日時。過去の時間も入る。
+  recordedForPersona DateTime? @map("recorded_for_persona")
 
   @@map("quantity_irreversible_statuses")
 }
 
 /// Lv3-1: 可変・定量可能。短中期的に変動する日常的なバイタルデータ。
+// jsonで管理する
 model QuantityReversibleStatus {
   id      String @id @default(uuid())
   version Int    @default(1)
 
-  personaStatusId String        @unique @map("persona_status_id")
+  /// NOTE: 1:N Relation (No @unique on FK)
+  personaStatusId String        @map("persona_status_id")
   personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
 
-  /// 体重 (kg)。
-  weight           Float?
-  /// 血糖値。空腹感やエネルギーレベルに関係。
-  bloodSugar       Float? @map("blood_sugar")
-  /// 最高血圧。緊張状態や興奮の指標。
-  bloodPressureSys Int?   @map("blood_pressure_sys")
-  /// 最低血圧。
-  bloodPressureDia Int?   @map("blood_pressure_dia")
-  /// 直近の睡眠時間 (h)。
-  sleepTime        Float? @map("sleep_time")
-  /// 睡眠の質（1-10）。
-  sleepQuality     Int?   @map("sleep_quality")
+  /// バイタルデータのJSON値。以下の形式のオブジェクトの配列として管理。
+  /// 例: [
+  ///   { "label": "weight", "value": 60.5, "unit": "kg" },
+  ///   { "label": "body_temperature", "value": 36.5, "unit": "℃" }
+  /// ]
+  value Json
 
   /// 記録された日時
   recordedAt DateTime @default(now()) @map("recorded_at")
@@ -168,24 +169,24 @@ model QuantityReversibleStatus {
 }
 
 /// Lv3-2: 可変・定量困難。感情の揺れや対人関係の流動的なパラメータ。
+// jsonで管理する
 model SemiquantityReversibleStatus {
   id      String @id @default(uuid())
   version Int    @default(1)
 
-  personaStatusId String        @unique @map("persona_status_id")
+  /// NOTE: 1:N Relation (No @unique on FK)
+  personaStatusId String        @map("persona_status_id")
   personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
 
-  /// 対ユーザー信頼度。会話の親密度に影響（0-100）。
-  trust        Int @default(50)
-  /// 対ユーザーへの親しみやすさ。反応の柔らかさ（0-100）。
-  friendliness Int @default(50)
-  /// 現在の情緒・気分（0-100）。
-  mood         Int @default(50)
-  /// 現在の総合的な健康感。疲労度など（0-100）。
-  health       Int @default(100)
+  /// 感情・状態データのJSON値。以下の形式のオブジェクトの配列として管理。
+  /// 例: [
+  ///   { "label": "mood", "value": 80, "unit": null },
+  ///   { "label": "trust", "value": 100, "unit": null }
+  /// ]
+  value Json
 
-  /// 更新された日時
-  updatedAt DateTime @default(now()) @map("updated_at")
+  /// 記録された日時
+  recordedAt DateTime @default(now()) @map("recorded_at")
 
   @@map("semiquantity_reversible_statuses")
 }

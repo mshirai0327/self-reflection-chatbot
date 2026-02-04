@@ -1,42 +1,3 @@
-/*
-  Warnings:
-
-  - You are about to drop the column `surpriseScore` on the `chat_logs` table. All the data in the column will be lost.
-  - The primary key for the `persona_statuses` table will be changed. If it partially fails, the table could be left without primary key constraint.
-  - You are about to drop the column `health` on the `persona_statuses` table. All the data in the column will be lost.
-  - You are about to drop the column `height` on the `persona_statuses` table. All the data in the column will be lost.
-  - You are about to drop the column `id` on the `persona_statuses` table. All the data in the column will be lost.
-  - You are about to drop the column `mood` on the `persona_statuses` table. All the data in the column will be lost.
-  - You are about to drop the column `trust` on the `persona_statuses` table. All the data in the column will be lost.
-  - You are about to drop the column `updatedAt` on the `persona_statuses` table. All the data in the column will be lost.
-  - You are about to drop the column `weight` on the `persona_statuses` table. All the data in the column will be lost.
-  - Added the required column `chatId` to the `chat_logs` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `personaId` to the `chat_logs` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `userId` to the `chat_logs` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `persona_id` to the `persona_statuses` table without a default value. This is not possible if the table is not empty.
-  - The required column `status_id` was added to the `persona_statuses` table with a prisma-level default value. This is not possible if the table is not empty. Please add this column as optional, then populate it before making it required.
-
-*/
--- AlterTable
-ALTER TABLE `chat_logs` DROP COLUMN `surpriseScore`,
-    ADD COLUMN `chatId` VARCHAR(191) NOT NULL,
-    ADD COLUMN `personaId` VARCHAR(191) NOT NULL,
-    ADD COLUMN `userId` VARCHAR(191) NOT NULL;
-
--- AlterTable
-ALTER TABLE `persona_statuses` DROP PRIMARY KEY,
-    DROP COLUMN `health`,
-    DROP COLUMN `height`,
-    DROP COLUMN `id`,
-    DROP COLUMN `mood`,
-    DROP COLUMN `trust`,
-    DROP COLUMN `updatedAt`,
-    DROP COLUMN `weight`,
-    ADD COLUMN `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    ADD COLUMN `persona_id` VARCHAR(191) NOT NULL,
-    ADD COLUMN `status_id` VARCHAR(191) NOT NULL,
-    ADD PRIMARY KEY (`status_id`);
-
 -- CreateTable
 CREATE TABLE `users` (
     `id` VARCHAR(191) NOT NULL,
@@ -52,17 +13,25 @@ CREATE TABLE `users` (
 CREATE TABLE `personas` (
     `id` VARCHAR(191) NOT NULL,
     `name` VARCHAR(191) NOT NULL DEFAULT 'Reflecta',
-    `status_id` VARCHAR(191) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
-    UNIQUE INDEX `personas_status_id_key`(`status_id`),
     PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `persona_statuses` (
+    `status_id` VARCHAR(191) NOT NULL,
+    `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `persona_id` VARCHAR(191) NOT NULL,
+
+    UNIQUE INDEX `persona_statuses_persona_id_key`(`persona_id`),
+    PRIMARY KEY (`status_id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `quantity_unchange_statuses` (
     `id` VARCHAR(191) NOT NULL,
-    `persona_status_id` VARCHAR(191) NOT NULL,
+    `persona_id` VARCHAR(191) NOT NULL,
     `birth_date` DATETIME(3) NULL,
     `gender` VARCHAR(191) NULL,
     `blood_type` VARCHAR(191) NULL,
@@ -70,21 +39,21 @@ CREATE TABLE `quantity_unchange_statuses` (
     `bitterness_sense` INTEGER NULL,
     `intelligence` INTEGER NULL,
 
-    UNIQUE INDEX `quantity_unchange_statuses_persona_status_id_key`(`persona_status_id`),
+    UNIQUE INDEX `quantity_unchange_statuses_persona_id_key`(`persona_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `semiquantity_unchange_statuses` (
     `id` VARCHAR(191) NOT NULL,
-    `persona_status_id` VARCHAR(191) NOT NULL,
+    `persona_id` VARCHAR(191) NOT NULL,
     `ethics` INTEGER NOT NULL DEFAULT 50,
     `passion` INTEGER NOT NULL DEFAULT 50,
     `curiosity` INTEGER NOT NULL DEFAULT 50,
     `aggressiveness` INTEGER NOT NULL DEFAULT 50,
     `extroversion` INTEGER NOT NULL DEFAULT 50,
 
-    UNIQUE INDEX `semiquantity_unchange_statuses_persona_status_id_key`(`persona_status_id`),
+    UNIQUE INDEX `semiquantity_unchange_statuses_persona_id_key`(`persona_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -95,9 +64,13 @@ CREATE TABLE `quantity_irreversible_statuses` (
     `persona_status_id` VARCHAR(191) NOT NULL,
     `height` DOUBLE NULL,
     `bone_density` DOUBLE NULL,
+    `grip_strength` DOUBLE NULL,
+    `voice_pitch` DOUBLE NULL,
+    `eyesight` DOUBLE NULL,
+    `hearing_ability` DOUBLE NULL,
     `recorded_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `recorded_for_persona` DATETIME(3) NULL,
 
-    UNIQUE INDEX `quantity_irreversible_statuses_persona_status_id_key`(`persona_status_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -106,15 +79,9 @@ CREATE TABLE `quantity_reversible_statuses` (
     `id` VARCHAR(191) NOT NULL,
     `version` INTEGER NOT NULL DEFAULT 1,
     `persona_status_id` VARCHAR(191) NOT NULL,
-    `weight` DOUBLE NULL,
-    `blood_sugar` DOUBLE NULL,
-    `blood_pressure_sys` INTEGER NULL,
-    `blood_pressure_dia` INTEGER NULL,
-    `sleep_time` DOUBLE NULL,
-    `sleep_quality` INTEGER NULL,
+    `value` JSON NOT NULL,
     `recorded_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
-    UNIQUE INDEX `quantity_reversible_statuses_persona_status_id_key`(`persona_status_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -123,13 +90,9 @@ CREATE TABLE `semiquantity_reversible_statuses` (
     `id` VARCHAR(191) NOT NULL,
     `version` INTEGER NOT NULL DEFAULT 1,
     `persona_status_id` VARCHAR(191) NOT NULL,
-    `trust` INTEGER NOT NULL DEFAULT 50,
-    `friendliness` INTEGER NOT NULL DEFAULT 50,
-    `mood` INTEGER NOT NULL DEFAULT 50,
-    `health` INTEGER NOT NULL DEFAULT 100,
-    `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `value` JSON NOT NULL,
+    `recorded_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
-    UNIQUE INDEX `semiquantity_reversible_statuses_persona_status_id_key`(`persona_status_id`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -146,28 +109,50 @@ CREATE TABLE `chats` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `chat_logs` (
+    `id` VARCHAR(191) NOT NULL,
+    `chatId` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NOT NULL,
+    `personaId` VARCHAR(191) NOT NULL,
+    `role` VARCHAR(191) NOT NULL,
+    `content` TEXT NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `reflection_events` (
     `id` VARCHAR(191) NOT NULL,
     `personaId` VARCHAR(191) NOT NULL,
     `thought` TEXT NOT NULL,
     `statusUpdate` JSON NOT NULL,
+    `prompt` TEXT NULL,
     `permanentMemory` TEXT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- AddForeignKey
-ALTER TABLE `personas` ADD CONSTRAINT `personas_status_id_fkey` FOREIGN KEY (`status_id`) REFERENCES `persona_statuses`(`status_id`) ON DELETE SET NULL ON UPDATE CASCADE;
+-- CreateTable
+CREATE TABLE `event_logs` (
+    `id` VARCHAR(191) NOT NULL,
+    `type` VARCHAR(191) NOT NULL,
+    `content` TEXT NOT NULL,
+    `value` DOUBLE NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- AddForeignKey
 ALTER TABLE `persona_statuses` ADD CONSTRAINT `persona_statuses_persona_id_fkey` FOREIGN KEY (`persona_id`) REFERENCES `personas`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `quantity_unchange_statuses` ADD CONSTRAINT `quantity_unchange_statuses_persona_status_id_fkey` FOREIGN KEY (`persona_status_id`) REFERENCES `persona_statuses`(`status_id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `quantity_unchange_statuses` ADD CONSTRAINT `quantity_unchange_statuses_persona_id_fkey` FOREIGN KEY (`persona_id`) REFERENCES `personas`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `semiquantity_unchange_statuses` ADD CONSTRAINT `semiquantity_unchange_statuses_persona_status_id_fkey` FOREIGN KEY (`persona_status_id`) REFERENCES `persona_statuses`(`status_id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `semiquantity_unchange_statuses` ADD CONSTRAINT `semiquantity_unchange_statuses_persona_id_fkey` FOREIGN KEY (`persona_id`) REFERENCES `personas`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `quantity_irreversible_statuses` ADD CONSTRAINT `quantity_irreversible_statuses_persona_status_id_fkey` FOREIGN KEY (`persona_status_id`) REFERENCES `persona_statuses`(`status_id`) ON DELETE RESTRICT ON UPDATE CASCADE;

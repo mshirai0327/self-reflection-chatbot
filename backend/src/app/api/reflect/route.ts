@@ -131,61 +131,77 @@ ${logSummary}
         // 5. RDB (MySQL) のステータスを更新 (Hubパターンの新スキーマに対応)
         console.log("[Reflect API] Updating status in Prisma (Hub pattern)...");
 
-        const newPersonaStatus = await prisma.personaStatus.create({
-            data: {
-                personaId: persona.id,
+        // 新しいステータス値の計算 (Clamp 0-100)
+        const newHealth = Math.min(100, Math.max(0, (status.health ?? 100) + (reflection.statusUpdate.health || 0)));
+        const newMood = Math.min(100, Math.max(0, (status.mood ?? 50) + (reflection.statusUpdate.mood || 0)));
+        const newTrust = Math.min(100, Math.max(0, (status.trust ?? 50) + (reflection.statusUpdate.trust || 0)));
+        const newFriendliness = Math.min(100, Math.max(0, (status.friendliness ?? 50) + (reflection.statusUpdate.friendliness || 0)));
 
-                // Lv1, Lv2 は既存からコピー
-                quantityUnchange: {
-                    create: {
-                        birthDate: fullStatus.quantityUnchange?.birthDate,
-                        gender: fullStatus.quantityUnchange?.gender,
-                        bloodType: fullStatus.quantityUnchange?.bloodType,
-                        chronotype: fullStatus.quantityUnchange?.chronotype,
-                        intelligence: fullStatus.quantityUnchange?.intelligence,
-                    }
-                },
-                semiquantityUnchange: {
-                    create: {
-                        ethics: fullStatus.semiquantityUnchange?.ethics ?? 50,
-                        passion: fullStatus.semiquantityUnchange?.passion ?? 50,
-                        curiosity: fullStatus.semiquantityUnchange?.curiosity ?? 50,
-                        aggressiveness: fullStatus.semiquantityUnchange?.aggressiveness ?? 50,
-                        extroversion: fullStatus.semiquantityUnchange?.extroversion ?? 50,
-                    }
-                },
-                quantityIrreversible: {
-                    create: {
-                        height: status.height ?? 160.0,
-                        boneDensity: fullStatus.quantityIrreversible?.boneDensity ?? 1.0,
-                        version: (fullStatus.quantityIrreversible?.version || 0) + 1,
-                    }
-                },
+        // Lv3-1: QuantityReversible (JSON構築) - 現状は内省で変化しないので値を引き継ぐ
+        // note: 内省で変化させるか、またはgraphなどで変化させるか
+        const quantityReversibleValue = [
+            { label: "weight", value: status.weight ?? 50.0, unit: "kg" },
+            { label: "bloodSugar", value: status.bloodSugar ?? 90.0, unit: "mg/dL" },
+            { label: "bloodPressureSys", value: status.bloodPressureSys ?? 110.0, unit: "mmHg" },
+            { label: "bloodPressureDia", value: status.bloodPressureDia ?? 70.0, unit: "mmHg" },
+            { label: "sleepTime", value: status.sleepTime ?? 7.5, unit: "h" },
+            { label: "sleepQuality", value: status.sleepQuality ?? 80.0, unit: null },
+        ];
 
-                // 変化があった Lv3 を更新
-                quantityReversible: {
-                    create: {
-                        weight: status.weight ?? 50.0,
-                        version: (fullStatus.quantityReversible?.version || 0) + 1,
-                    }
-                },
-                semiquantityReversible: {
-                    create: {
-                        health: Math.min(100, Math.max(0, (status.health ?? 100) + (reflection.statusUpdate.health || 0))),
-                        mood: Math.min(100, Math.max(0, (status.mood ?? 50) + (reflection.statusUpdate.mood || 0))),
-                        trust: Math.min(100, Math.max(0, (status.trust ?? 50) + (reflection.statusUpdate.trust || 0))),
-                        friendliness: Math.min(100, Math.max(0, (status.friendliness ?? 50) + (reflection.statusUpdate.friendliness || 0))),
-                        version: (fullStatus.semiquantityReversible?.version || 0) + 1,
-                    }
-                }
-            }
-        });
+        // Lv3-2: SemiquantityReversible (JSON構築)
+        const semiquantityReversibleValue = [
+            { label: "health", value: newHealth, unit: null },
+            { label: "mood", value: newMood, unit: null },
+            { label: "trust", value: newTrust, unit: null },
+            { label: "friendliness", value: newFriendliness, unit: null },
+        ];
 
-        // Personaの最新ステータスIDを更新
-        await prisma.persona.update({
-            where: { id: persona.id },
-            data: { statusId: newPersonaStatus.statusId }
-        });
+        // 5. RDB (MySQL) のステータスを更新 (Hubパターンの新スキーマに対応)
+        console.log("[Reflect API] Updating status in Prisma (Hub pattern 1:N)...");
+
+
+
+        // Hub (PersonaStatus) は既に存在するので、そのIDを使って子テーブルに履歴を追加する
+        console.log("[Reflect API] Target Hub Status ID:", fullStatus.statusId);
+
+        if (!fullStatus.statusId) {
+            throw new Error("Critical: fullStatus.statusId is undefined or null!");
+        }
+
+        const irreversibleData = {
+            personaStatusId: fullStatus.statusId,
+            height: status.height ?? 160.0,
+            boneDensity: fullStatus.quantityIrreversible?.boneDensity ?? 1.0,
+            version: (fullStatus.quantityIrreversible?.version || 0) + 1,
+        };
+
+        const quantityReversibleData = {
+            personaStatusId: fullStatus.statusId,
+            value: quantityReversibleValue,
+            version: (fullStatus.quantityReversible?.version || 0) + 1,
+        };
+
+        const semiquantityReversibleData = {
+            personaStatusId: fullStatus.statusId,
+            value: semiquantityReversibleValue,
+            version: (fullStatus.semiquantityReversible?.version || 0) + 1,
+        };
+
+        // トランザクションを使用してアトミックに更新する
+        try {
+            console.log("[Reflect API] Executing atomic transaction for status records...");
+            await prisma.$transaction([
+                prisma.quantityIrreversibleStatus.create({ data: irreversibleData }),
+                prisma.quantityReversibleStatus.create({ data: quantityReversibleData }),
+                prisma.semiquantityReversibleStatus.create({ data: semiquantityReversibleData }),
+            ]);
+            console.log("[Reflect API] Transaction completed successfully.");
+        } catch (e: any) {
+            console.error("[Reflect API] Transaction failed:", e.message);
+            throw new Error(`Failed to update status records atomically: ${e.message}`);
+        }
+
+        // Persona自体の更新は不要 (statusIdは固定)
 
         // 6. 内省イベントをデータベースに保存
         console.log("[Reflect API] Saving reflection event to DB...");

@@ -25,38 +25,44 @@ async function main() {
         },
     })
 
-    // 3. 初期ステータス (Hub) の作成
     const existingStatus = await prisma.persona.findUnique({
         where: { id: persona.id },
-        include: { status: true }
+        include: { status: true, quantityUnchange: true, semiquantityUnchange: true }
     })
 
+    if (!existingStatus?.quantityUnchange) {
+        console.log('Creating immutable statuses...')
+        await prisma.quantityUnchangeStatus.create({
+            data: {
+                personaId: persona.id,
+                birthDate: new Date('2024-01-01'),
+                gender: 'Female',
+                bloodType: 'A',
+                chronotype: 'Morning',
+                bitternessSense: 50,
+                intelligence: 120,
+            }
+        })
+    }
+
+    if (!existingStatus?.semiquantityUnchange) { // Assuming we check via include if added, or just rely on logic
+        await prisma.semiquantityUnchangeStatus.create({
+            data: {
+                personaId: persona.id,
+                ethics: 80,
+                passion: 60,
+                curiosity: 90,
+                aggressiveness: 40,
+                extroversion: 70,
+            }
+        })
+    }
+
     if (!existingStatus?.status) {
-        console.log('Creating initial status...')
+        console.log('Creating initial status history...')
         const personaStatus = await prisma.personaStatus.create({
             data: {
                 personaId: persona.id,
-
-                quantityUnchange: {
-                    create: {
-                        birthDate: new Date('2024-01-01'),
-                        gender: 'Female',
-                        bloodType: 'A',
-                        chronotype: 'Morning',
-                        bitternessSense: 50,
-                        intelligence: 120,
-                    }
-                },
-
-                semiquantityUnchange: {
-                    create: {
-                        ethics: 80,
-                        passion: 60,
-                        curiosity: 90,
-                        aggressiveness: 40,
-                        extroversion: 70,
-                    }
-                },
 
                 quantityIrreversible: {
                     create: {
@@ -68,33 +74,29 @@ async function main() {
 
                 quantityReversible: {
                     create: {
-                        weight: 50.0,
-                        bloodSugar: 90.0,
-                        bloodPressureSys: 110,
-                        bloodPressureDia: 70,
-                        sleepTime: 7.5,
-                        sleepQuality: 80,
+                        value: [
+                            { label: "weight", value: 50.0, unit: "kg" },
+                            { label: "bloodSugar", value: 90.0, unit: "mg/dL" },
+                            { label: "bloodPressureSys", value: 110.0, unit: "mmHg" },
+                            { label: "bloodPressureDia", value: 70.0, unit: "mmHg" },
+                            { label: "sleepTime", value: 7.5, unit: "h" },
+                            { label: "sleepQuality", value: 80.0, unit: null }
+                        ],
                         version: 1,
                     }
                 },
 
                 semiquantityReversible: {
                     create: {
-                        trust: 50,
-                        friendliness: 50,
-                        mood: 50,
-                        health: 100,
+                        value: [
+                            { label: "trust", value: 50, unit: null },
+                            { label: "friendliness", value: 50, unit: null },
+                            { label: "mood", value: 50, unit: null },
+                            { label: "health", value: 100, unit: null }
+                        ],
                         version: 1,
                     }
                 }
-            }
-        })
-
-        // Personaの最新ステータスを更新
-        await prisma.persona.update({
-            where: { id: persona.id },
-            data: {
-                statusId: personaStatus.statusId
             }
         })
     } else {
