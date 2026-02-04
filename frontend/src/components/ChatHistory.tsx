@@ -22,6 +22,7 @@ interface ReflectionResult {
         friendliness: number;
     };
     permanentMemory?: string;
+    newMemories?: string[];
     prompt?: string;
 }
 
@@ -282,6 +283,18 @@ export function ChatHistory({
                                             </p>
                                         )}
                                     </div>
+                                    {lastReflection.newMemories && lastReflection.newMemories.length > 0 && (
+                                        <div>
+                                            <span className="text-slate-400 block mb-1">Extracted Facts (New Memories)</span>
+                                            <div className="space-y-1">
+                                                {lastReflection.newMemories.map((mem, i) => (
+                                                    <p key={i} className="text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded border border-emerald-100 dark:border-emerald-900/50">
+                                                        {mem}
+                                                    </p>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                     {lastReflection.prompt && (
                                         <div>
                                             <span className="text-slate-400 block mb-1">System Prompt (Reflection)</span>
