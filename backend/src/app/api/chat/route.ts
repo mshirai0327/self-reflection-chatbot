@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
                 const logs = await prisma.chatLog.findMany({
                     where: { chatId: body.chatId },
                     orderBy: { createdAt: 'desc' },
-                    take: 10,
+                    take: 10,// 直近10件のチャットログを送る。
                 });
                 history = logs.reverse().map(log => ({
                     role: log.role,
