@@ -130,12 +130,21 @@ model QuantityIrreversibleStatus {
   personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
 
   /// 身長 (cm)。
-  height      Float?
+  height             Float?
   /// 骨密度。加齢や健康状態の不可逆な指標。
-  boneDensity Float? @map("bone_density")
-
-  /// 記録された日時
-  recordedAt DateTime @default(now()) @map("recorded_at")
+  boneDensity        Float?    @map("bone_density")
+  /// 最大筋力（握力）(kg)
+  gripStrength       Float?    @map("grip_strength")
+  /// 声の高さ（基本周波数）(Hz) 85-300
+  voicePitch         Float?    @map("voice_pitch")
+  /// 視力 0.1-2.0
+  eyesight           Float?
+  /// 聴力 (db) 0-70db
+  hearingAbility     Float?    @map("hearing_ability")
+  /// システム上の記録日時
+  recordedAt         DateTime  @default(now()) @map("recorded_at")
+  /// personaにとっての記録日時。過去の時間も入る。
+  recordedForPersona DateTime? @map("recorded_for_persona")
 
   @@map("quantity_irreversible_statuses")
 }
@@ -149,17 +158,21 @@ model QuantityReversibleStatus {
   personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
 
   /// 体重 (kg)。
-  weight           Float?
+  weight            Float?
+  /// 体脂肪率 (%)
+  bodyFatPercentage Float? @map("body_fat_percentage")
+  /// 体温(℃)
+  bodyTemperature   Float? @map("body_temperature")
   /// 血糖値。空腹感やエネルギーレベルに関係。
-  bloodSugar       Float? @map("blood_sugar")
+  bloodSugar        Float? @map("blood_sugar")
   /// 最高血圧。緊張状態や興奮の指標。
-  bloodPressureSys Int?   @map("blood_pressure_sys")
+  bloodPressureSys  Int?   @map("blood_pressure_sys")
   /// 最低血圧。
-  bloodPressureDia Int?   @map("blood_pressure_dia")
+  bloodPressureDia  Int?   @map("blood_pressure_dia")
   /// 直近の睡眠時間 (h)。
-  sleepTime        Float? @map("sleep_time")
+  sleepTime         Float? @map("sleep_time")
   /// 睡眠の質（1-10）。
-  sleepQuality     Int?   @map("sleep_quality")
+  sleepQuality      Int?   @map("sleep_quality")
 
   /// 記録された日時
   recordedAt DateTime @default(now()) @map("recorded_at")
