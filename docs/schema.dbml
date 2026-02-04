@@ -48,6 +48,7 @@ Table quantity_irreversible_statuses {
   height Float
   bone_density Float
   recorded_at DateTime
+  recorded_for_persona DateTime// persojnaにとっての記録日時。過去の時間も入る。
 }
 
 // Lv3-1
