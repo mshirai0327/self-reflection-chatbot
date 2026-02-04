@@ -150,6 +150,7 @@ model QuantityIrreversibleStatus {
 }
 
 /// Lv3-1: 可変・定量可能。短中期的に変動する日常的なバイタルデータ。
+// jsonで管理する
 model QuantityReversibleStatus {
   id      String @id @default(uuid())
   version Int    @default(1)
@@ -181,6 +182,7 @@ model QuantityReversibleStatus {
 }
 
 /// Lv3-2: 可変・定量困難。感情の揺れや対人関係の流動的なパラメータ。
+// jsonで管理する
 model SemiquantityReversibleStatus {
   id      String @id @default(uuid())
   version Int    @default(1)
