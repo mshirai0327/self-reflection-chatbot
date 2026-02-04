@@ -131,29 +131,37 @@ ${logSummary}
         // 5. RDB (MySQL) のステータスを更新 (Hubパターンの新スキーマに対応)
         console.log("[Reflect API] Updating status in Prisma (Hub pattern)...");
 
+        // 新しいステータス値の計算 (Clamp 0-100)
+        const newHealth = Math.min(100, Math.max(0, (status.health ?? 100) + (reflection.statusUpdate.health || 0)));
+        const newMood = Math.min(100, Math.max(0, (status.mood ?? 50) + (reflection.statusUpdate.mood || 0)));
+        const newTrust = Math.min(100, Math.max(0, (status.trust ?? 50) + (reflection.statusUpdate.trust || 0)));
+        const newFriendliness = Math.min(100, Math.max(0, (status.friendliness ?? 50) + (reflection.statusUpdate.friendliness || 0)));
+
+        // Lv3-1: QuantityReversible (JSON構築) - 現状は内省で変化しないので値を引き継ぐ
+        const quantityReversibleValue = [
+            { label: "weight", value: status.weight ?? 50.0, unit: "kg" },
+            { label: "bloodSugar", value: status.bloodSugar ?? 90.0, unit: "mg/dL" },
+            { label: "bloodPressureSys", value: status.bloodPressureSys ?? 110.0, unit: "mmHg" },
+            { label: "bloodPressureDia", value: status.bloodPressureDia ?? 70.0, unit: "mmHg" },
+            { label: "sleepTime", value: status.sleepTime ?? 7.5, unit: "h" },
+            { label: "sleepQuality", value: status.sleepQuality ?? 80.0, unit: null },
+        ];
+
+        // Lv3-2: SemiquantityReversible (JSON構築)
+        const semiquantityReversibleValue = [
+            { label: "health", value: newHealth, unit: null },
+            { label: "mood", value: newMood, unit: null },
+            { label: "trust", value: newTrust, unit: null },
+            { label: "friendliness", value: newFriendliness, unit: null },
+        ];
+
         const newPersonaStatus = await prisma.personaStatus.create({
             data: {
                 personaId: persona.id,
 
-                // Lv1, Lv2 は既存からコピー
-                quantityUnchange: {
-                    create: {
-                        birthDate: fullStatus.quantityUnchange?.birthDate,
-                        gender: fullStatus.quantityUnchange?.gender,
-                        bloodType: fullStatus.quantityUnchange?.bloodType,
-                        chronotype: fullStatus.quantityUnchange?.chronotype,
-                        intelligence: fullStatus.quantityUnchange?.intelligence,
-                    }
-                },
-                semiquantityUnchange: {
-                    create: {
-                        ethics: fullStatus.semiquantityUnchange?.ethics ?? 50,
-                        passion: fullStatus.semiquantityUnchange?.passion ?? 50,
-                        curiosity: fullStatus.semiquantityUnchange?.curiosity ?? 50,
-                        aggressiveness: fullStatus.semiquantityUnchange?.aggressiveness ?? 50,
-                        extroversion: fullStatus.semiquantityUnchange?.extroversion ?? 50,
-                    }
-                },
+                // Lv1 (Unchange) はここでは作成しない (Personaに直接紐づくため)
+
+                // Lv2: QuantityIrreversible (従来通りカラム)
                 quantityIrreversible: {
                     create: {
                         height: status.height ?? 160.0,
@@ -162,19 +170,16 @@ ${logSummary}
                     }
                 },
 
-                // 変化があった Lv3 を更新
+                // Lv3: Reversible (JSON)
                 quantityReversible: {
                     create: {
-                        weight: status.weight ?? 50.0,
+                        value: quantityReversibleValue,
                         version: (fullStatus.quantityReversible?.version || 0) + 1,
                     }
                 },
                 semiquantityReversible: {
                     create: {
-                        health: Math.min(100, Math.max(0, (status.health ?? 100) + (reflection.statusUpdate.health || 0))),
-                        mood: Math.min(100, Math.max(0, (status.mood ?? 50) + (reflection.statusUpdate.mood || 0))),
-                        trust: Math.min(100, Math.max(0, (status.trust ?? 50) + (reflection.statusUpdate.trust || 0))),
-                        friendliness: Math.min(100, Math.max(0, (status.friendliness ?? 50) + (reflection.statusUpdate.friendliness || 0))),
+                        value: semiquantityReversibleValue,
                         version: (fullStatus.semiquantityReversible?.version || 0) + 1,
                     }
                 }
