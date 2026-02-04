@@ -162,29 +162,41 @@ ${logSummary}
 
 
         // Hub (PersonaStatus) は既に存在するので、そのIDを使って子テーブルに履歴を追加する
+        console.log("[Reflect API] Target Hub Status ID:", fullStatus.statusId);
+
+        if (!fullStatus.statusId) {
+            throw new Error("Critical: fullStatus.statusId is undefined or null!");
+        }
+
+        const irreversibleData = {
+            personaStatusId: fullStatus.statusId,
+            height: status.height ?? 160.0,
+            boneDensity: fullStatus.quantityIrreversible?.boneDensity ?? 1.0,
+            version: (fullStatus.quantityIrreversible?.version || 0) + 1,
+        };
+        console.log("[Reflect API] Creating QuantityIrreversibleStatus:", JSON.stringify(irreversibleData));
         await prisma.quantityIrreversibleStatus.create({
-            data: {
-                personaStatusId: fullStatus.statusId,
-                height: status.height ?? 160.0,
-                boneDensity: fullStatus.quantityIrreversible?.boneDensity ?? 1.0,
-                version: (fullStatus.quantityIrreversible?.version || 0) + 1,
-            }
+            data: irreversibleData
         });
 
+        const quantityReversibleData = {
+            personaStatusId: fullStatus.statusId,
+            value: quantityReversibleValue,
+            version: (fullStatus.quantityReversible?.version || 0) + 1,
+        };
+        console.log("[Reflect API] Creating QuantityReversibleStatus:", JSON.stringify(quantityReversibleData));
         await prisma.quantityReversibleStatus.create({
-            data: {
-                personaStatusId: fullStatus.statusId,
-                value: quantityReversibleValue,
-                version: (fullStatus.quantityReversible?.version || 0) + 1,
-            }
+            data: quantityReversibleData
         });
 
+        const semiquantityReversibleData = {
+            personaStatusId: fullStatus.statusId,
+            value: semiquantityReversibleValue,
+            version: (fullStatus.semiquantityReversible?.version || 0) + 1,
+        };
+        console.log("[Reflect API] Creating SemiquantityReversibleStatus:", JSON.stringify(semiquantityReversibleData));
         await prisma.semiquantityReversibleStatus.create({
-            data: {
-                personaStatusId: fullStatus.statusId,
-                value: semiquantityReversibleValue,
-                version: (fullStatus.semiquantityReversible?.version || 0) + 1,
-            }
+            data: semiquantityReversibleData
         });
 
         // Persona自体の更新は不要 (statusIdは固定)
