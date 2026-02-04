@@ -210,9 +210,7 @@ ${logSummary}
         await prisma.reflectionEvent.create({
             data: {
                 personaId: persona.id,
-                thought: reflection.thought,
-                statusUpdate: reflection.statusUpdate,
-                permanentMemory: reflection.permanentMemory,
+                response: reflection, // JSONとして丸ごと保存
                 prompt: reflectionPrompt
             }
         });
