@@ -46,7 +46,11 @@ Table quantity_irreversible_statuses {
   version Int
   
   height Float [note: '身長 (cm)']
-  bone_density Float [note: '骨密度']
+  bone_density Float [note: '骨密度(g/cm^2)']
+  grip_strength Float [note: '最大筋力（握力）(kg)']
+  voice_pitch Float [note: '声の高さ（基本周波数）(Hz) 85-300']
+  eyesight Float [note: '視力 0.1-2.0']
+  hearing_ability Float [note: '聴力 (db) 0-70db']
   recorded_at DateTime [note: 'システム上の記録日時']
   recorded_for_persona DateTime [note: 'personaにとっての記録日時。過去の時間も入る。']
 }
