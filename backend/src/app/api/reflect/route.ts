@@ -174,44 +174,31 @@ ${logSummary}
             boneDensity: fullStatus.quantityIrreversible?.boneDensity ?? 1.0,
             version: (fullStatus.quantityIrreversible?.version || 0) + 1,
         };
-        try {
-            console.log("[Reflect API] Creating QuantityIrreversibleStatus:", JSON.stringify(irreversibleData));
-            await prisma.quantityIrreversibleStatus.create({
-                data: irreversibleData
-            });
-        } catch (e: any) {
-            console.error("[Reflect API] Failed to create QuantityIrreversibleStatus:", e.message);
-            throw new Error(`Failed to create QuantityIrreversibleStatus: ${e.message}`);
-        }
 
         const quantityReversibleData = {
             personaStatusId: fullStatus.statusId,
             value: quantityReversibleValue,
             version: (fullStatus.quantityReversible?.version || 0) + 1,
         };
-        try {
-            console.log("[Reflect API] Creating QuantityReversibleStatus:", JSON.stringify(quantityReversibleData));
-            await prisma.quantityReversibleStatus.create({
-                data: quantityReversibleData
-            });
-        } catch (e: any) {
-            console.error("[Reflect API] Failed to create QuantityReversibleStatus:", e.message);
-            throw new Error(`Failed to create QuantityReversibleStatus: ${e.message}`);
-        }
 
         const semiquantityReversibleData = {
             personaStatusId: fullStatus.statusId,
             value: semiquantityReversibleValue,
             version: (fullStatus.semiquantityReversible?.version || 0) + 1,
         };
+
+        // トランザクションを使用してアトミックに更新する
         try {
-            console.log("[Reflect API] Creating SemiquantityReversibleStatus:", JSON.stringify(semiquantityReversibleData));
-            await prisma.semiquantityReversibleStatus.create({
-                data: semiquantityReversibleData
-            });
+            console.log("[Reflect API] Executing atomic transaction for status records...");
+            await prisma.$transaction([
+                prisma.quantityIrreversibleStatus.create({ data: irreversibleData }),
+                prisma.quantityReversibleStatus.create({ data: quantityReversibleData }),
+                prisma.semiquantityReversibleStatus.create({ data: semiquantityReversibleData }),
+            ]);
+            console.log("[Reflect API] Transaction completed successfully.");
         } catch (e: any) {
-            console.error("[Reflect API] Failed to create SemiquantityReversibleStatus:", e.message);
-            throw new Error(`Failed to create SemiquantityReversibleStatus: ${e.message}`);
+            console.error("[Reflect API] Transaction failed:", e.message);
+            throw new Error(`Failed to update status records atomically: ${e.message}`);
         }
 
         // Persona自体の更新は不要 (statusIdは固定)
