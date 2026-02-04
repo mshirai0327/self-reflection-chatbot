@@ -37,6 +37,11 @@ model Persona {
   /// ステータスの履歴。過去から現在までのすべてのスナップショット。
   statusHistory PersonaStatus[] @relation("StatusHistory")
 
+  /// Lv1-1: 完全不変・定量可能。生物学的・遺伝的な基本情報。
+  quantityUnchange     QuantityUnchangeStatus?
+  /// Lv1-2: 完全不変・定量困難。深層心理や根源的な性格特性。
+  semiquantityUnchange SemiquantityUnchangeStatus?
+
   /// ペルソナによる発言を含む会話ログ
   chatLogs         ChatLog[]
   /// ペルソナが行った内省イベントの記録
@@ -62,10 +67,6 @@ model PersonaStatus {
   /// このスナップショットが現時点での最新状態である場合の逆参照
   currentPersona Persona? @relation("CurrentStatus")
 
-  /// Lv1-1: 基本情報へのリレーション
-  quantityUnchange       QuantityUnchangeStatus?
-  /// Lv1-2: 性格特性へのリレーション
-  semiquantityUnchange   SemiquantityUnchangeStatus?
   /// Lv2: 成長記録へのリレーション
   quantityIrreversible   QuantityIrreversibleStatus?
   /// Lv3-1: バイタルデータへのリレーション
@@ -80,8 +81,8 @@ model PersonaStatus {
 model QuantityUnchangeStatus {
   id String @id @default(uuid())
 
-  personaStatusId String        @unique @map("persona_status_id")
-  personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
+  personaId String  @unique @map("persona_id")
+  persona   Persona @relation(fields: [personaId], references: [id])
 
   /// 生年月日。年齢の算出に使用。
   birthDate       DateTime? @map("birth_date")
@@ -103,8 +104,8 @@ model QuantityUnchangeStatus {
 model SemiquantityUnchangeStatus {
   id String @id @default(uuid())
 
-  personaStatusId String        @unique @map("persona_status_id")
-  personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
+  personaId String  @unique @map("persona_id")
+  persona   Persona @relation(fields: [personaId], references: [id])
 
   /// 倫理観。行動選択の基準（0-100）。
   ethics         Int @default(50)
