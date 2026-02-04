@@ -17,7 +17,7 @@ Table personas {
 // Lv1-1: 完全不変・定量可能
 Table quantity_unchange_statuses {
   id Int [pk]
-  persona_status_id Int [ref: - personas.status_id] // FK pointing to hub's status_id
+  persona_status_id Int [ref: - personas.id] // FK pointing to hub's status_id
   
   birth_date DateTime [note: '生年月日']
   gender String [note: '性別']
@@ -30,7 +30,7 @@ Table quantity_unchange_statuses {
 // Lv1-2: 完全不変・定量困難
 Table semiquantity_unchange_statuses {
   id Int [pk]
-  persona_status_id Int [ref: - personas.status_id]
+  persona_status_id Int [ref: - personas.id]
   
   ethics Int [note: '倫理観 (0-100)']
   passion Int [note: '情熱・エネルギー (0-100)']
