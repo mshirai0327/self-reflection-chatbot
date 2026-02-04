@@ -62,4 +62,6 @@ ChromaDBを「ゴミ箱」ではなく「重要なエピソード記憶」の保
 - [x] `docs/memory_improvement_plan.md` (本ファイル) の作成
 - [x] [`backend/src/app/api/chat/route.ts`] 会話履歴取得ロジックの追加
 - [x] [`backend/src/lib/llm.ts`] プロンプトへの会話履歴埋め込みの実装
-- [ ] 動作確認（会話のキャッチボールができるかテスト）
+- [x] [`backend/src/app/api/chat/route.ts`] 全会話の自動保存を停止
+- [x] [`backend/src/app/api/reflect/route.ts`] 記憶要約・抽出ロジックの実装
+- [ ] 動作確認（内省を実行して、重要な情報だけがChromaDBに保存されるか確認）

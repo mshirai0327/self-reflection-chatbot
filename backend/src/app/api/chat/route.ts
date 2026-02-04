@@ -120,12 +120,15 @@ export async function POST(req: NextRequest) {
         });
 
         // 5. Add to vector memory (Fragile memory)
+        // Phase 2: 全ての会話を無条件に保存するのを停止。内省(Reflect)時に重要な記憶のみを保存する方針に変更。
+        /*
         console.log("[Chat API] Adding message to ChromaDB...");
         await addMemory(ulid(), message, {
             role: "user",
             personaId: persona.id,
             chatId: targetChatId // メタデータにchatIdを保持
         });
+        */
 
         console.log("[Chat API] Success!");
         return NextResponse.json({

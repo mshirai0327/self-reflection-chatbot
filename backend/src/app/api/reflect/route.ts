@@ -17,6 +17,7 @@ const reflectionSchema = z.object({
         friendliness: z.number().int().describe("親しみやすさの変化量 (例: 5, -10, 0)"),
     }),
     permanentMemory: z.string().optional().describe("今後忘れてはいけない重要な教訓、日本語で記述。なければ省略。"),
+    newMemories: z.array(z.string()).describe("会話から得られた、永続的に記憶すべきユーザーの情報、好み、合意事項、または重要な出来事のリスト。挨拶や一時的な文脈は除外すること。")
 });
 
 
@@ -116,7 +117,8 @@ ${logSummary}
 
 1.  **thought**: この会話を通じて何を感じ、何を考えたのか。あなたの内面的な思考プロセスを記述してください。
 2.  **statusUpdate**: 分析の結果、あなたの「健康度」「情緒」「信頼度」「親しみやすさ」はどのように変化すべきですか？増加、減少、または変化なし（0）を具体的な整数で示してください。
-3.  **permanentMemory**: この会話から得られた、今後の人格形成に不可欠な重要な教訓や学びは何ですか？もし特筆すべきものがなければ、省略するか空文字にしてください。
+3.  **permanentMemory**: 自身の人格形成に関わる「教訓」や「自己の指針」があれば記述してください。
+4.  **newMemories**: ユーザーに関する重要な情報（趣味、家族構成、予定など）や、二人の間で確立された重要な文脈があれば、箇条書きの配列として抽出してください。「こんにちは」等の挨拶や意味のない雑談は絶対に含めないでください。
 `;
 
         // 4. LangChainの`generateJson`を使用して、構造化されたレスポンスを取得
@@ -227,6 +229,23 @@ ${logSummary}
                     personaId: persona.id
                 }
             );
+        }
+
+        // 8. 抽出された新しい記憶 (newMemories) をChromaDBに保存
+        if (reflection.newMemories && reflection.newMemories.length > 0) {
+            console.log(`[Reflect API] Saving ${reflection.newMemories.length} new memories to ChromaDB...`);
+            for (const memory of reflection.newMemories) {
+                await addMemory(
+                    ulid(),
+                    memory,
+                    {
+                        type: "fact",
+                        source: "reflection",
+                        personaId: persona.id,
+                        reflectedAt: new Date().toISOString()
+                    }
+                );
+            }
         }
 
         console.log("[Reflect API] Reflection process completed successfully.");
