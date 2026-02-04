@@ -158,22 +158,12 @@ model QuantityReversibleStatus {
   personaStatusId String        @unique @map("persona_status_id")
   personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
 
-  /// 体重 (kg)。
-  weight            Float?
-  /// 体脂肪率 (%)
-  bodyFatPercentage Float? @map("body_fat_percentage")
-  /// 体温(℃)
-  bodyTemperature   Float? @map("body_temperature")
-  /// 血糖値。空腹感やエネルギーレベルに関係。
-  bloodSugar        Float? @map("blood_sugar")
-  /// 最高血圧。緊張状態や興奮の指標。
-  bloodPressureSys  Int?   @map("blood_pressure_sys")
-  /// 最低血圧。
-  bloodPressureDia  Int?   @map("blood_pressure_dia")
-  /// 直近の睡眠時間 (h)。
-  sleepTime         Float? @map("sleep_time")
-  /// 睡眠の質（1-10）。
-  sleepQuality      Int?   @map("sleep_quality")
+  /// バイタルデータのJSON値。以下の形式のオブジェクトの配列として管理。
+  /// 例: [
+  ///   { "label": "weight", "value": 60.5, "unit": "kg" },
+  ///   { "label": "body_temperature", "value": 36.5, "unit": "℃" }
+  /// ]
+  value Json
 
   /// 記録された日時
   recordedAt DateTime @default(now()) @map("recorded_at")
@@ -190,17 +180,15 @@ model SemiquantityReversibleStatus {
   personaStatusId String        @unique @map("persona_status_id")
   personaStatus   PersonaStatus @relation(fields: [personaStatusId], references: [statusId])
 
-  /// 対ユーザー信頼度。会話の親密度に影響（0-100）。
-  trust        Int @default(50)
-  /// 対ユーザーへの親しみやすさ。反応の柔らかさ（0-100）。
-  friendliness Int @default(50)
-  /// 現在の情緒・気分（0-100）。
-  mood         Int @default(50)
-  /// 現在の総合的な健康感。疲労度など（0-100）。
-  health       Int @default(100)
+  /// 感情・状態データのJSON値。以下の形式のオブジェクトの配列として管理。
+  /// 例: [
+  ///   { "label": "mood", "value": 80, "unit": null },
+  ///   { "label": "trust", "value": 100, "unit": null }
+  /// ]
+  value Json
 
-  /// 更新された日時
-  updatedAt DateTime @default(now()) @map("updated_at")
+  /// 記録された日時
+  recordedAt DateTime @default(now()) @map("recorded_at")
 
   @@map("semiquantity_reversible_statuses")
 }
