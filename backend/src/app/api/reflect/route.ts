@@ -138,6 +138,7 @@ ${logSummary}
         const newFriendliness = Math.min(100, Math.max(0, (status.friendliness ?? 50) + (reflection.statusUpdate.friendliness || 0)));
 
         // Lv3-1: QuantityReversible (JSON構築) - 現状は内省で変化しないので値を引き継ぐ
+        // note: 内省で変化させるか、またはgraphなどで変化させるか
         const quantityReversibleValue = [
             { label: "weight", value: status.weight ?? 50.0, unit: "kg" },
             { label: "bloodSugar", value: status.bloodSugar ?? 90.0, unit: "mg/dL" },
