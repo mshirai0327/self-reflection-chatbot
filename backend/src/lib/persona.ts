@@ -52,9 +52,9 @@ export async function getLatestStatus(personaId: string) {
             semiquantityUnchange: true,
             status: {
                 include: {
-                    quantityIrreversible: true,
-                    quantityReversible: true,
-                    semiquantityReversible: true,
+                    quantityIrreversible: { orderBy: { version: 'desc' }, take: 1 },
+                    quantityReversible: { orderBy: { version: 'desc' }, take: 1 },
+                    semiquantityReversible: { orderBy: { version: 'desc' }, take: 1 },
                 }
             }
         }
@@ -62,12 +62,15 @@ export async function getLatestStatus(personaId: string) {
 
     if (!persona?.status) return null;
 
-    // 以前のインターフェースと互換性を持たせるため、または扱いやすくするために
-    // PersonaStatusオブジェクトに不変ステータスをマージしたような形、あるいは複合オブジェクトを返す
+    // 最新の1件を取得してマージ
     return {
         ...persona.status,
         quantityUnchange: persona.quantityUnchange,
         semiquantityUnchange: persona.semiquantityUnchange,
+        // 配列の最初の要素（最新）を展開
+        quantityIrreversible: persona.status.quantityIrreversible[0] || null,
+        quantityReversible: persona.status.quantityReversible[0] || null,
+        semiquantityReversible: persona.status.semiquantityReversible[0] || null,
     };
 }
 
@@ -86,7 +89,7 @@ function getVal(json: any, label: string): number | undefined {
 export function flattenStatus(fullStatus: any) {
     if (!fullStatus) return null;
 
-    // JSONデータの取得
+    // JSONデータの取得 (fullStatusには既に最新の1件が入っている前提)
     const reversibleVal = fullStatus.quantityReversible?.value;
     const semiReversibleVal = fullStatus.semiquantityReversible?.value;
 

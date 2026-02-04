@@ -99,14 +99,6 @@ async function main() {
                 }
             }
         })
-
-        // Personaの最新ステータスを更新
-        await prisma.persona.update({
-            where: { id: persona.id },
-            data: {
-                statusId: personaStatus.statusId
-            }
-        })
     } else {
         console.log('Initial status already exists. Skipping.')
     }

@@ -156,42 +156,38 @@ ${logSummary}
             { label: "friendliness", value: newFriendliness, unit: null },
         ];
 
-        const newPersonaStatus = await prisma.personaStatus.create({
+        // 5. RDB (MySQL) のステータスを更新 (Hubパターンの新スキーマに対応)
+        console.log("[Reflect API] Updating status in Prisma (Hub pattern 1:N)...");
+
+
+
+        // Hub (PersonaStatus) は既に存在するので、そのIDを使って子テーブルに履歴を追加する
+        await prisma.quantityIrreversibleStatus.create({
             data: {
-                personaId: persona.id,
-
-                // Lv1 (Unchange) はここでは作成しない (Personaに直接紐づくため)
-
-                // Lv2: QuantityIrreversible (従来通りカラム)
-                quantityIrreversible: {
-                    create: {
-                        height: status.height ?? 160.0,
-                        boneDensity: fullStatus.quantityIrreversible?.boneDensity ?? 1.0,
-                        version: (fullStatus.quantityIrreversible?.version || 0) + 1,
-                    }
-                },
-
-                // Lv3: Reversible (JSON)
-                quantityReversible: {
-                    create: {
-                        value: quantityReversibleValue,
-                        version: (fullStatus.quantityReversible?.version || 0) + 1,
-                    }
-                },
-                semiquantityReversible: {
-                    create: {
-                        value: semiquantityReversibleValue,
-                        version: (fullStatus.semiquantityReversible?.version || 0) + 1,
-                    }
-                }
+                personaStatusId: fullStatus.statusId,
+                height: status.height ?? 160.0,
+                boneDensity: fullStatus.quantityIrreversible?.boneDensity ?? 1.0,
+                version: (fullStatus.quantityIrreversible?.version || 0) + 1,
             }
         });
 
-        // Personaの最新ステータスIDを更新
-        await prisma.persona.update({
-            where: { id: persona.id },
-            data: { statusId: newPersonaStatus.statusId }
+        await prisma.quantityReversibleStatus.create({
+            data: {
+                personaStatusId: fullStatus.statusId,
+                value: quantityReversibleValue,
+                version: (fullStatus.quantityReversible?.version || 0) + 1,
+            }
         });
+
+        await prisma.semiquantityReversibleStatus.create({
+            data: {
+                personaStatusId: fullStatus.statusId,
+                value: semiquantityReversibleValue,
+                version: (fullStatus.semiquantityReversible?.version || 0) + 1,
+            }
+        });
+
+        // Persona自体の更新は不要 (statusIdは固定)
 
         // 6. 内省イベントをデータベースに保存
         console.log("[Reflect API] Saving reflection event to DB...");
