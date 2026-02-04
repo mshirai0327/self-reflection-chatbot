@@ -94,6 +94,7 @@ export function flattenStatus(fullStatus: any) {
     const semiReversibleVal = fullStatus.semiquantityReversible?.value;
 
     return {
+        id: fullStatus.statusId, // Status ID explicitly included
         // Lv1-1: QuantityUnchange
         birthDate: fullStatus.quantityUnchange?.birthDate,
         gender: fullStatus.quantityUnchange?.gender,
