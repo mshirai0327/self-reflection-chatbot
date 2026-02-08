@@ -236,20 +236,16 @@ model ChatLog {
 
 /// AIが行った「内省（自己分析）」の記録。
 model ReflectionEvent {
-  id              String   @id @default(uuid())
+  id        String   @id @default(uuid())
   /// 内省を行ったペルソナ
-  personaId       String
-  persona         Persona  @relation(fields: [personaId], references: [id])
-  /// 内省によって得られた思考の要約
-  thought         String   @db.Text
-  /// 内省結果として算出されたステータスの変動値（JSON）
-  statusUpdate    Json
+  personaId String
+  persona   Persona  @relation(fields: [personaId], references: [id])
+  /// 内省結果全体をJSONとして保存 (thought, statusUpdate, permanentMemory, newMemories 等を含む)
+  response  Json
   /// 内省に使用されたシステムプロンプト
-  prompt          String?  @db.Text
-  /// 今後の人格形成に引き継がれる恒久的な記憶
-  permanentMemory String?  @db.Text
+  prompt    String?  @db.Text
   /// 内省が行われた日時
-  createdAt       DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@map("reflection_events")
 }

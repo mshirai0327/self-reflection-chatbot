@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { queryMemories, addMemory } from "@/lib/chroma";
 import { getDefaultPersona, getDefaultUser, getLatestStatus, flattenStatus } from "@/lib/persona";
-import { generateResponse, LLMConfig, buildSystemInstruction } from "@/lib/llm";
+import { generateResponse, LLMConfig } from "@/lib/llm";
 import { ulid } from "ulid";
 
 /**
@@ -35,14 +35,39 @@ export async function POST(req: NextRequest) {
         };
 
         // 2. Fetch relevant memories from ChromaDB
-        const memories = await queryMemories(message);
+        // chatIdがある場合は、そのチャットの記憶のみを検索対象にする
+        // 新規チャット(chatIdなし)の場合は、他のチャットの文脈が混ざらないように検索しない
+        let memories: Awaited<ReturnType<typeof queryMemories>> = [];
+        if (body.chatId) {
+            memories = await queryMemories(message, body.chatId);
+        }
+
+        // 2.5 Fetch conversation history (Short-term memory)
+        let history: { role: string; content: string }[] = [];
+        if (body.chatId) {
+            try {
+                const logs = await prisma.chatLog.findMany({
+                    where: { chatId: body.chatId },
+                    orderBy: { createdAt: 'desc' },
+                    take: 10,// 直近10件のチャットログを送る。
+                });
+                history = logs.reverse().map(log => ({
+                    role: log.role,
+                    content: log.content
+                }));
+                console.log(`[Chat API] Fetched ${history.length} history items for context.`);
+            } catch (err) {
+                console.error("[Chat API] Failed to fetch chat history:", err);
+            }
+        }
 
         // 3. Generate response with chosen LLM
         console.log("[Chat API] Requesting AI response...");
         const memoryStrings = memories.map(m => m.content).filter((c): c is string => c !== null);
         const { content: aiResponse, systemInstruction } = await generateResponse(activeConfig, message, {
             status,
-            memories: memoryStrings
+            memories: memoryStrings,
+            history
         });
 
 
@@ -100,12 +125,15 @@ export async function POST(req: NextRequest) {
         });
 
         // 5. Add to vector memory (Fragile memory)
+        // Phase 2: 全ての会話を無条件に保存するのを停止。内省(Reflect)時に重要な記憶のみを保存する方針に変更。
+        /*
         console.log("[Chat API] Adding message to ChromaDB...");
         await addMemory(ulid(), message, {
             role: "user",
             personaId: persona.id,
             chatId: targetChatId // メタデータにchatIdを保持
         });
+        */
 
         console.log("[Chat API] Success!");
         return NextResponse.json({

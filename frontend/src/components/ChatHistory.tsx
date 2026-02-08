@@ -13,7 +13,7 @@ interface Chat {
     };
 }
 
-interface ReflectionResult {
+interface ReflectionResponse {
     thought: string;
     statusUpdate: {
         health: number;
@@ -22,7 +22,14 @@ interface ReflectionResult {
         friendliness: number;
     };
     permanentMemory?: string;
+    newMemories?: string[];
+}
+
+interface ReflectionResult {
+    id: string;
     prompt?: string;
+    createdAt?: string;
+    response: ReflectionResponse;
 }
 
 type ChatHistoryProps = {
@@ -39,13 +46,15 @@ type ChatHistoryProps = {
     llmSettings: {
         provider: 'gemini' | 'local';
         localEndpoint: string;
-        localModel: string;
+        localChatModel: string;
+        localReflectModel: string;
         availableModels: string[];
     };
     setLlmSettings: React.Dispatch<React.SetStateAction<{
         provider: 'gemini' | 'local';
         localEndpoint: string;
-        localModel: string;
+        localChatModel: string;
+        localReflectModel: string;
         availableModels: string[];
     }>>;
     lastReflection: ReflectionResult | null;
@@ -53,7 +62,7 @@ type ChatHistoryProps = {
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
-// Models List (Duplicated from BotSidebar, kept in sync by convention or ideally shared const)
+// Models List
 const MODELS = [
     { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
     { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
@@ -87,6 +96,8 @@ export function ChatHistory({
     const [chats, setChats] = useState<Chat[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isReflectionOpen, setIsReflectionOpen] = useState(true);
+    const [showApiConfig, setShowApiConfig] = useState(false);
+    const [loadingModels, setLoadingModels] = useState(false);
 
     useEffect(() => {
         const fetchChats = async () => {
@@ -103,7 +114,6 @@ export function ChatHistory({
         fetchChats();
     }, [refreshTrigger, currentChatId]);
 
-    // Automatically open reflection accordion when a new reflection arrives
     useEffect(() => {
         if (lastReflection) {
             setIsReflectionOpen(true);
@@ -113,7 +123,6 @@ export function ChatHistory({
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
         const now = new Date();
-
         if (date.toDateString() === now.toDateString()) {
             return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
         } else {
@@ -132,13 +141,14 @@ export function ChatHistory({
             } else {
                 toast.error('接続に失敗しました。URLを確認してください。', { id: loadingToast });
             }
-        } catch (error: any) {
+        } catch (error) {
             console.error('Connection test failed:', error);
             toast.error('疎通エラー: サーバーに到達できませんでした。', { id: loadingToast });
         }
     };
 
     const fetchModels = async () => {
+        setLoadingModels(true);
         const loadingToast = toast.loading('モデル一覧を取得中...');
         try {
             const res = await axios.post(`${API_URL}/api/llm/models`, {
@@ -149,21 +159,23 @@ export function ChatHistory({
                 setLlmSettings(prev => ({
                     ...prev,
                     availableModels: models,
-                    localModel: models[0] // 最初のモデルをデフォルトに設定
+                    localChatModel: models[0],
+                    localReflectModel: models[0]
                 }));
                 toast.success(`${models.length} 個のモデルを取得しました`, { id: loadingToast });
             } else {
                 toast.error('モデルが見つかりませんでした', { id: loadingToast });
             }
-        } catch (error: any) {
+        } catch (error) {
             console.error('Failed to fetch models:', error);
             toast.error('モデルの取得に失敗しました。エンドポイントを確認してください。', { id: loadingToast });
+        } finally {
+            setLoadingModels(false);
         }
     };
 
     return (
-        <div className={`bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 transition-all duration-300 flex-shrink-0 ${isOpen ? 'w-80' : 'w-0'
-            } overflow-hidden flex flex-col shadow-lg`}>
+        <div className={`bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 transition-all duration-300 flex-shrink-0 ${isOpen ? 'w-80' : 'w-0'} overflow-hidden flex flex-col shadow-lg`}>
             <div className="w-80 h-full flex flex-col">
                 {/* ヘッダー */}
                 <div className="border-b border-slate-200 dark:border-slate-800 p-4 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
@@ -180,7 +192,7 @@ export function ChatHistory({
                     </button>
                 </div>
 
-                {/* チャットログリスト (Scrollable) */}
+                {/* チャットログリスト */}
                 <div className="flex-1 overflow-y-auto min-h-0">
                     {isLoading && chats.length === 0 ? (
                         <div className="p-4 text-center text-slate-400 text-sm">Loading...</div>
@@ -191,15 +203,12 @@ export function ChatHistory({
                             <div
                                 key={chat.id}
                                 onClick={() => onSelectChat(chat.id)}
-                                className={`p-3 border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group ${currentChatId === chat.id ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500' : ''
-                                    }`}
+                                className={`p-3 border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group ${currentChatId === chat.id ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500' : ''}`}
                             >
                                 <div className="flex items-start justify-between mb-1">
                                     <div className="flex items-center gap-2">
-                                        <MessageCircle className={`w-3.5 h-3.5 transition-colors flex-shrink-0 ${currentChatId === chat.id ? 'text-blue-500' : 'text-slate-400 dark:text-slate-500 group-hover:text-blue-500'
-                                            }`} />
-                                        <h3 className={`font-medium text-xs truncate max-w-[180px] ${currentChatId === chat.id ? 'text-blue-700 dark:text-blue-400' : 'text-slate-900 dark:text-slate-200'
-                                            }`}>{chat.title}</h3>
+                                        <MessageCircle className={`w-3.5 h-3.5 transition-colors flex-shrink-0 ${currentChatId === chat.id ? 'text-blue-500' : 'text-slate-400 dark:text-slate-500 group-hover:text-blue-500'}`} />
+                                        <h3 className={`font-medium text-xs truncate max-w-[180px] ${currentChatId === chat.id ? 'text-blue-700 dark:text-blue-400' : 'text-slate-900 dark:text-slate-200'}`}>{chat.title}</h3>
                                     </div>
                                     <span className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">
                                         {formatDate(chat.updatedAt)}
@@ -210,7 +219,7 @@ export function ChatHistory({
                     )}
                 </div>
 
-                {/* Reflection Result Accordion (Moved to bottom) */}
+                {/* Reflection Result Accordion */}
                 <AnimatePresence>
                     {lastReflection && (
                         <motion.div
@@ -237,126 +246,180 @@ export function ChatHistory({
                                 >
                                     <div>
                                         <span className="text-slate-400 block mb-1">Status Update</span>
-                                        <div className="grid grid-cols-4 gap-1 text-center font-mono">
-                                            <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
-                                                <span className="block text-[10px] text-slate-400">Health</span>
-                                                <span className={lastReflection.statusUpdate.health > 0 ? 'text-green-500' : lastReflection.statusUpdate.health < 0 ? 'text-red-500' : 'text-slate-500'}>
-                                                    {lastReflection.statusUpdate.health > 0 ? '+' : ''}{lastReflection.statusUpdate.health}
-                                                </span>
+                                        {lastReflection.response && lastReflection.response.statusUpdate ? (
+                                            <div className="grid grid-cols-4 gap-1 text-center font-mono">
+                                                <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
+                                                    <span className="block text-[10px] text-slate-400">Health</span>
+                                                    <span className={lastReflection.response.statusUpdate.health > 0 ? 'text-green-500' : lastReflection.response.statusUpdate.health < 0 ? 'text-red-500' : 'text-slate-500'}>
+                                                        {lastReflection.response.statusUpdate.health > 0 ? '+' : ''}{lastReflection.response.statusUpdate.health}
+                                                    </span>
+                                                </div>
+                                                <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
+                                                    <span className="block text-[10px] text-slate-400">Mood</span>
+                                                    <span className={lastReflection.response.statusUpdate.mood > 0 ? 'text-green-500' : lastReflection.response.statusUpdate.mood < 0 ? 'text-red-500' : 'text-slate-500'}>
+                                                        {lastReflection.response.statusUpdate.mood > 0 ? '+' : ''}{lastReflection.response.statusUpdate.mood}
+                                                    </span>
+                                                </div>
+                                                <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
+                                                    <span className="block text-[10px] text-slate-400">Trust</span>
+                                                    <span className={lastReflection.response.statusUpdate.trust > 0 ? 'text-green-500' : lastReflection.response.statusUpdate.trust < 0 ? 'text-red-500' : 'text-slate-500'}>
+                                                        {lastReflection.response.statusUpdate.trust > 0 ? '+' : ''}{lastReflection.response.statusUpdate.trust}
+                                                    </span>
+                                                </div>
+                                                <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
+                                                    <span className="block text-[10px] text-slate-400">Like</span>
+                                                    <span className={lastReflection.response.statusUpdate.friendliness > 0 ? 'text-green-500' : lastReflection.response.statusUpdate.friendliness < 0 ? 'text-red-500' : 'text-slate-500'}>
+                                                        {lastReflection.response.statusUpdate.friendliness > 0 ? '+' : ''}{lastReflection.response.statusUpdate.friendliness}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
-                                                <span className="block text-[10px] text-slate-400">Mood</span>
-                                                <span className={lastReflection.statusUpdate.mood > 0 ? 'text-green-500' : lastReflection.statusUpdate.mood < 0 ? 'text-red-500' : 'text-slate-500'}>
-                                                    {lastReflection.statusUpdate.mood > 0 ? '+' : ''}{lastReflection.statusUpdate.mood}
-                                                </span>
-                                            </div>
-                                            <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
-                                                <span className="block text-[10px] text-slate-400">Trust</span>
-                                                <span className={lastReflection.statusUpdate.trust > 0 ? 'text-green-500' : lastReflection.statusUpdate.trust < 0 ? 'text-red-500' : 'text-slate-500'}>
-                                                    {lastReflection.statusUpdate.trust > 0 ? '+' : ''}{lastReflection.statusUpdate.trust}
-                                                </span>
-                                            </div>
-                                            <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
-                                                <span className="block text-[10px] text-slate-400">Like</span>
-                                                <span className={lastReflection.statusUpdate.friendliness > 0 ? 'text-green-500' : lastReflection.statusUpdate.friendliness < 0 ? 'text-red-500' : 'text-slate-500'}>
-                                                    {lastReflection.statusUpdate.friendliness > 0 ? '+' : ''}{lastReflection.statusUpdate.friendliness}
-                                                </span>
-                                            </div>
-                                        </div>
+                                        ) : (
+                                            <div className="text-xs text-slate-500 italic">No status update data</div>
+                                        )}
                                     </div>
                                     <div>
                                         <span className="text-slate-400 block mb-1">Thought</span>
                                         <p className="text-slate-600 dark:text-slate-300 leading-relaxed bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700">
-                                            {lastReflection.thought}
+                                            {lastReflection.response?.thought || "No thought available"}
                                         </p>
                                     </div>
                                     <div>
                                         <span className="text-slate-400 block mb-1">New Memory</span>
-                                        {lastReflection.permanentMemory ? (
+                                        {lastReflection.response?.permanentMemory ? (
                                             <p className="text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded border border-amber-100 dark:border-amber-900/50">
-                                                {lastReflection.permanentMemory}
+                                                {lastReflection.response.permanentMemory}
                                             </p>
                                         ) : (
                                             <p className="text-slate-400 dark:text-slate-600 text-xs italic pl-1">
-                                                新しい気付きはありませんでした
+                                                No specific memory formed.
                                             </p>
                                         )}
                                     </div>
-                                    {lastReflection.prompt && (
-                                        <div>
-                                            <span className="text-slate-400 block mb-1">System Prompt (Reflection)</span>
-                                            <div className="bg-slate-900 text-slate-300 p-2 rounded text-[10px] font-mono whitespace-pre-wrap border border-slate-800">
-                                                {lastReflection.prompt}
-                                            </div>
-                                        </div>
-                                    )}
                                 </motion.div>
                             )}
                         </motion.div>
                     )}
                 </AnimatePresence>
 
-                {/* API Settings Footer */}
-                <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex-shrink-0">
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                        <Settings className="w-3 h-3" /> API Config
-                    </h3>
-                    <div className="space-y-3">
-                        {/* Provider Toggle */}
-                        <div className="flex bg-slate-200 dark:bg-slate-800 rounded-lg p-0.5">
-                            <button
-                                onClick={() => setLlmSettings(prev => ({ ...prev, provider: 'gemini' }))}
-                                className={`flex-1 text-[10px] py-1.5 rounded-md transition-all ${llmSettings.provider === 'gemini'
-                                    ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400 font-bold'
-                                    : 'text-slate-500'
-                                    }`}
-                            >
-                                Gemini
-                            </button>
-                            <button
-                                onClick={() => setLlmSettings(prev => ({ ...prev, provider: 'local' }))}
-                                className={`flex-1 text-[10px] py-1.5 rounded-md transition-all ${llmSettings.provider === 'local'
-                                    ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400 font-bold'
-                                    : 'text-slate-500'
-                                    }`}
-                            >
-                                Local (OpenAI互換)
-                            </button>
-                        </div>
+                {/* Settings & Config */}
+                <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                    <button
+                        onClick={() => setShowApiConfig(!showApiConfig)}
+                        className="w-full flex items-center justify-between p-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors"
+                    >
+                        <span className="flex items-center gap-2">
+                            <Settings className="w-4 h-4" />
+                            API & Model Settings
+                        </span>
+                        {showApiConfig ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                    </button>
 
-                        {llmSettings.provider === 'gemini' ? (
-                            <div className="space-y-2">
-                                <div>
-                                    <label className="text-[10px] text-slate-500 block mb-1">Chat</label>
-                                    <select value={chatModel} onChange={(e) => setChatModel(e.target.value)} className="w-full text-xs bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded p-1.5 text-slate-700 dark:text-slate-300">
-                                        {MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                                    </select>
+                    <AnimatePresence>
+                        {showApiConfig && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="overflow-hidden"
+                            >
+                                <div className="mt-2 space-y-3 p-2">
+                                    <div>
+                                        <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Provider</label>
+                                        <div className="flex bg-slate-200 dark:bg-slate-800 rounded p-1">
+                                            <button
+                                                onClick={() => setLlmSettings(p => ({ ...p, provider: 'gemini' }))}
+                                                className={`flex-1 py-1 text-xs rounded transition-all ${llmSettings.provider === 'gemini' ? 'bg-white dark:bg-slate-700 shadow text-blue-600 dark:text-blue-300 font-bold' : 'text-slate-500'}`}
+                                            >
+                                                Gemini
+                                            </button>
+                                            <button
+                                                onClick={() => setLlmSettings(p => ({ ...p, provider: 'local' }))}
+                                                className={`flex-1 py-1 text-xs rounded transition-all ${llmSettings.provider === 'local' ? 'bg-white dark:bg-slate-700 shadow text-green-600 dark:text-green-300 font-bold' : 'text-slate-500'}`}
+                                            >
+                                                Local LLM
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {llmSettings.provider === 'local' && (
+                                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                                            <div>
+                                                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Endpoint</label>
+                                                <div className="flex gap-1">
+                                                    <input
+                                                        type="text"
+                                                        value={llmSettings.localEndpoint}
+                                                        onChange={(e) => setLlmSettings(p => ({ ...p, localEndpoint: e.target.value }))}
+                                                        className="flex-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-xs"
+                                                        placeholder="http://localhost:11434/v1"
+                                                    />
+                                                    <button onClick={testConnection} className="p-1.5 bg-slate-200 dark:bg-slate-700 rounded hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300" title="Test Connection">
+                                                        <CheckCircle className="w-4 h-4" />
+                                                    </button>
+                                                    <button onClick={fetchModels} className="p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded hover:bg-blue-200 dark:hover:bg-blue-800/50 text-blue-600 dark:text-blue-300" title="Fetch Models">
+                                                        {loadingModels ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Chat Model</label>
+                                                <select
+                                                    value={llmSettings.localChatModel}
+                                                    onChange={(e) => setLlmSettings(p => ({ ...p, localChatModel: e.target.value }))}
+                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-xs"
+                                                >
+                                                    {llmSettings.availableModels.length > 0 ? (
+                                                        llmSettings.availableModels.map(m => <option key={m} value={m}>{m}</option>)
+                                                    ) : (
+                                                        <option value="llama3">llama3 (Default)</option>
+                                                    )}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Reflection Model</label>
+                                                <select
+                                                    value={llmSettings.localReflectModel}
+                                                    onChange={(e) => setLlmSettings(p => ({ ...p, localReflectModel: e.target.value }))}
+                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-xs"
+                                                >
+                                                    {llmSettings.availableModels.length > 0 ? (
+                                                        llmSettings.availableModels.map(m => <option key={m} value={m}>{m}</option>)
+                                                    ) : (
+                                                        <option value="llama3">llama3 (Default)</option>
+                                                    )}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {llmSettings.provider === 'gemini' && (
+                                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                                            <div>
+                                                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Chat Model</label>
+                                                <select
+                                                    value={chatModel}
+                                                    onChange={(e) => setChatModel(e.target.value)}
+                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-xs"
+                                                >
+                                                    {MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Reflect Model</label>
+                                                <select
+                                                    value={reflectModel}
+                                                    onChange={(e) => setReflectModel(e.target.value)}
+                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-xs"
+                                                >
+                                                    {MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                                <div>
-                                    <label className="text-[10px] text-slate-500 block mb-1">Reflect</label>
-                                    <select value={reflectModel} onChange={(e) => setReflectModel(e.target.value)} className="w-full text-xs bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded p-1.5 text-slate-700 dark:text-slate-300">
-                                        {MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="space-y-2">
-                                <div className="flex gap-2">
-                                    <input
-                                        value={llmSettings.localEndpoint}
-                                        onChange={(e) => setLlmSettings(p => ({ ...p, localEndpoint: e.target.value }))}
-                                        className="flex-1 text-xs bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded p-1.5 text-slate-700 dark:text-slate-300"
-                                        placeholder="Endpoint"
-                                    />
-                                    <button onClick={testConnection} className="p-1.5 bg-emerald-100 text-emerald-600 rounded" title="Test"><CheckCircle size={14} /></button>
-                                    <button onClick={fetchModels} className="p-1.5 bg-blue-100 text-blue-600 rounded" title="Fetch"><RefreshCw size={14} /></button>
-                                </div>
-                                <select value={llmSettings.localModel} onChange={(e) => setLlmSettings(p => ({ ...p, localModel: e.target.value }))} className="w-full text-xs bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded p-1.5 text-slate-700 dark:text-slate-300">
-                                    {llmSettings.availableModels.length ? llmSettings.availableModels.map(m => <option key={m} value={m}>{m}</option>) : <option>{llmSettings.localModel}</option>}
-                                </select>
-                            </div>
+                            </motion.div>
                         )}
-                    </div>
+                    </AnimatePresence>
                 </div>
             </div>
         </div>

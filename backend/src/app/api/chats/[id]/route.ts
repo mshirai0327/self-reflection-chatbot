@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
+import { getLatestStatus, flattenStatus } from "@/lib/persona";
 
 /**
  * 特定のチャット（セッション）のログを取得します
@@ -31,7 +32,20 @@ export async function GET(
             orderBy: { createdAt: 'desc' }
         });
 
-        return NextResponse.json({ ...chat, latestReflection });
+        let formattedReflection = null;
+        if (latestReflection) {
+            const { response, ...base } = latestReflection;
+            formattedReflection = {
+                ...base,
+                response: typeof response === 'object' && response !== null ? { ...response } : response
+            };
+        }
+
+        // ペルソナの最新ステータスを取得
+        const fullStatus = await getLatestStatus(chat.personaId);
+        const status = flattenStatus(fullStatus);
+
+        return NextResponse.json({ ...chat, latestReflection: formattedReflection, status });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }

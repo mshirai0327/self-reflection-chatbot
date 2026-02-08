@@ -17,6 +17,7 @@ const reflectionSchema = z.object({
         friendliness: z.number().int().describe("親しみやすさの変化量 (例: 5, -10, 0)"),
     }),
     permanentMemory: z.string().optional().describe("今後忘れてはいけない重要な教訓、日本語で記述。なければ省略。"),
+    newMemories: z.array(z.string()).describe("会話から得られた、永続的に記憶すべきユーザーの情報、好み、合意事項、または重要な出来事のリスト。挨拶や一時的な文脈は除外すること。")
 });
 
 
@@ -27,11 +28,17 @@ export async function POST(req: NextRequest) {
     try {
         console.log("[Reflect API] Starting reflection process...");
 
-        let body: { llmConfig?: LLMConfig } = {};
+        let body: { llmConfig?: LLMConfig, chatId?: string } = {};
         try {
             body = await req.json();
         } catch (e) {
             // No body is fine, use defaults
+        }
+
+        const chatId = body.chatId;
+        if (!chatId) {
+            console.error("[Reflect API] chatId is missing in request body.");
+            return NextResponse.json({ error: "chatId is required for reflection." }, { status: 400 });
         }
 
         // LLM設定（デフォルトはGemini Pro, または高性能なモデルを推奨）
@@ -39,14 +46,17 @@ export async function POST(req: NextRequest) {
             provider: "gemini",
             model: "gemini-1.5-pro-latest" // 内省処理には高性能なモデルを推奨
         };
-        console.log("[Reflect API] Using provider:", activeConfig.provider);
+        console.log(`[Reflect API] Using provider: ${activeConfig.provider}, chatId: ${chatId}`);
 
         // デフォルトのペルソナを取得
         const persona = await getDefaultPersona();
 
-        // 1. 直近のチャットログを最大20件取得
+        // 1. 直近のチャットログを最大20件取得（対象のチャットIDに限定）
         const recentLogs = await prisma.chatLog.findMany({
-            where: { personaId: persona.id },
+            where: {
+                personaId: persona.id,
+                chatId: chatId
+            },
             take: 20,
             orderBy: { createdAt: 'desc' }
         });
@@ -57,7 +67,7 @@ export async function POST(req: NextRequest) {
         }
         console.log(`[Reflect API] Found ${recentLogs.length} recent logs.`);
 
-        const logSummary = recentLogs.map((l) => `${l.role}: ${l.content}`).join("\n");
+        const logSummary = recentLogs.slice().reverse().map((l) => `${l.role}: ${l.content}`).join("\n");
 
         // 2. 現在のペルソナステータスを取得
         const fullStatus = await getLatestStatus(persona.id);
@@ -116,7 +126,8 @@ ${logSummary}
 
 1.  **thought**: この会話を通じて何を感じ、何を考えたのか。あなたの内面的な思考プロセスを記述してください。
 2.  **statusUpdate**: 分析の結果、あなたの「健康度」「情緒」「信頼度」「親しみやすさ」はどのように変化すべきですか？増加、減少、または変化なし（0）を具体的な整数で示してください。
-3.  **permanentMemory**: この会話から得られた、今後の人格形成に不可欠な重要な教訓や学びは何ですか？もし特筆すべきものがなければ、省略するか空文字にしてください。
+3.  **permanentMemory**: 自身の人格形成に関わる「教訓」や「自己の指針」があれば記述してください。
+4.  **newMemories**: ユーザーに関する重要な情報（趣味、家族構成、予定など）や、二人の間で確立された重要な文脈があれば、箇条書きの配列として抽出してください。「こんにちは」等の挨拶や意味のない雑談は絶対に含めないでください。
 `;
 
         // 4. LangChainの`generateJson`を使用して、構造化されたレスポンスを取得
@@ -208,9 +219,7 @@ ${logSummary}
         await prisma.reflectionEvent.create({
             data: {
                 personaId: persona.id,
-                thought: reflection.thought,
-                statusUpdate: reflection.statusUpdate,
-                permanentMemory: reflection.permanentMemory,
+                response: reflection, // JSONとして丸ごと保存
                 prompt: reflectionPrompt
             }
         });
@@ -225,8 +234,27 @@ ${logSummary}
                     type: "reflection",
                     thought: reflection.thought,
                     personaId: persona.id
-                }
+                },
+                chatId // chatIdを付与
             );
+        }
+
+        // 8. 抽出された新しい記憶 (newMemories) をChromaDBに保存
+        if (reflection.newMemories && reflection.newMemories.length > 0) {
+            console.log(`[Reflect API] Saving ${reflection.newMemories.length} new memories to ChromaDB...`);
+            for (const memory of reflection.newMemories) {
+                await addMemory(
+                    ulid(),
+                    memory,
+                    {
+                        type: "fact",
+                        source: "reflection",
+                        personaId: persona.id,
+                        reflectedAt: new Date().toISOString()
+                    },
+                    chatId // chatIdを付与
+                );
+            }
         }
 
         console.log("[Reflect API] Reflection process completed successfully.");

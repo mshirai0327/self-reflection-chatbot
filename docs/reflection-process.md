@@ -47,7 +47,7 @@ const status = flattenStatus(fullStatus);
 
 ### ③ プロンプト構築とLLM呼び出し
 
-**実装箇所:** `route.ts` L77-105
+**実装箇所:** `route.ts` L78-130
 
 LangChain の `generateJson()` 関数を使用し、Zod スキーマに基づいた構造化 JSON を生成させます。
 
@@ -69,13 +69,12 @@ assistant: こんにちは！お話できてうれしいです。
 - 信頼度: ${status.trust}/100
 
 ### 指示:
-...JSON形式で回答を出力してください...
+会話履歴と現在のステータスを深く考察し、必ず以下の**JSON形式**で回答を出力してください。
+1. thought: 思考プロセス
+2. statusUpdate: { health, mood, trust, friendliness } の変動値
+3. permanentMemory: 自己の指針となる教訓
+4. newMemories: **ユーザーに関する重要な情報や合意事項のリスト** (記憶の蒸留)
 ```
-
-> **⚠ 現状の課題:**  
-> - **`height` と `weight` は内省で変化しないデータ**であり、プロンプトに含める必要性は低いです。さらに、これらの値は **`null` の場合がほとんど** です（シードデータでデフォルト値を設定していない場合）。
-> - LLM に渡しているステータスは **Lv3-2 (`SemiquantityReversibleStatus`) のみ** です。Lv1 の性格特性（好奇心、倫理観など）は現在プロンプトに含まれていません。
-> - プロンプト内で `height: nullcm` のような不格好な表示になる場合があります。
 
 #### 出力スキーマ (Zod)
 
@@ -86,80 +85,65 @@ const reflectionSchema = z.object({
         health: z.number().int().describe("健康度の変化量 (例: 5, -10, 0)"),
         mood: z.number().int().describe("情緒の変化量 (例: 5, -10, 0)"),
         trust: z.number().int().describe("信頼度の変化量 (例: 5, -10, 0)"),
+        friendliness: z.number().int().describe("親しみやすさの変化量 (例: 5, -10, 0)"),
     }),
     permanentMemory: z.string().optional().describe("今後忘れてはいけない重要な教訓..."),
+    newMemories: z.array(z.string()).describe("会話から得られた、永続的に記憶すべきユーザーの情報...リスト"),
 });
 ```
 
-> **⚠ 現状の課題:**  
-> - `statusUpdate` に含まれるのは `health`, `mood`, `trust` の3項目のみです。`friendliness`（親しみやすさ）や Lv3-1 の `bloodPressure`（血圧）などへの影響は現在考慮されていません。
-
 ### ④ ステータスの更新 (RDB)
 
-**実装箇所:** `route.ts` L111-165
+**実装箇所:** `route.ts` L133-206
 
-推論された `statusUpdate` を現在のステータスに加算し、新しい `PersonaStatus` レコードをDBに作成します（イミュータブルな履歴管理）。
+**Hub パターン (1:N)** を採用しています。
+`PersonaStatus` (Hub) 自体は更新せず、その配下の履歴テーブル (`QuantityIrreversibleStatus`, `QuantityReversibleStatus`, `SemiquantityReversibleStatus`) に**新しいバージョンのレコードを追加**します。
 
-#### クランプ処理
+1.  現在の最新ステータス値を取得。
+2.  LLM が算出した変動値 (`statusUpdate`) を加算し、0-100 にクランプ。
+3.  `prisma.$transaction` を使用して、各サブテーブルに新規レコードを一括作成。
 
-プログラム側で **0 〜 100 の範囲に収める（クランプ処理）** を行い、数値が破綻しないように制御します。
-
-```typescript
-health: Math.min(100, Math.max(0, (status.health ?? 100) + (reflection.statusUpdate.health || 0))),
-mood: Math.min(100, Math.max(0, (status.mood ?? 50) + (reflection.statusUpdate.mood || 0))),
-trust: Math.min(100, Math.max(0, (status.trust ?? 50) + (reflection.statusUpdate.trust || 0))),
-```
-
-#### Lv1/Lv2 データの扱い
-
-現在の実装では、Lv1 (`QuantityUnchangeStatus`, `SemiquantityUnchangeStatus`) および Lv2 (`QuantityIrreversibleStatus`) のデータは、内省のたびに **既存データをコピーして新規レコードを作成** しています。
-
-> **⚠ 現状の課題:**  
-> - 本来 Lv1 は「不変」のため、レコードを毎回作成する必要はありません。理想的には、既存レコードへの `connect` のみで済むべきです。
-> - Lv3-1 (`QuantityReversibleStatus`) の `weight`, `bloodSugar`, `sleepTime` なども現在は変動計算されず、**前の値がそのままコピーされるだけ**（または `null`）です。
+これにより、ペルソナIDは変わらずに、ステータスの履歴だけが積み上がっていきます。
 
 ### ⑤ 内省イベントの記録
 
-**実装箇所:** `route.ts` L168-176
+**実装箇所:** `route.ts` L208-216
 
-内省の結果を `ReflectionEvent` テーブルに永続化します。
+内省の結果全体（思考、ステータス、抽出された記憶含む）を `ReflectionEvent` テーブルに JSON として保存します。これはデバッグや履歴表示に使用されます。
 
 ```typescript
 await prisma.reflectionEvent.create({
     data: {
         personaId: persona.id,
-        thought: reflection.thought,
-        statusUpdate: reflection.statusUpdate, // JSON
-        permanentMemory: reflection.permanentMemory
+        response: reflection, // JSON全体
+        prompt: reflectionPrompt
     }
 });
 ```
 
-### ⑥ 恒久記憶の保存 (ベクトルストア)
+### ⑥ 記憶の蒸留と保存 (ベクトルストア)
 
-**実装箇所:** `route.ts` L178-190
+**実装箇所:** `route.ts` L218-247
 
-`permanentMemory` が生成された場合、それを ChromaDB（ベクトルストア）に保存します。
+Reflecta の核心機能です。LLM が「重要」と判断した情報だけを ChromaDB に保存します。
+
+1.  **教訓 (permanentMemory)**:
+    *   自己の人格形成に関わる教訓がある場合、`type: "reflection"` として保存。
+2.  **事実記憶 (newMemories)**:
+    *   ユーザーの趣味や約束事など、リストアップされた各アイテムを個別にベクトル化し、`type: "fact"` として保存。
+    *   次回以降のチャットで、関連する話題が出たときにピンポイントで呼び出せるようになります。
 
 ```typescript
-if (reflection.permanentMemory) {
-    await addMemory(
-        `ref_${Date.now()}`,
-        reflection.permanentMemory,
-        {
-            type: "reflection",
-            thought: reflection.thought,
-            personaId: persona.id
-        }
-    );
+if (reflection.newMemories && reflection.newMemories.length > 0) {
+    for (const memory of reflection.newMemories) {
+        await addMemory(ulid(), memory, { type: "fact", source: "reflection", ... });
+    }
 }
 ```
 
-メタデータとして内省時の思考 (`thought`) もあわせて保存されます。これにより、将来の検索時に AI が「なぜこれを覚えているか」を思い出せるようになっています。
+### ⑦ 対話へのフィードバック
 
-### ⑦ 対話へのフィードバック (フロントエンド側)
-
-内省完了後、フロントエンドは自動的に「今の気分はどうですか？」というシステムメッセージを送信します。これにより、AI は更新されたばかりのステータスに基づいて、内省後の新しい反応を返します。
+内省が完了すると、最新のステータスデータが API レスポンスに含まれて返却されます。フロントエンドはこれを受け取り、サイドバーのステータス表示を即座に更新します。ユーザーは「自分の発言でAIの機嫌が変わった」ことを可視化されたパラメータで実感できます。
 
 ---
 
@@ -185,9 +169,9 @@ if (reflection.permanentMemory) {
 
 | カテゴリ | テーブル名 | 内省での変動 | 現状 |
 | :--- | :--- | :---: | :--- |
-| Lv1-1 基本情報 | `QuantityUnchangeStatus` | ❌ 不変 | 毎回コピー（非効率） |
-| Lv1-2 性格特性 | `SemiquantityUnchangeStatus` | ❌ 不変 | 毎回コピー（非効率） |
-| Lv2 成長記録 | `QuantityIrreversibleStatus` | ⚠ 未対応 | 変動ロジック未実装 |
+| Lv1-1 基本情報 | `QuantityUnchangeStatus` | ❌ 不変 | 不変 |
+| Lv1-2 性格特性 | `SemiquantityUnchangeStatus` | ❌ 不変 | 不変 |
+| Lv2 成長記録 | `QuantityIrreversibleStatus` | ⚠ 未対応 | 履歴を記録。不可逆性は表現できていない |
 | Lv3-1 バイタル | `QuantityReversibleStatus` | ⚠ 未対応 | 変動ロジック未実装 (`weight`, `sleepTime` などは常にコピー) |
 | Lv3-2 心理状態 | `SemiquantityReversibleStatus` | ✅ 対応済み | `health`, `mood`, `trust` のみ変動 |
 
