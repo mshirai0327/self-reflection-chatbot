@@ -238,6 +238,11 @@ function App() {
   };
 
   const handleReflect = async () => {
+    if (!currentChatId) {
+      toast.error('内省を行うには、まずチャットを開始してください');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const llmConfig = {
@@ -246,7 +251,10 @@ function App() {
         endpoint: llmSettings.provider === 'local' ? llmSettings.localEndpoint : undefined
       };
 
-      const res = await axios.post(`${API_URL}/api/reflect`, { llmConfig });
+      const res = await axios.post(`${API_URL}/api/reflect`, {
+        llmConfig,
+        chatId: currentChatId
+      });
       toast.success(`内省完了: ${res.data.reflection.permanentMemory || "新たな気付きはありませんでした"}`, {
         duration: 5000,
         style: {

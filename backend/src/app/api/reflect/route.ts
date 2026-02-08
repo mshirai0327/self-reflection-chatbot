@@ -28,11 +28,17 @@ export async function POST(req: NextRequest) {
     try {
         console.log("[Reflect API] Starting reflection process...");
 
-        let body: { llmConfig?: LLMConfig } = {};
+        let body: { llmConfig?: LLMConfig, chatId?: string } = {};
         try {
             body = await req.json();
         } catch (e) {
             // No body is fine, use defaults
+        }
+
+        const chatId = body.chatId;
+        if (!chatId) {
+            console.error("[Reflect API] chatId is missing in request body.");
+            return NextResponse.json({ error: "chatId is required for reflection." }, { status: 400 });
         }
 
         // LLM設定（デフォルトはGemini Pro, または高性能なモデルを推奨）
@@ -40,14 +46,17 @@ export async function POST(req: NextRequest) {
             provider: "gemini",
             model: "gemini-1.5-pro-latest" // 内省処理には高性能なモデルを推奨
         };
-        console.log("[Reflect API] Using provider:", activeConfig.provider);
+        console.log(`[Reflect API] Using provider: ${activeConfig.provider}, chatId: ${chatId}`);
 
         // デフォルトのペルソナを取得
         const persona = await getDefaultPersona();
 
-        // 1. 直近のチャットログを最大20件取得
+        // 1. 直近のチャットログを最大20件取得（対象のチャットIDに限定）
         const recentLogs = await prisma.chatLog.findMany({
-            where: { personaId: persona.id },
+            where: {
+                personaId: persona.id,
+                chatId: chatId
+            },
             take: 20,
             orderBy: { createdAt: 'desc' }
         });
@@ -58,7 +67,7 @@ export async function POST(req: NextRequest) {
         }
         console.log(`[Reflect API] Found ${recentLogs.length} recent logs.`);
 
-        const logSummary = recentLogs.map((l) => `${l.role}: ${l.content}`).join("\n");
+        const logSummary = recentLogs.slice().reverse().map((l) => `${l.role}: ${l.content}`).join("\n");
 
         // 2. 現在のペルソナステータスを取得
         const fullStatus = await getLatestStatus(persona.id);
@@ -225,7 +234,8 @@ ${logSummary}
                     type: "reflection",
                     thought: reflection.thought,
                     personaId: persona.id
-                }
+                },
+                chatId // chatIdを付与
             );
         }
 
@@ -241,7 +251,8 @@ ${logSummary}
                         source: "reflection",
                         personaId: persona.id,
                         reflectedAt: new Date().toISOString()
-                    }
+                    },
+                    chatId // chatIdを付与
                 );
             }
         }
