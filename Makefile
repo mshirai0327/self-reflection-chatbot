@@ -11,7 +11,7 @@ help:
 
 # Prisma Studio の起動
 # ホストマシンから Docker 内の DB に接続するため、DATABASE_URL を localhost に上書きしています。
-studio:
+prisma-studio:
 	@echo "Starting Prisma Studio..."
 	@cd backend && DATABASE_URL="mysql://root:rootpassword@localhost:3306/ai_reflection_db" npx prisma studio --browser none --port 5555
 
@@ -24,3 +24,8 @@ chroma-reset:
 chroma-inspect:
 	@echo "Inspecting ChromaDB collection..."
 	@cd backend && npx tsx src/scripts/inspect-chroma.ts
+
+# テストの実行
+test:
+	@echo "Running backend tests..."
+	@cd backend && npm run test
