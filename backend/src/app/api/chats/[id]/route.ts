@@ -31,7 +31,17 @@ export async function GET(
             orderBy: { createdAt: 'desc' }
         });
 
-        return NextResponse.json({ ...chat, latestReflection });
+        let formattedReflection = null;
+        if (latestReflection && typeof latestReflection.response === 'object' && latestReflection.response !== null) {
+            formattedReflection = {
+                ...latestReflection,
+                ...(latestReflection.response as object),
+            };
+            // responseフィールドは重複するため削除（型定義上は残るがJSON出力からは消える）
+            delete (formattedReflection as any).response;
+        }
+
+        return NextResponse.json({ ...chat, latestReflection: formattedReflection });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }

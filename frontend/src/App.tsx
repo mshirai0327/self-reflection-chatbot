@@ -87,12 +87,20 @@ function App() {
     const defaultSettings = {
       provider: 'gemini' as 'gemini' | 'local',
       localEndpoint: 'http://localhost:11434/v1',
-      localModel: 'llama3',
+      localChatModel: 'llama3',
+      localReflectModel: 'llama3',
       availableModels: [] as string[]
     };
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        // Migration for old settings
+        if (parsed.localModel && !parsed.localChatModel) {
+          parsed.localChatModel = parsed.localModel;
+          parsed.localReflectModel = parsed.localModel;
+          delete parsed.localModel;
+        }
+        return { ...defaultSettings, ...parsed };
       } catch (e) {
         console.error('Failed to parse llmSettings from localStorage', e);
         localStorage.removeItem('llmSettings');
@@ -197,7 +205,7 @@ function App() {
     try {
       const llmConfig = {
         provider: llmSettings.provider,
-        model: llmSettings.provider === 'local' ? llmSettings.localModel : chatModel,
+        model: llmSettings.provider === 'local' ? llmSettings.localChatModel : chatModel,
         endpoint: llmSettings.provider === 'local' ? llmSettings.localEndpoint : undefined
       };
 
@@ -228,7 +236,7 @@ function App() {
     try {
       const llmConfig = {
         provider: llmSettings.provider,
-        model: llmSettings.provider === 'local' ? llmSettings.localModel : reflectModel,
+        model: llmSettings.provider === 'local' ? llmSettings.localReflectModel : reflectModel,
         endpoint: llmSettings.provider === 'local' ? llmSettings.localEndpoint : undefined
       };
 

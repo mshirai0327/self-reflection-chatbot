@@ -40,13 +40,15 @@ type ChatHistoryProps = {
     llmSettings: {
         provider: 'gemini' | 'local';
         localEndpoint: string;
-        localModel: string;
+        localChatModel: string;
+        localReflectModel: string;
         availableModels: string[];
     };
     setLlmSettings: React.Dispatch<React.SetStateAction<{
         provider: 'gemini' | 'local';
         localEndpoint: string;
-        localModel: string;
+        localChatModel: string;
+        localReflectModel: string;
         availableModels: string[];
     }>>;
     lastReflection: ReflectionResult | null;
@@ -150,7 +152,8 @@ export function ChatHistory({
                 setLlmSettings(prev => ({
                     ...prev,
                     availableModels: models,
-                    localModel: models[0] // 最初のモデルをデフォルトに設定
+                    localChatModel: models[0], // 最初のモデルをデフォルトに設定
+                    localReflectModel: models[0]
                 }));
                 toast.success(`${models.length} 個のモデルを取得しました`, { id: loadingToast });
             } else {
@@ -238,32 +241,36 @@ export function ChatHistory({
                                 >
                                     <div>
                                         <span className="text-slate-400 block mb-1">Status Update</span>
-                                        <div className="grid grid-cols-4 gap-1 text-center font-mono">
-                                            <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
-                                                <span className="block text-[10px] text-slate-400">Health</span>
-                                                <span className={lastReflection.statusUpdate.health > 0 ? 'text-green-500' : lastReflection.statusUpdate.health < 0 ? 'text-red-500' : 'text-slate-500'}>
-                                                    {lastReflection.statusUpdate.health > 0 ? '+' : ''}{lastReflection.statusUpdate.health}
-                                                </span>
+                                        {lastReflection.statusUpdate ? (
+                                            <div className="grid grid-cols-4 gap-1 text-center font-mono">
+                                                <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
+                                                    <span className="block text-[10px] text-slate-400">Health</span>
+                                                    <span className={lastReflection.statusUpdate.health > 0 ? 'text-green-500' : lastReflection.statusUpdate.health < 0 ? 'text-red-500' : 'text-slate-500'}>
+                                                        {lastReflection.statusUpdate.health > 0 ? '+' : ''}{lastReflection.statusUpdate.health}
+                                                    </span>
+                                                </div>
+                                                <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
+                                                    <span className="block text-[10px] text-slate-400">Mood</span>
+                                                    <span className={lastReflection.statusUpdate.mood > 0 ? 'text-green-500' : lastReflection.statusUpdate.mood < 0 ? 'text-red-500' : 'text-slate-500'}>
+                                                        {lastReflection.statusUpdate.mood > 0 ? '+' : ''}{lastReflection.statusUpdate.mood}
+                                                    </span>
+                                                </div>
+                                                <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
+                                                    <span className="block text-[10px] text-slate-400">Trust</span>
+                                                    <span className={lastReflection.statusUpdate.trust > 0 ? 'text-green-500' : lastReflection.statusUpdate.trust < 0 ? 'text-red-500' : 'text-slate-500'}>
+                                                        {lastReflection.statusUpdate.trust > 0 ? '+' : ''}{lastReflection.statusUpdate.trust}
+                                                    </span>
+                                                </div>
+                                                <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
+                                                    <span className="block text-[10px] text-slate-400">Like</span>
+                                                    <span className={lastReflection.statusUpdate.friendliness > 0 ? 'text-green-500' : lastReflection.statusUpdate.friendliness < 0 ? 'text-red-500' : 'text-slate-500'}>
+                                                        {lastReflection.statusUpdate.friendliness > 0 ? '+' : ''}{lastReflection.statusUpdate.friendliness}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
-                                                <span className="block text-[10px] text-slate-400">Mood</span>
-                                                <span className={lastReflection.statusUpdate.mood > 0 ? 'text-green-500' : lastReflection.statusUpdate.mood < 0 ? 'text-red-500' : 'text-slate-500'}>
-                                                    {lastReflection.statusUpdate.mood > 0 ? '+' : ''}{lastReflection.statusUpdate.mood}
-                                                </span>
-                                            </div>
-                                            <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
-                                                <span className="block text-[10px] text-slate-400">Trust</span>
-                                                <span className={lastReflection.statusUpdate.trust > 0 ? 'text-green-500' : lastReflection.statusUpdate.trust < 0 ? 'text-red-500' : 'text-slate-500'}>
-                                                    {lastReflection.statusUpdate.trust > 0 ? '+' : ''}{lastReflection.statusUpdate.trust}
-                                                </span>
-                                            </div>
-                                            <div className="bg-white dark:bg-slate-800 p-1 rounded border border-slate-200 dark:border-slate-700">
-                                                <span className="block text-[10px] text-slate-400">Like</span>
-                                                <span className={lastReflection.statusUpdate.friendliness > 0 ? 'text-green-500' : lastReflection.statusUpdate.friendliness < 0 ? 'text-red-500' : 'text-slate-500'}>
-                                                    {lastReflection.statusUpdate.friendliness > 0 ? '+' : ''}{lastReflection.statusUpdate.friendliness}
-                                                </span>
-                                            </div>
-                                        </div>
+                                        ) : (
+                                            <div className="text-xs text-slate-500 italic">No status update data</div>
+                                        )}
                                     </div>
                                     <div>
                                         <span className="text-slate-400 block mb-1">Thought</span>
@@ -364,9 +371,45 @@ export function ChatHistory({
                                     <button onClick={testConnection} className="p-1.5 bg-emerald-100 text-emerald-600 rounded" title="Test"><CheckCircle size={14} /></button>
                                     <button onClick={fetchModels} className="p-1.5 bg-blue-100 text-blue-600 rounded" title="Fetch"><RefreshCw size={14} /></button>
                                 </div>
-                                <select value={llmSettings.localModel} onChange={(e) => setLlmSettings(p => ({ ...p, localModel: e.target.value }))} className="w-full text-xs bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded p-1.5 text-slate-700 dark:text-slate-300">
-                                    {llmSettings.availableModels.length ? llmSettings.availableModels.map(m => <option key={m} value={m}>{m}</option>) : <option>{llmSettings.localModel}</option>}
-                                </select>
+                                {llmSettings.availableModels.length > 0 ? (
+                                    <>
+                                        <div>
+                                            <label className="text-[10px] text-slate-500 block mb-1">Chat</label>
+                                            <select
+                                                value={llmSettings.localChatModel}
+                                                onChange={(e) => setLlmSettings(p => ({ ...p, localChatModel: e.target.value }))}
+                                                className="w-full text-xs bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded p-1.5 text-slate-700 dark:text-slate-300"
+                                            >
+                                                {llmSettings.availableModels.map(m => <option key={m} value={m}>{m}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-slate-500 block mb-1">Reflect</label>
+                                            <select
+                                                value={llmSettings.localReflectModel}
+                                                onChange={(e) => setLlmSettings(p => ({ ...p, localReflectModel: e.target.value }))}
+                                                className="w-full text-xs bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded p-1.5 text-slate-700 dark:text-slate-300"
+                                            >
+                                                {llmSettings.availableModels.map(m => <option key={m} value={m}>{m}</option>)}
+                                            </select>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex flex-col gap-2">
+                                        <input
+                                            value={llmSettings.localChatModel}
+                                            onChange={(e) => setLlmSettings(p => ({ ...p, localChatModel: e.target.value }))}
+                                            className="w-full text-xs bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded p-1.5 text-slate-700 dark:text-slate-300"
+                                            placeholder="Chat Model Name"
+                                        />
+                                        <input
+                                            value={llmSettings.localReflectModel}
+                                            onChange={(e) => setLlmSettings(p => ({ ...p, localReflectModel: e.target.value }))}
+                                            className="w-full text-xs bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded p-1.5 text-slate-700 dark:text-slate-300"
+                                            placeholder="Reflect Model Name"
+                                        />
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
