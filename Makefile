@@ -1,17 +1,18 @@
 # Reflecta プロジェクト便利コマンド
 
-.PHONY: studio help
+.PHONY: studio help chroma-reset chroma-inspect test prisma-studio
 
 # デフォルトのヘルプ表示
 help:
 	@echo "利用可能なコマンド:"
-	@echo "  make studio         - Prisma Studio を起動します (localhost接続用)"
+	@echo "  make prisma-studio  - Prisma Studio を起動します (localhost接続用)"
 	@echo "  make chroma-reset   - ChromaDBのコレクションをリセット（全削除）します"
 	@echo "  make chroma-inspect - ChromaDBに保存されている記憶を確認します"
+	@echo "  make test           - バックエンドのテストを実行します"
 
 # Prisma Studio の起動
 # ホストマシンから Docker 内の DB に接続するため、DATABASE_URL を localhost に上書きしています。
-studio:
+prisma-studio:
 	@echo "Starting Prisma Studio..."
 	@cd backend && DATABASE_URL="mysql://root:rootpassword@localhost:3306/ai_reflection_db" npx prisma studio --browser none --port 5555
 
@@ -24,3 +25,8 @@ chroma-reset:
 chroma-inspect:
 	@echo "Inspecting ChromaDB collection..."
 	@cd backend && npx tsx src/scripts/inspect-chroma.ts
+
+# テストの実行
+test:
+	@echo "Running backend tests..."
+	@cd backend && npm run test
