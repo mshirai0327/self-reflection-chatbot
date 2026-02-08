@@ -98,7 +98,7 @@ export async function getCollection() {
  * 200文字ごとにチャンク分割し、オーバーラップ20文字を持たせます。
  * RecursiveCharacterTextSplitter を使用します。
  */
-export async function addMemory(id: string, text: string, metadata: Record<string, any>) {
+export async function addMemory(id: string, text: string, metadata: Record<string, any>, chatId?: string) {
     const collection = await getCollection();
 
     const splitter = new RecursiveCharacterTextSplitter({
@@ -113,32 +113,40 @@ export async function addMemory(id: string, text: string, metadata: Record<strin
     const embeddingFunction = new DynamicEmbeddingFunction();
     const embeddings = await embeddingFunction.generate(chunks);
 
+    // chatIdがある場合はメタデータに追加
+    const finalMetadata = chatId ? { ...metadata, chatId } : metadata;
+
     // 分割されたチャンクを保存
     // IDは "originalID_chunkIndex" の形式にする
     await collection.add({
         ids: chunks.map((_, i) => chunks.length > 1 ? `${id}_${i}` : id),
         documents: chunks,
         embeddings: embeddings, // 明示的に渡す
-        metadatas: chunks.map(() => metadata),
+        metadatas: chunks.map(() => finalMetadata),
     });
 }
 
 /**
  * 与えられたテキストに意味的に近い記憶を検索します。
  * デフォルトでは、3つの結果を返却します
+ * chatIdが指定された場合、そのチャットIDを持つ記憶のみを検索対象とします。
  */
-export async function queryMemories(text: string, nResults: number = 3) {
+export async function queryMemories(text: string, chatId?: string, nResults: number = 3) {
     try {
-        console.log("[ChromaDB] Querying for text:", text);
+        console.log(`[ChromaDB] Querying for text: "${text}", chatId: ${chatId || "ALL"}`);
         const collection = await getCollection();
 
         // 明示的にEmbeddingを生成して精度を確保
         const embeddingFunction = new DynamicEmbeddingFunction();
         const queryEmbeddings = await embeddingFunction.generate([text]);
 
+        // chatIdが指定されている場合はフィルタリング
+        const where = chatId ? { chatId: chatId } : undefined;
+
         const results = await collection.query({
             queryEmbeddings: queryEmbeddings, // queryTextsの代わりにEmbeddingを直接渡す
             nResults,
+            where: where,
         });
 
         console.log("[ChromaDB] Query Text:", text);

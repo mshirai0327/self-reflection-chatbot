@@ -35,7 +35,12 @@ export async function POST(req: NextRequest) {
         };
 
         // 2. Fetch relevant memories from ChromaDB
-        const memories = await queryMemories(message);
+        // chatIdがある場合は、そのチャットの記憶のみを検索対象にする
+        // 新規チャット(chatIdなし)の場合は、他のチャットの文脈が混ざらないように検索しない
+        let memories: Awaited<ReturnType<typeof queryMemories>> = [];
+        if (body.chatId) {
+            memories = await queryMemories(message, body.chatId);
+        }
 
         // 2.5 Fetch conversation history (Short-term memory)
         let history: { role: string; content: string }[] = [];
