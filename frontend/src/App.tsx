@@ -49,7 +49,10 @@ export interface DebugInfo {
   contextMemories: { content: string | null; distance: number | null }[];
 }
 
-export interface ReflectionResult {
+/**
+ * 内省処理のレスポンス内容を格納するインターフェース
+ */
+interface ReflectionResponse {
   thought: string;
   statusUpdate: {
     health: number;
@@ -58,7 +61,18 @@ export interface ReflectionResult {
     friendliness: number;
   };
   permanentMemory?: string;
+  newMemories?: string[];
+}
+
+/**
+ * 内省結果全体を表すインターフェース
+ * ChatHistory.tsxと同じ構造を保つ
+ */
+export interface ReflectionResult {
+  id: string;
   prompt?: string;
+  createdAt?: string;
+  response: ReflectionResponse;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || '';
