@@ -1,13 +1,14 @@
 # Reflecta プロジェクト便利コマンド
 
-.PHONY: studio help
+.PHONY: studio help chroma-reset chroma-inspect test prisma-studio
 
 # デフォルトのヘルプ表示
 help:
 	@echo "利用可能なコマンド:"
-	@echo "  make studio         - Prisma Studio を起動します (localhost接続用)"
+	@echo "  make prisma-studio  - Prisma Studio を起動します (localhost接続用)"
 	@echo "  make chroma-reset   - ChromaDBのコレクションをリセット（全削除）します"
 	@echo "  make chroma-inspect - ChromaDBに保存されている記憶を確認します"
+	@echo "  make test           - バックエンドのテストを実行します"
 
 # Prisma Studio の起動
 # ホストマシンから Docker 内の DB に接続するため、DATABASE_URL を localhost に上書きしています。
