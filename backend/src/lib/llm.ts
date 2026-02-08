@@ -193,6 +193,8 @@ export async function generateResponse(
         ];
     }
 
+    console.log(`[LLM] Messages:`, messages);
+
     const result = await chatModel.invoke(messages);
     return {
         content: result.content as string,
