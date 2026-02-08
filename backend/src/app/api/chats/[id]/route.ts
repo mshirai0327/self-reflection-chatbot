@@ -33,13 +33,12 @@ export async function GET(
         });
 
         let formattedReflection = null;
-        if (latestReflection && typeof latestReflection.response === 'object' && latestReflection.response !== null) {
+        if (latestReflection) {
+            const { response, ...base } = latestReflection;
             formattedReflection = {
-                ...latestReflection,
-                ...(latestReflection.response as object),
+                ...base,
+                response: typeof response === 'object' && response !== null ? { ...response } : response
             };
-            // responseフィールドは重複するため削除（型定義上は残るがJSON出力からは消える）
-            delete (formattedReflection as any).response;
         }
 
         // ペルソナの最新ステータスを取得
