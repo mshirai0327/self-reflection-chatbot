@@ -134,8 +134,10 @@ Reflecta の核心機能です。LLM が「重要」と判断した情報だけ�
     *   次回以降のチャットで、関連する話題が出たときにピンポイントで呼び出せるようになります。
 
 ```typescript
-for (const memory of reflection.newMemories) {
-    await addMemory(ulid(), memory, { type: "fact", source: "reflection", ... });
+if (reflection.newMemories && reflection.newMemories.length > 0) {
+    for (const memory of reflection.newMemories) {
+        await addMemory(ulid(), memory, { type: "fact", source: "reflection", ... });
+    }
 }
 ```
 
