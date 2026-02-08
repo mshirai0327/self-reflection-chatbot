@@ -181,6 +181,12 @@ function App() {
         } else {
           setLastReflection(null);
         }
+
+        // ステータスがあればセット (初回ロード時など)
+        if (res.data.status) {
+          console.log('[App] Setting initial status:', res.data.status);
+          setStatus(res.data.status);
+        }
       } catch (error) {
         console.error('[App] Failed to fetch chat logs:', error);
       }

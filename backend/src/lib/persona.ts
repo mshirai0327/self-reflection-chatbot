@@ -65,6 +65,7 @@ export async function getLatestStatus(personaId: string) {
     // 最新の1件を取得してマージ
     return {
         ...persona.status,
+        name: persona.name, // Include persona name
         quantityUnchange: persona.quantityUnchange,
         semiquantityUnchange: persona.semiquantityUnchange,
         // 配列の最初の要素（最新）を展開
@@ -95,6 +96,7 @@ export function flattenStatus(fullStatus: any) {
 
     return {
         id: fullStatus.statusId, // Status ID explicitly included
+        name: fullStatus.name, // Include persona name
         // Lv1-1: QuantityUnchange
         birthDate: fullStatus.quantityUnchange?.birthDate,
         gender: fullStatus.quantityUnchange?.gender,
