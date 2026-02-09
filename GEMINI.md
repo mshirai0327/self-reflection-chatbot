@@ -86,10 +86,11 @@ ghコマンドを使う場合は必ずユーザの許可を得てください
 
 issueを使って管理をしています。`gh issue list`で確認できます。
 
-## TaskとPlanについて
+## TaskとPlan, Walkthroughについて
 
 Taskを提示するときは日本語で記述してください
 Implementation Planを提示するときは、日本語で記述してください
+Walkthroughを提示するときは、日本語で記述してください
 
 ## コメントについて
 
