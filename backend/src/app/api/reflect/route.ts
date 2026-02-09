@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
         // 3. LLMに送信するプロンプトを作成
         //todo たまにこのJSONで帰ってこなくて、データが壊れる時がある
         const reflectionPrompt = `
-あなたは自己進化型AI「Reflecta」です。以下の情報に基づいて自己分析を行い、あなた自身のステータスがどのように変化すべきかを判断してください。
+あなたは自己進化型AI「${status.name || 'Reflecta'}」です。以下の情報に基づいて自己分析を行い、あなた自身のステータスがどのように変化すべきかを判断してください。
 
 ### 分析対象の会話履歴:
 ${logSummary}
