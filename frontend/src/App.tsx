@@ -533,7 +533,6 @@ function App() {
             setMessages([]);
             setStatus(prev => ({ ...prev, name: undefined })); // Reset status name to trigger fetch
             // Ideally fetch new status immediately
-            toast.success("New persona selected!");
           }}
         />
       </div>
