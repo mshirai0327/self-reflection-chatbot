@@ -129,12 +129,47 @@ export function PersonaCreationModal({ isOpen, onClose, onCreated }: PersonaCrea
                                 </div>
                                 <div>
                                     <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">誕生日</label>
-                                    <input 
-                                        type="date" 
-                                        value={birthDate}
-                                        onChange={(e) => setBirthDate(e.target.value)}
-                                        className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                                    />
+                                    <div className="flex gap-2">
+                                        <select
+                                            value={birthDate.split('-')[0]}
+                                            onChange={(e) => {
+                                                const [y, m, d] = birthDate.split('-');
+                                                setBirthDate(`${e.target.value}-${m}-${d}`);
+                                            }}
+                                            className="w-20 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                                        >
+                                            {Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                                                <option key={y} value={y}>{y}</option>
+                                            ))}
+                                        </select>
+                                        <span className="self-center text-xs text-slate-500">年</span>
+                                        <select
+                                            value={birthDate.split('-')[1]}
+                                            onChange={(e) => {
+                                                const [y, m, d] = birthDate.split('-');
+                                                setBirthDate(`${y}-${e.target.value}-${d}`);
+                                            }}
+                                            className="w-16 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                                        >
+                                            {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(m => (
+                                                <option key={m} value={m}>{Number(m)}</option>
+                                            ))}
+                                        </select>
+                                        <span className="self-center text-xs text-slate-500">月</span>
+                                        <select
+                                            value={birthDate.split('-')[2]}
+                                            onChange={(e) => {
+                                                const [y, m, d] = birthDate.split('-');
+                                                setBirthDate(`${y}-${m}-${e.target.value}`);
+                                            }}
+                                            className="w-16 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                                        >
+                                            {Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0')).map(d => (
+                                                <option key={d} value={d}>{Number(d)}</option>
+                                            ))}
+                                        </select>
+                                        <span className="self-center text-xs text-slate-500">日</span>
+                                    </div>
                                 </div>
                             </div>
                             
