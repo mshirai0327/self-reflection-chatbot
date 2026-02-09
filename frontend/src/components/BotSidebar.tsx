@@ -4,6 +4,8 @@ import { motion } from 'framer-motion';
 
 // Types (Sync with App.tsx)
 interface PersonaStatus {
+    id?: string; // statusId
+    personaId?: string; // personaId (Added)
     name?: string;
     birthDate?: string;
     gender?: string;
@@ -46,6 +48,8 @@ type BotSidebarProps = {
 
 export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
     const [activeTab, setActiveTab] = useState<'status' | 'debug'>('status');
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [editingName, setEditingName] = useState("");
 
     // Stats Categorization
     const conditionStats = [
@@ -78,19 +82,69 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
         { label: 'BP', value: `${status.bloodPressureSys ?? '?'}/${status.bloodPressureDia ?? '?'}` },
     ];
 
+    const handleStartEditName = () => {
+        setEditingName(status.name || 'Reflecta');
+        setIsEditingName(true);
+    };
+
+    const handleSaveName = async () => {
+        if (!status.personaId) {
+            console.error("No personaId found");
+            setIsEditingName(false);
+            return;
+        }
+        try {
+            await fetch(`${import.meta.env.VITE_API_URL || ''}/api/personas/${status.personaId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: editingName })
+            });
+            // Note: UI update relies on parent re-fetch or optimistically we could update local state if we had a handler
+            // For now, we assume reloading or next interaction updates it, or we rely on re-fetch.
+            // A page reload or context refresh might be needed to see changes immediately if status prop doesn't update.
+             window.location.reload(); // Simple brute force update for now as we don't have a refetch handler passed down
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsEditingName(false);
+        }
+    };
+    
+    // Header Profile Section
+    const renderHeaderProfile = () => (
+        <div className="p-6 pb-2 flex flex-col items-center">
+            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-3 shadow-inner ring-4 ring-slate-50 dark:ring-slate-800">
+                <Bot className="w-10 h-10 text-white" />
+            </div>
+            {isEditingName ? (
+                 <input
+                    type="text"
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    onBlur={handleSaveName}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+                    autoFocus
+                    className="font-bold text-xl text-center text-slate-800 dark:text-slate-100 bg-transparent border-b border-blue-500 focus:outline-none mb-1"
+                />
+            ) : (
+                <h2 
+                    className="font-bold text-xl text-slate-800 dark:text-slate-100 tracking-tight cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 px-2 rounded transition-colors"
+                    onClick={handleStartEditName}
+                    title="Click to edit name"
+                >
+                    {status.name || 'Reflecta'}
+                </h2>
+            )}
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-1">Self-Evolving AI</p>
+        </div>
+    );
+
     return (
-        <div className={`bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 flex-shrink-0 ${isOpen ? 'w-80' : 'w-0'
-            } overflow-hidden shadow-lg flex flex-col`}>
+        <div className={`bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 flex-shrink-0 ${isOpen ? 'w-80' : 'w-0'} overflow-hidden shadow-lg flex flex-col`}>
 
             <div className="w-80 flex flex-col h-full relative">
                 {/* Header Profile */}
-                <div className="p-6 pb-2 flex flex-col items-center">
-                    <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-3 shadow-inner ring-4 ring-slate-50 dark:ring-slate-800">
-                        <Bot className="w-10 h-10 text-white" />
-                    </div>
-                    <h2 className="font-bold text-xl text-slate-800 dark:text-slate-100 tracking-tight">Reflecta</h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-1">Self-Evolving AI</p>
-                </div>
+                {renderHeaderProfile()}
 
                 {/* Tabs */}
                 <div className="flex border-b border-slate-200 dark:border-slate-800 px-4">

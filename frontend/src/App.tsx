@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Send, Menu, ChevronLeft, Database, Sun, Moon } from 'lucide-react';
+import { Send, Menu, ChevronLeft, Database, Sun, Moon, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast, { Toaster } from 'react-hot-toast';
 import { BotSidebar } from './components/BotSidebar';
 import { ChatHistory } from './components/ChatHistory';
+import { PersonaCreationModal } from './components/PersonaCreationModal';
 import { handleApiError } from './utils/errorHandler';
 
 interface Message {
@@ -125,6 +126,10 @@ function App() {
   });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  
+  // Persona Management State
+  const [currentPersonaId, setCurrentPersonaId] = useState<string | null>(null);
+  const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -232,7 +237,8 @@ function App() {
       const res = await axios.post(`${API_URL}/api/chat`, {
         message: input,
         llmConfig,
-        chatId: currentChatId
+        chatId: currentChatId,
+        personaId: currentPersonaId // Send selected persona
       });
 
       // 新規チャット作成時の処理
@@ -323,6 +329,13 @@ function App() {
             <Menu className="w-5 h-5 text-slate-600 dark:text-slate-400" />
           </button>
           <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 ml-2">Reflecta Chat</h1>
+          <button 
+            onClick={() => setIsPersonaModalOpen(true)}
+            className="ml-4 flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 rounded-full text-xs font-medium hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+            New Persona
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -447,6 +460,19 @@ function App() {
           llmSettings={llmSettings}
           setLlmSettings={setLlmSettings}
           lastReflection={lastReflection}
+        />
+
+        <PersonaCreationModal 
+          isOpen={isPersonaModalOpen}
+          onClose={() => setIsPersonaModalOpen(false)}
+          onCreated={(newPersonaId) => {
+            setCurrentPersonaId(newPersonaId);
+            setCurrentChatId(null); // Clear chat to start fresh with new persona
+            setMessages([]);
+            setStatus(prev => ({ ...prev, name: undefined })); // Reset status name to trigger fetch
+            // Ideally fetch new status immediately
+            toast.success("New persona selected!");
+          }}
         />
       </div>
     </div>

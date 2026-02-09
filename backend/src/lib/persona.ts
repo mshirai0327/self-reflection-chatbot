@@ -96,6 +96,7 @@ export function flattenStatus(fullStatus: any) {
 
     return {
         id: fullStatus.statusId, // Status ID explicitly included
+        personaId: fullStatus.personaId, // Persona ID explicitly included
         name: fullStatus.name, // Include persona name
         // Lv1-1: QuantityUnchange
         birthDate: fullStatus.quantityUnchange?.birthDate,
