@@ -3,6 +3,21 @@ export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 
 /**
+ * ペルソナ一覧を取得します
+ */
+export async function GET() {
+    try {
+        const personas = await prisma.persona.findMany({
+            orderBy: { createdAt: 'asc' },
+            select: { id: true, name: true }
+        });
+        return NextResponse.json(personas);
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+/**
  * 新規ペルソナを作成します
  */
 export async function POST(req: NextRequest) {

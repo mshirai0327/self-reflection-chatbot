@@ -37,6 +37,7 @@ type ChatHistoryProps = {
     refreshTrigger: number;
     onSelectChat: (id: string) => void;
     currentChatId: string | null;
+    currentPersonaId: string | null;
     onNewChat: () => void;
     // LLM Settings
     chatModel: string;
@@ -84,6 +85,7 @@ export function ChatHistory({
     refreshTrigger,
     onSelectChat,
     currentChatId,
+    currentPersonaId,
     onNewChat,
     chatModel,
     setChatModel,
@@ -137,7 +139,9 @@ export function ChatHistory({
         const fetchChats = async () => {
             setIsLoading(true);
             try {
-                const res = await axios.get(`${API_URL}/api/chats`);
+                const res = await axios.get(`${API_URL}/api/chats`, {
+                    params: { personaId: currentPersonaId }
+                });
                 setChats(res.data);
             } catch (error) {
                 console.error('[ChatHistory] Failed to fetch chats:', error);
@@ -146,7 +150,7 @@ export function ChatHistory({
             }
         };
         fetchChats();
-    }, [refreshTrigger, currentChatId]);
+    }, [refreshTrigger, currentChatId, currentPersonaId]);
 
     useEffect(() => {
         if (lastReflection) {
