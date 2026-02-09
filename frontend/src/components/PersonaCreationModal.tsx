@@ -133,8 +133,12 @@ export function PersonaCreationModal({ isOpen, onClose, onCreated }: PersonaCrea
                                         <select
                                             value={birthDate.split('-')[0]}
                                             onChange={(e) => {
-                                                const [y, m, d] = birthDate.split('-');
-                                                setBirthDate(`${e.target.value}-${m}-${d}`);
+                                                const newYear = e.target.value;
+                                                const [_, m, d] = birthDate.split('-');
+                                                // Calculate max days for the current month in the new year
+                                                const daysInNewMonth = new Date(Number(newYear), Number(m), 0).getDate();
+                                                const newDay = Math.min(Number(d), daysInNewMonth).toString().padStart(2, '0');
+                                                setBirthDate(`${newYear}-${m}-${newDay}`);
                                             }}
                                             className="w-20 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm"
                                         >
@@ -146,8 +150,12 @@ export function PersonaCreationModal({ isOpen, onClose, onCreated }: PersonaCrea
                                         <select
                                             value={birthDate.split('-')[1]}
                                             onChange={(e) => {
-                                                const [y, m, d] = birthDate.split('-');
-                                                setBirthDate(`${y}-${e.target.value}-${d}`);
+                                                const newMonth = e.target.value;
+                                                const [y, _, d] = birthDate.split('-');
+                                                // Calculate max days for the new month in the current year
+                                                const daysInNewMonth = new Date(Number(y), Number(newMonth), 0).getDate();
+                                                const newDay = Math.min(Number(d), daysInNewMonth).toString().padStart(2, '0');
+                                                setBirthDate(`${y}-${newMonth}-${newDay}`);
                                             }}
                                             className="w-16 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm"
                                         >
@@ -159,14 +167,18 @@ export function PersonaCreationModal({ isOpen, onClose, onCreated }: PersonaCrea
                                         <select
                                             value={birthDate.split('-')[2]}
                                             onChange={(e) => {
-                                                const [y, m, d] = birthDate.split('-');
+                                                const [y, m, _] = birthDate.split('-');
                                                 setBirthDate(`${y}-${m}-${e.target.value}`);
                                             }}
                                             className="w-16 p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm"
                                         >
-                                            {Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0')).map(d => (
-                                                <option key={d} value={d}>{Number(d)}</option>
-                                            ))}
+                                            {(() => {
+                                                const [y, m] = birthDate.split('-');
+                                                const daysInMonth = new Date(Number(y), Number(m), 0).getDate();
+                                                return Array.from({ length: daysInMonth }, (_, i) => String(i + 1).padStart(2, '0')).map(d => (
+                                                    <option key={d} value={d}>{Number(d)}</option>
+                                                ));
+                                            })()}
                                         </select>
                                         <span className="self-center text-xs text-slate-500">日</span>
                                     </div>
