@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Bot, Activity, Heart, Sparkles, Database, User, Terminal, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -50,6 +50,7 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
     const [activeTab, setActiveTab] = useState<'status' | 'debug'>('status');
     const [isEditingName, setIsEditingName] = useState(false);
     const [editingName, setEditingName] = useState("");
+    const isSubmitting = useRef(false);
 
     // Stats Categorization
     const conditionStats = [
@@ -88,9 +89,13 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
     };
 
     const handleSaveName = async () => {
+        if (isSubmitting.current) return;
+        isSubmitting.current = true;
+
         if (!status.personaId) {
             console.error("No personaId found");
             setIsEditingName(false);
+            isSubmitting.current = false;
             return;
         }
         try {
@@ -105,8 +110,13 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
              window.location.reload(); // Simple brute force update for now as we don't have a refetch handler passed down
         } catch (e) {
             console.error(e);
+            isSubmitting.current = false;
         } finally {
-            setIsEditingName(false);
+            if (!isSubmitting.current) { // If reload didn't happen (error case)
+                 setIsEditingName(false);
+            }
+            // If success, reload happens, so state update might not matter, but for clear logic:
+            // isSubmitting.current = false; 
         }
     };
     
@@ -122,7 +132,13 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
                     value={editingName}
                     onChange={(e) => setEditingName(e.target.value)}
                     onBlur={handleSaveName}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleSaveName();
+                        }
+                    }}
                     autoFocus
                     className="font-bold text-xl text-center text-slate-800 dark:text-slate-100 bg-transparent border-b border-blue-500 focus:outline-none mb-1"
                 />
