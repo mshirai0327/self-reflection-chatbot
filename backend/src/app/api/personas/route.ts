@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
             vitalData, // { height, weight, ... }
         } = body;
 
-        if (!name) {
+        if (!name || !name.trim()) {
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
         }
 
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
         const newPersona = await prisma.$transaction(async (tx) => {
             // 1. Create Persona
             const persona = await tx.persona.create({
-                data: { name }
+                data: { name: name.trim() }
             });
 
             // 2. Create Lv1-1: QuantityUnchangeStatus
