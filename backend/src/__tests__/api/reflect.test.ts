@@ -36,6 +36,13 @@ describe('/api/reflect', () => {
             height: 160, weight: 50, health: 100, mood: 50, trust: 50
         });
 
+        // Mock Chat retrieval (NEW REQUIREMENT)
+        prismaMock.chat.findUnique.mockResolvedValue({
+            id: 'chat-123',
+            personaId: 'persona-123',
+            userId: 'user-123'
+        } as any);
+
         // Mock Prisma findMany for logs
         prismaMock.chatLog.findMany.mockResolvedValue([
             { role: 'user', content: 'Hello', createdAt: new Date() },
