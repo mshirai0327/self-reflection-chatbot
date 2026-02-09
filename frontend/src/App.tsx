@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Send, Menu, ChevronLeft, Database, Sun, Moon, Plus, ChevronDown } from 'lucide-react';
+import { Send, Menu, ChevronLeft, Database, Sun, Moon, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast, { Toaster } from 'react-hot-toast';
 import { BotSidebar } from './components/BotSidebar';
@@ -163,12 +163,12 @@ function App() {
   }, [isDarkMode]);
 
   // 初回読み込み: ペルソナ一覧取得
-  const fetchPersonas = async () => {
+  const fetchPersonas = async (options: { skipAutoSelect?: boolean } = {}) => {
     try {
       const res = await axios.get(`${API_URL}/api/personas`);
       setPersonas(res.data);
       // 未選択なら最初のペルソナを選択
-      if (res.data.length > 0 && !currentPersonaId) {
+      if (!options.skipAutoSelect && res.data.length > 0 && !currentPersonaId) {
         setCurrentPersonaId(res.data[0].id);
       }
     } catch (error) {
@@ -526,8 +526,8 @@ function App() {
         <PersonaCreationModal 
           isOpen={isPersonaModalOpen}
           onClose={() => setIsPersonaModalOpen(false)}
-          onCreated={(newPersonaId) => {
-            fetchPersonas(); // Refresh list to include new persona
+          onCreated={async (newPersonaId) => {
+            await fetchPersonas({ skipAutoSelect: true }); // Refresh list to include new persona
             setCurrentPersonaId(newPersonaId);
             setCurrentChatId(null); // Clear chat to start fresh with new persona
             setMessages([]);
