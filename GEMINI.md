@@ -8,20 +8,20 @@
 
 ## 主要技術スタック
 
--   **フロントエンド**: React (Vite), TypeScript, Tailwind CSS, Framer Motion
--   **バックエンド**: Next.js, TypeScript, Prisma
--   **AI**: Google Gemini API
--   **データベース**:
-    -   **MySQL**: `PersonaStatus`（人格ステータス）や `ChatLog`（会話履歴）などの構造化データを永続化します。PrismaをORMとして使用します。
-    -   **ChromaDB**: 会話の埋め込みベクトルを保存し、類似性検索によって関連する過去の記憶を文脈に含めるために使用します。
--   **インフラ**: Docker, Docker Compose
+- **フロントエンド**: React (Vite), TypeScript, Tailwind CSS, Framer Motion
+- **バックエンド**: Next.js, TypeScript, Prisma
+- **AI**: Google Gemini API
+- **データベース**:
+  - **MySQL**: `PersonaStatus`（人格ステータス）や `ChatLog`（会話履歴）などの構造化データを永続化します。PrismaをORMとして使用します。
+  - **ChromaDB**: 会話の埋め込みベクトルを保存し、類似性検索によって関連する過去の記憶を文脈に含めるために使用します。
+- **インフラ**: Docker, Docker Compose
 
 ## 起動と実行
 
 ### 前提条件
 
--   Docker および Docker Compose がインストールされていること。
--   Google Gemini API キーを取得していること。
+- Docker および Docker Compose がインストールされていること。
+- Google Gemini API キーを取得していること。
 
 ### 手順
 
@@ -40,8 +40,8 @@
     ```
 
 3.  **アプリケーションへのアクセス**:
-    -   **フロントエンド**: [http://localhost:5173](http://localhost:5173)
-    -   **バックエンドAPI**: [http://localhost:3001](http://localhost:3001)
+    - **フロントエンド**: [http://localhost:5173](http://localhost:5173)
+    - **バックエンドAPI**: [http://localhost:3001](http://localhost:3001)
 
 ## 開発コマンド
 
@@ -49,26 +49,26 @@
 
 ### バックエンド (`/backend`)
 
--   **開発サーバー起動**: `npm run dev`
--   **ビルド**: `npm run build`
--   **本番サーバー起動**: `npm run start`
--   **Linter実行**: `npm run lint`
--   **DBマイグレーション**: `npx prisma migrate dev`
--   **DBシード実行**: `npx prisma db seed` (実行には `tsx` が必要です)
+- **開発サーバー起動**: `npm run dev`
+- **ビルド**: `npm run build`
+- **本番サーバー起動**: `npm run start`
+- **Linter実行**: `npm run lint`
+- **DBマイグレーション**: `npx prisma migrate dev`
+- **DBシード実行**: `npx prisma db seed` (実行には `tsx` が必要です)
 
 ### フロントエンド (`/frontend`)
 
--   **開発サーバー起動**: `npm run dev`
--   **ビルド**: `npm run build`
--   **ビルドプレビュー**: `npm run preview`
--   **Linter実行**: `npm run lint`
+- **開発サーバー起動**: `npm run dev`
+- **ビルド**: `npm run build`
+- **ビルドプレビュー**: `npm run preview`
+- **Linter実行**: `npm run lint`
 
 ## 開発規約
 
--   **コードフォーマット**: PrettierやESLintの規約に従ってください（設定ファイル参照）。
--   **型チェック**: TypeScriptを全面的に採用しています。静的型付けの恩恵を最大限に活用してください。anyは可能な限り使わないでください
--   **データベーススキーマ**: データベースの変更は、`/backend/prisma/schema.prisma` ファイルを編集し、`npx prisma migrate dev` コマンドでマイグレーションファイルを生成してください。
--   **コメント**: コードに処理に関するコメントをJSDoc形式で、日本語で記載してください。
+- **コードフォーマット**: PrettierやESLintの規約に従ってください（設定ファイル参照）。
+- **型チェック**: TypeScriptを全面的に採用しています。静的型付けの恩恵を最大限に活用してください。anyは可能な限り使わないでください
+- **データベーススキーマ**: データベースの変更は、`/backend/prisma/schema.prisma` ファイルを編集し、`npx prisma migrate dev` コマンドでマイグレーションファイルを生成してください。
+- **コメント**: コードに処理に関するコメントをJSDoc形式で、日本語で記載してください。
 
 ## コミットルール
 
@@ -86,10 +86,11 @@ ghコマンドを使う場合は必ずユーザの許可を得てください
 
 issueを使って管理をしています。`gh issue list`で確認できます。
 
-## Planについて
+## TaskとPlan, Walkthroughについて
 
-Planを提示するときは日本語で記述してください
+Taskを提示するときは日本語で記述してください
 Implementation Planを提示するときは、日本語で記述してください
+Walkthroughを提示するときは、日本語で記述してください
 
 ## コメントについて
 
@@ -97,8 +98,12 @@ Implementation Planを提示するときは、日本語で記述してくださ�
 
 ## TODO
 
-最低限のテストを実装したい
+いくつか気になる箇所があります
+- すでにあるペルソナがわからない
+- 画面のNew Personaのところをプルダウンにして、既存のペルソナをリストにして、末尾に新規作成とかしたい
+- chat historyで＋ボタンで追加するときに、ペルソナを選択できるようにしたい
+- システムプロンプトに、ペルソナの名前が入っていない。「あなたは自己進化型AI「Reflecta」です。と固定になっている
 
-- 機能実装時にchat/reflectなどの最小限の処理が壊れる時がある
-- E2Eテストを作りたい
-- unit testでもよい。とりあえず、APIが叩けること、データが取得できることを確認する
+
+追加
+- 生年月日選択カレンダーが使いにくいので、フリーテキストやプルダウンなどにしたい

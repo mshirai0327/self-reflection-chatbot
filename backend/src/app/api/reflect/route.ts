@@ -48,13 +48,23 @@ export async function POST(req: NextRequest) {
         };
         console.log(`[Reflect API] Using provider: ${activeConfig.provider}, chatId: ${chatId}`);
 
-        // デフォルトのペルソナを取得
-        const persona = await getDefaultPersona();
+        // 5. デフォルトのペルソナではなく、チャットに関連付けられたペルソナを取得
+        const chat = await prisma.chat.findUnique({
+            where: { id: chatId },
+            include: { persona: true }
+        });
+
+        if (!chat) {
+            return NextResponse.json({ error: "Chat not found" }, { status: 404 });
+        }
+
+        const personaId = chat.personaId;
+        console.log(`[Reflect API] Reflecting on persona: ${personaId} (Chat: ${chat.title})`);
 
         // 1. 直近のチャットログを最大20件取得（対象のチャットIDに限定）
         const recentLogs = await prisma.chatLog.findMany({
             where: {
-                personaId: persona.id,
+                personaId: personaId,
                 chatId: chatId
             },
             take: 20,
@@ -70,7 +80,7 @@ export async function POST(req: NextRequest) {
         const logSummary = recentLogs.slice().reverse().map((l) => `${l.role}: ${l.content}`).join("\n");
 
         // 2. 現在のペルソナステータスを取得
-        const fullStatus = await getLatestStatus(persona.id);
+        const fullStatus = await getLatestStatus(personaId);
 
         if (!fullStatus) {
             console.error("[Reflect API] Persona status not found! (No status ID linked to persona)");
@@ -87,7 +97,7 @@ export async function POST(req: NextRequest) {
         // 3. LLMに送信するプロンプトを作成
         //todo たまにこのJSONで帰ってこなくて、データが壊れる時がある
         const reflectionPrompt = `
-あなたは自己進化型AI「Reflecta」です。以下の情報に基づいて自己分析を行い、あなた自身のステータスがどのように変化すべきかを判断してください。
+あなたは自己進化型AI「${status.name || 'Reflecta'}」です。以下の情報に基づいて自己分析を行い、あなた自身のステータスがどのように変化すべきかを判断してください。
 
 ### 分析対象の会話履歴:
 ${logSummary}
@@ -218,7 +228,7 @@ ${logSummary}
         console.log("[Reflect API] Saving reflection event to DB...");
         await prisma.reflectionEvent.create({
             data: {
-                personaId: persona.id,
+                personaId: personaId,
                 response: reflection, // JSONとして丸ごと保存
                 prompt: reflectionPrompt
             }
@@ -233,7 +243,7 @@ ${logSummary}
                 {
                     type: "reflection",
                     thought: reflection.thought,
-                    personaId: persona.id
+                    personaId: personaId
                 },
                 chatId // chatIdを付与
             );
@@ -249,7 +259,7 @@ ${logSummary}
                     {
                         type: "fact",
                         source: "reflection",
-                        personaId: persona.id,
+                        personaId: personaId,
                         reflectedAt: new Date().toISOString()
                     },
                     chatId // chatIdを付与

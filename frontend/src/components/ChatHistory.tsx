@@ -37,6 +37,7 @@ type ChatHistoryProps = {
     refreshTrigger: number;
     onSelectChat: (id: string) => void;
     currentChatId: string | null;
+    currentPersonaId: string | null;
     onNewChat: () => void;
     // LLM Settings
     chatModel: string;
@@ -84,6 +85,7 @@ export function ChatHistory({
     refreshTrigger,
     onSelectChat,
     currentChatId,
+    currentPersonaId,
     onNewChat,
     chatModel,
     setChatModel,
@@ -98,12 +100,48 @@ export function ChatHistory({
     const [isReflectionOpen, setIsReflectionOpen] = useState(true);
     const [showApiConfig, setShowApiConfig] = useState(false);
     const [loadingModels, setLoadingModels] = useState(false);
+    const [editingChatId, setEditingChatId] = useState<string | null>(null);
+    const [editingTitle, setEditingTitle] = useState("");
+
+    const startEditing = (chat: Chat, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setEditingChatId(chat.id);
+        setEditingTitle(chat.title);
+    };
+
+    const saveChatTitle = async (chatId: string) => {
+        if (!editingTitle.trim() || editingTitle === chats.find(c => c.id === chatId)?.title) {
+            setEditingChatId(null);
+            return;
+        }
+
+        try {
+            await axios.patch(`${API_URL}/api/chats/${chatId}`, { title: editingTitle });
+            setChats(chats.map(c => c.id === chatId ? { ...c, title: editingTitle } : c));
+            toast.success('Chat title updated');
+        } catch (error) {
+            console.error('Failed to update chat title:', error);
+            toast.error('Failed to update chat title');
+        } finally {
+            setEditingChatId(null);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent, chatId: string) => {
+        if (e.key === 'Enter') {
+            saveChatTitle(chatId);
+        } else if (e.key === 'Escape') {
+            setEditingChatId(null);
+        }
+    };
 
     useEffect(() => {
         const fetchChats = async () => {
             setIsLoading(true);
             try {
-                const res = await axios.get(`${API_URL}/api/chats`);
+                const res = await axios.get(`${API_URL}/api/chats`, {
+                    params: { personaId: currentPersonaId }
+                });
                 setChats(res.data);
             } catch (error) {
                 console.error('[ChatHistory] Failed to fetch chats:', error);
@@ -112,7 +150,7 @@ export function ChatHistory({
             }
         };
         fetchChats();
-    }, [refreshTrigger, currentChatId]);
+    }, [refreshTrigger, currentChatId, currentPersonaId]);
 
     useEffect(() => {
         if (lastReflection) {
@@ -205,15 +243,34 @@ export function ChatHistory({
                                 onClick={() => onSelectChat(chat.id)}
                                 className={`p-3 border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group ${currentChatId === chat.id ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500' : ''}`}
                             >
-                                <div className="flex items-start justify-between mb-1">
-                                    <div className="flex items-center gap-2">
-                                        <MessageCircle className={`w-3.5 h-3.5 transition-colors flex-shrink-0 ${currentChatId === chat.id ? 'text-blue-500' : 'text-slate-400 dark:text-slate-500 group-hover:text-blue-500'}`} />
-                                        <h3 className={`font-medium text-xs truncate max-w-[180px] ${currentChatId === chat.id ? 'text-blue-700 dark:text-blue-400' : 'text-slate-900 dark:text-slate-200'}`}>{chat.title}</h3>
+                                    <div className="flex items-start justify-between mb-1">
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            <MessageCircle className={`w-3.5 h-3.5 transition-colors flex-shrink-0 ${currentChatId === chat.id ? 'text-blue-500' : 'text-slate-400 dark:text-slate-500 group-hover:text-blue-500'}`} />
+                                            {editingChatId === chat.id ? (
+                                                <input
+                                                    type="text"
+                                                    value={editingTitle}
+                                                    onChange={(e) => setEditingTitle(e.target.value)}
+                                                    onKeyDown={(e) => handleKeyDown(e, chat.id)}
+                                                    onBlur={() => saveChatTitle(chat.id)}
+                                                    autoFocus
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="flex-1 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded px-1 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                />
+                                            ) : (
+                                                <h3
+                                                    onDoubleClick={(e) => startEditing(chat, e)}
+                                                    className={`font-medium text-xs truncate max-w-[180px] ${currentChatId === chat.id ? 'text-blue-700 dark:text-blue-400' : 'text-slate-900 dark:text-slate-200'}`}
+                                                    title="Double click to edit"
+                                                >
+                                                    {chat.title}
+                                                </h3>
+                                            )}
+                                        </div>
+                                        <span className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap ml-2">
+                                            {formatDate(chat.updatedAt)}
+                                        </span>
                                     </div>
-                                    <span className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">
-                                        {formatDate(chat.updatedAt)}
-                                    </span>
-                                </div>
                             </div>
                         ))
                     )}

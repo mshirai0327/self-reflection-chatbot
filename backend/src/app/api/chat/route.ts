@@ -24,7 +24,19 @@ export async function POST(req: NextRequest) {
         console.log("[Chat API] LLM Provider:", activeConfig.provider);
 
         // デフォルトのペルソナとユーザーを取得（独立したエンティティ）
-        const persona = await getDefaultPersona();
+        // personaIdが指定されている場合はそのペルソナを使用し、なければデフォルトを使用
+        let persona;
+        if (body.personaId) {
+            persona = await prisma.persona.findUnique({
+                where: { id: body.personaId }
+            });
+            if (!persona) {
+                return NextResponse.json({ error: "Persona not found" }, { status: 404 });
+            }
+        } else {
+            persona = await getDefaultPersona();
+        }
+
         const user = await getDefaultUser();
 
         // 1. 最新のステータスを取得

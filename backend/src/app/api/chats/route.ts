@@ -6,16 +6,25 @@ import { getDefaultPersona, getDefaultUser } from "@/lib/persona";
 /**
  * チャット（セッション）の一覧を取得します
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
     try {
-        const persona = await getDefaultPersona();
-        console.log(`[API Chats GET] Fetching chats for persona: ${persona.id}`);
+        const { searchParams } = new URL(req.url);
+        const personaId = searchParams.get('personaId');
+
+        const user = await getDefaultUser();
+        // console.log(`[API Chats GET] Fetching chats for user: ${user.id} (personaId: ${personaId || 'ALL'})`);
+
+        const whereClause: any = { userId: user.id };
+        if (personaId) {
+            whereClause.personaId = personaId;
+        }
 
         const chats = await prisma.chat.findMany({
-            where: { personaId: persona.id },
-            orderBy: { updatedAt: 'desc' }
+            where: whereClause,
+            orderBy: { updatedAt: 'desc' },
+            include: { persona: true } // Include persona details for UI
         });
-        console.log(`[API Chats GET] Found ${chats.length} chats.`);
+        // console.log(`[API Chats GET] Found ${chats.length} chats.`);
         return NextResponse.json(chats);
     } catch (error: any) {
         console.error("[API Chats GET] CRITICAL ERROR:", error);

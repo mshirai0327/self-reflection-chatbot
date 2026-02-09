@@ -45,7 +45,35 @@ export async function GET(
         const fullStatus = await getLatestStatus(chat.personaId);
         const status = flattenStatus(fullStatus);
 
+
         return NextResponse.json({ ...chat, latestReflection: formattedReflection, status });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+/**
+ * チャットのタイトルを更新します
+ */
+export async function PATCH(
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params;
+        const body = await req.json();
+        const { title } = body;
+
+        if (!title) {
+            return NextResponse.json({ error: "Title is required" }, { status: 400 });
+        }
+
+        const updatedChat = await prisma.chat.update({
+            where: { id },
+            data: { title },
+        });
+
+        return NextResponse.json(updatedChat);
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }

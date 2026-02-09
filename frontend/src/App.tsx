@@ -1,15 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Send, Menu, ChevronLeft, Database, Sun, Moon } from 'lucide-react';
+import { Send, Menu, ChevronLeft, Database, Sun, Moon, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast, { Toaster } from 'react-hot-toast';
 import { BotSidebar } from './components/BotSidebar';
 import { ChatHistory } from './components/ChatHistory';
+import { PersonaCreationModal } from './components/PersonaCreationModal';
 import { handleApiError } from './utils/errorHandler';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+}
+
+interface Persona {
+  id: string;
+  name: string;
 }
 
 interface PersonaStatus {
@@ -49,7 +55,10 @@ export interface DebugInfo {
   contextMemories: { content: string | null; distance: number | null }[];
 }
 
-export interface ReflectionResult {
+/**
+ * 内省処理のレスポンス内容を格納するインターフェース
+ */
+interface ReflectionResponse {
   thought: string;
   statusUpdate: {
     health: number;
@@ -58,7 +67,18 @@ export interface ReflectionResult {
     friendliness: number;
   };
   permanentMemory?: string;
+  newMemories?: string[];
+}
+
+/**
+ * 内省結果全体を表すインターフェース
+ * ChatHistory.tsxと同じ構造を保つ
+ */
+export interface ReflectionResult {
+  id: string;
   prompt?: string;
+  createdAt?: string;
+  response: ReflectionResponse;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -111,6 +131,11 @@ function App() {
   });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  
+  // Persona Management State
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [currentPersonaId, setCurrentPersonaId] = useState<string | null>(null);
+  const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -137,12 +162,46 @@ function App() {
     }
   }, [isDarkMode]);
 
-  // 初回読み込み時に最新のチャットを自動選択
+  // 初回読み込み: ペルソナ一覧取得
+  const fetchPersonas = async (options: { skipAutoSelect?: boolean } = {}) => {
+    try {
+      const res = await axios.get(`${API_URL}/api/personas`);
+      setPersonas(res.data);
+      // 未選択なら最初のペルソナを選択
+      if (!options.skipAutoSelect && res.data.length > 0 && !currentPersonaId) {
+        setCurrentPersonaId(res.data[0].id);
+      }
+    } catch (error) {
+      console.error('Failed to fetch personas:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchPersonas();
+  }, []);
+
+  // ペルソナ変更時にステータスを取得
+  useEffect(() => {
+    const fetchPersonaStatus = async () => {
+        if (!currentPersonaId) return;
+        try {
+            const res = await axios.get(`${API_URL}/api/personas/${currentPersonaId}`);
+            if (res.data) {
+                setStatus(res.data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch persona status:', error);
+        }
+    };
+    fetchPersonaStatus();
+  }, [currentPersonaId]);
+
+  // 初回読み込み時に最新のチャットを自動選択 (PersonaId依存に変更)
   useEffect(() => {
     const fetchInitialChat = async () => {
       try {
         console.log('[App] Fetching initial chats from:', `${API_URL}/api/chats`);
-        const res = await axios.get(`${API_URL}/api/chats`);
+        const res = await axios.get(`${API_URL}/api/chats`, { params: { personaId: currentPersonaId } });
         console.log('[App] Chats received:', res.data);
         if (res.data && res.data.length > 0) {
           const latestChatId = res.data[0].id;
@@ -155,8 +214,10 @@ function App() {
         console.error('[App] Failed to fetch initial chats:', error);
       }
     };
-    fetchInitialChat();
-  }, []);
+    if (currentPersonaId) {
+        fetchInitialChat();
+    }
+  }, [currentPersonaId]); // PersonaIdが変わったらチャット一覧も再取得 (useEffect依存配列変更)
 
   useEffect(() => {
     const fetchChatSession = async () => {
@@ -218,7 +279,8 @@ function App() {
       const res = await axios.post(`${API_URL}/api/chat`, {
         message: input,
         llmConfig,
-        chatId: currentChatId
+        chatId: currentChatId,
+        personaId: currentPersonaId // Send selected persona
       });
 
       // 新規チャット作成時の処理
@@ -309,6 +371,31 @@ function App() {
             <Menu className="w-5 h-5 text-slate-600 dark:text-slate-400" />
           </button>
           <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 ml-2">Reflecta Chat</h1>
+          
+          {/* Persona Selector */}
+          <div className="relative ml-4">
+            <select
+                value={currentPersonaId || ""}
+                onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "NEW") {
+                        setIsPersonaModalOpen(true);
+                    } else {
+                        setCurrentPersonaId(val);
+                        setCurrentChatId(null);
+                        setMessages([]); // Clear messages on persona switch
+                    }
+                }}
+                className="appearance-none pl-3 pr-8 py-1 bg-blue-50 dark:bg-slate-800 border border-blue-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:bg-blue-100 dark:hover:bg-slate-700 transition-colors"
+            >
+                {personas.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+                <option disabled>──────────</option>
+                <option value="NEW">＋ 新規ペルソナ作成</option>
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -425,6 +512,7 @@ function App() {
           refreshTrigger={refreshTrigger}
           onSelectChat={(id: string) => setCurrentChatId(id)}
           currentChatId={currentChatId}
+          currentPersonaId={currentPersonaId}
           onNewChat={() => setCurrentChatId(null)}
           chatModel={chatModel}
           setChatModel={setChatModel}
@@ -433,6 +521,19 @@ function App() {
           llmSettings={llmSettings}
           setLlmSettings={setLlmSettings}
           lastReflection={lastReflection}
+        />
+
+        <PersonaCreationModal 
+          isOpen={isPersonaModalOpen}
+          onClose={() => setIsPersonaModalOpen(false)}
+          onCreated={async (newPersonaId) => {
+            await fetchPersonas({ skipAutoSelect: true }); // Refresh list to include new persona
+            setCurrentPersonaId(newPersonaId);
+            setCurrentChatId(null); // Clear chat to start fresh with new persona
+            setMessages([]);
+            setStatus(prev => ({ ...prev, name: undefined })); // Reset status name to trigger fetch
+            // Ideally fetch new status immediately
+          }}
         />
       </div>
     </div>

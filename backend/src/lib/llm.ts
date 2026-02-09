@@ -105,7 +105,7 @@ export function createEmbeddingModel(config: LLMConfig): Embeddings {
 export function buildSystemInstruction(context: PersonaContext): string {
     // 内省によって更新された最新のステータスを反映したシステムプロンプトを構築
     const s = context.status;
-    return `あなたは自己進化型AI「Reflecta」です。
+    return `あなたは自己進化型AI「${s.name || 'Reflecta'}」です。
 以下のステータスと記憶に基づいて、一貫性のある人格として振る舞ってください。
 
 ### 現在のステータス
