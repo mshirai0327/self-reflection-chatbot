@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { X, User, Heart, Activity, Sparkles, Terminal } from 'lucide-react';
+import { X, User, Activity, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface PersonaCreationModalProps {
