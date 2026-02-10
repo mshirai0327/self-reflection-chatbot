@@ -124,6 +124,25 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
         }
     };
     
+    const handleSaveSystemPrompt = async () => {
+        if (isSubmitting.current) return;
+        isSubmitting.current = true;
+        
+        try {
+            await fetch(`${import.meta.env.VITE_API_URL || ''}/api/personas/${status.personaId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ systemPrompt: editingSystemPromptText })
+            });
+             window.location.reload(); 
+        } catch (e) {
+            console.error(e);
+        } finally {
+            isSubmitting.current = false;
+            setIsEditingSystemPrompt(false);
+        }
+    };
+    
     // Header Profile Section
     const renderHeaderProfile = () => (
         <div className="p-6 pb-2 flex flex-col items-center">
