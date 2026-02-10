@@ -132,3 +132,32 @@ export function flattenStatus(fullStatus: any) {
         friendliness: getVal(semiReversibleVal, "friendliness"),
     };
 }
+
+/**
+ * Lv2 (QuantityIrreversibleStatus) から最新2件の身長を取得し、その差分（成長量）を計算します。
+ * 0.1cm以上の増加がある場合に有意な値として扱われることを想定しています。
+ */
+export async function calculateGrowthDelta(personaId: string): Promise<number> {
+    const personaStatus = await prisma.personaStatus.findUnique({
+        where: { personaId },
+        select: { statusId: true }
+    });
+
+    if (!personaStatus) return 0;
+
+    const records = await prisma.quantityIrreversibleStatus.findMany({
+        where: { personaStatusId: personaStatus.statusId },
+        orderBy: { recordedAt: 'desc' },
+        take: 2,
+        select: { height: true }
+    });
+
+    if (records.length < 2) return 0;
+
+    const current = records[0].height;
+    const previous = records[1].height;
+
+    if (current === null || previous === null || current === undefined || previous === undefined) return 0;
+
+    return current - previous;
+}

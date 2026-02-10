@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { queryMemories, addMemory } from "@/lib/chroma";
-import { getDefaultPersona, getDefaultUser, getLatestStatus, flattenStatus } from "@/lib/persona";
+import { getDefaultPersona, getDefaultUser, getLatestStatus, flattenStatus, calculateGrowthDelta } from "@/lib/persona";
 import { generateResponse, LLMConfig } from "@/lib/llm";
 import { ulid } from "ulid";
 
@@ -46,6 +46,8 @@ export async function POST(req: NextRequest) {
             height: 160, weight: 50, health: 100, mood: 50, trust: 50
         };
 
+        const growthDelta = await calculateGrowthDelta(persona.id);
+
         // 2. Fetch relevant memories from ChromaDB
         // chatIdがある場合は、そのチャットの記憶のみを検索対象にする
         // 新規チャット(chatIdなし)の場合は、他のチャットの文脈が混ざらないように検索しない
@@ -79,7 +81,8 @@ export async function POST(req: NextRequest) {
         const { content: aiResponse, systemInstruction } = await generateResponse(activeConfig, message, {
             status,
             memories: memoryStrings,
-            history
+            history,
+            growthDelta
         });
 
 
