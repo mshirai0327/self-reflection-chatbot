@@ -200,6 +200,7 @@ ${logSummary}
             throw new Error("Critical: fullStatus.statusId is undefined or null!");
         }
 
+        // todo 不可逆データと言いながら、実際にはコピーしているだけ。成長しない
         const irreversibleData = {
             personaStatusId: fullStatus.statusId,
             height: status.height ?? 160.0,
