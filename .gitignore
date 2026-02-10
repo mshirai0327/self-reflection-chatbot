@@ -7,3 +7,6 @@ dist
 .DS_Store
 backend/.env
 frontend/.env
+
+# spec files
+spec.md

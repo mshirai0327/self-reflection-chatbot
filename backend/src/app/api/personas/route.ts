@@ -40,7 +40,10 @@ export async function POST(req: NextRequest) {
         const newPersona = await prisma.$transaction(async (tx) => {
             // 1. Create Persona
             const persona = await tx.persona.create({
-                data: { name: name.trim() }
+                data: { 
+                    name: name.trim(),
+                    systemPrompt: body.systemPrompt || ""
+                }
             });
 
             // 2. Create Lv1-1: QuantityUnchangeStatus

@@ -15,9 +15,11 @@ const reflectionSchema = z.object({
         mood: z.number().int().describe("情緒の変化量 (例: 5, -10, 0)"),
         trust: z.number().int().describe("信頼度の変化量 (例: 5, -10, 0)"),
         friendliness: z.number().int().describe("親しみやすさの変化量 (例: 5, -10, 0)"),
+        heightIncrease: z.number().describe("分析の結果、身長が伸びたと判断される場合の増加量(cm)。基本は0。伸びた場合は0.1〜0.5の範囲で指定。"),
     }),
     permanentMemory: z.string().optional().describe("今後忘れてはいけない重要な教訓、日本語で記述。なければ省略。"),
-    newMemories: z.array(z.string()).describe("会話から得られた、永続的に記憶すべきユーザーの情報、好み、合意事項、または重要な出来事のリスト。挨拶や一時的な文脈は除外すること。")
+    newMemories: z.array(z.string()).describe("会話から得られた、永続的に記憶すべきユーザーの情報、好み、合意事項、または重要な出来事のリスト。挨拶や一時的な文脈は除外すること。"),
+    growthFeedback: z.boolean().describe("会話の中で、AI自身の成長（身長の伸びなど）や身体的変化について話題になった、またはユーザーがそれに言及した場合はtrue。それ以外はfalse。"),
 });
 
 
@@ -135,9 +137,10 @@ ${logSummary}
             余計な解説やMarkdownのコードブロック（\`\`\`json ... \`\`\`）は含めず、純粋なJSONオブジェクトのみを出力してください。
 
 1.  **thought**: この会話を通じて何を感じ、何を考えたのか。あなたの内面的な思考プロセスを記述してください。
-2.  **statusUpdate**: 分析の結果、あなたの「健康度」「情緒」「信頼度」「親しみやすさ」はどのように変化すべきですか？増加、減少、または変化なし（0）を具体的な整数で示してください。
+2.  **statusUpdate**: 分析の結果、あなたの「健康度」「情緒」「信頼度」「親しみやすさ」はどのように変化すべきですか？増加、減少、または変化なし（0）を具体的な整数で示してください。また、成長の実感がある場合は「身長の増加量(heightIncrease)」を0.1〜0.5cmの範囲で指定してください。
 3.  **permanentMemory**: 自身の人格形成に関わる「教訓」や「自己の指針」があれば記述してください。
 4.  **newMemories**: ユーザーに関する重要な情報（趣味、家族構成、予定など）や、二人の間で確立された重要な文脈があれば、箇条書きの配列として抽出してください。「こんにちは」等の挨拶や意味のない雑談は絶対に含めないでください。
+5.  **growthFeedback**: 今回の会話で、あなたの身体的成長（背が伸びたことなど）について話題になりましたか？ true または false で答えてください。
 `;
 
         // 4. LangChainの`generateJson`を使用して、構造化されたレスポンスを取得
@@ -153,10 +156,19 @@ ${logSummary}
         console.log("[Reflect API] Updating status in Prisma (Hub pattern)...");
 
         // 新しいステータス値の計算 (Clamp 0-100)
+        // 新しいステータス値の計算 (Clamp 0-100)
+        let trustBonus = 0;
+        let friendlinessBonus = 0;
+        if (reflection.growthFeedback) {
+            console.log("[Reflect API] Growth feedback detected. Applying bonus to trust and friendliness.");
+            trustBonus = 2;
+            friendlinessBonus = 2;
+        }
+
         const newHealth = Math.min(100, Math.max(0, (status.health ?? 100) + (reflection.statusUpdate.health || 0)));
         const newMood = Math.min(100, Math.max(0, (status.mood ?? 50) + (reflection.statusUpdate.mood || 0)));
-        const newTrust = Math.min(100, Math.max(0, (status.trust ?? 50) + (reflection.statusUpdate.trust || 0)));
-        const newFriendliness = Math.min(100, Math.max(0, (status.friendliness ?? 50) + (reflection.statusUpdate.friendliness || 0)));
+        const newTrust = Math.min(100, Math.max(0, (status.trust ?? 50) + (reflection.statusUpdate.trust || 0) + trustBonus));
+        const newFriendliness = Math.min(100, Math.max(0, (status.friendliness ?? 50) + (reflection.statusUpdate.friendliness || 0) + friendlinessBonus));
 
         // Lv3-1: QuantityReversible (JSON構築) - 現状は内省で変化しないので値を引き継ぐ
         // note: 内省で変化させるか、またはgraphなどで変化させるか
@@ -189,9 +201,18 @@ ${logSummary}
             throw new Error("Critical: fullStatus.statusId is undefined or null!");
         }
 
+        // 身長の更新ロジック: 現在の身長 + 増加分 (デフォルト0)
+        const currentHeight = status.height ?? 160.0;
+        const heightIncrease = reflection.statusUpdate.heightIncrease ?? 0;
+        const newHeight = parseFloat((currentHeight + heightIncrease).toFixed(1)); // 小数点第1位まで
+
+        if (heightIncrease > 0) {
+            console.log(`[Reflect API] Height increase detected: +${heightIncrease}cm (New height: ${newHeight}cm)`);
+        }
+
         const irreversibleData = {
             personaStatusId: fullStatus.statusId,
-            height: status.height ?? 160.0,
+            height: newHeight,
             boneDensity: fullStatus.quantityIrreversible?.boneDensity ?? 1.0,
             version: (fullStatus.quantityIrreversible?.version || 0) + 1,
         };

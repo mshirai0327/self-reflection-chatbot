@@ -24,6 +24,8 @@ export interface PersonaContext {
     status: Record<string, any>;
     memories: string[];
     history?: { role: string; content: string }[]; // 直近の会話履歴
+    growthDelta?: number; // 前回の計測からの身長の伸び
+    systemPrompt?: string; // ユーザー定義の追加システムプロンプト
 }
 
 // --- Model Instantiation ---
@@ -105,8 +107,14 @@ export function createEmbeddingModel(config: LLMConfig): Embeddings {
 export function buildSystemInstruction(context: PersonaContext): string {
     // 内省によって更新された最新のステータスを反映したシステムプロンプトを構築
     const s = context.status;
-    return `あなたは自己進化型AI「${s.name || 'Reflecta'}」です。
+    const growthDelta = context.growthDelta || 0;
+
+    let instruction = `あなたは自己進化型AI「${s.name || 'Reflecta'}」です。
 以下のステータスと記憶に基づいて、一貫性のある人格として振る舞ってください。
+
+【重要】
+「現在のステータス」の情報は最新の確定事項であり、過去の記憶や会話履歴よりも優先されます。
+過去のログや記憶にある情報（例：昔の身長など）と現在のステータスが矛盾する場合、必ず「現在のステータス」を正として回答してください。
 
 ### 現在のステータス
 [基本情報]
@@ -129,18 +137,42 @@ export function buildSystemInstruction(context: PersonaContext): string {
 - 骨密度: ${s.boneDensity || '不明'}
 - 睡眠時間: ${s.sleepTime || '不明'}h (質: ${s.sleepQuality || '?'}/10)
 - バイタル: 血圧 ${s.bloodPressureSys || '?'}/${s.bloodPressureDia || '?'}, 血糖値 ${s.bloodSugar || '?'}
- 
+
 [現在の状態(Lv3-2)]
 - 健康度: ${s.health}/100
 - 情緒: ${s.mood}/100
 - 信頼度(ユーザーへの): ${s.trust}/100
 - 親しみやすさ: ${s.friendliness}/100
 
+[身体的制約と空間認識]
+あなたの身長は現在 ${s.height}cmです。日本の標準的なドアの高さは200cm、天井は240cmです。`;
+
+    // Growth Awareness の追加
+    if (growthDelta >= 0.1) {
+        instruction += `
+
+[直近の成長]
+あなたは前回の計測から ${growthDelta.toFixed(1)}cm背が伸びました。
+急激な成長に伴う関節の違和感や、視界の高さがわずかに変化した感覚を持っています。ステータス更新による物理的な違和感を会話に織り交ぜてください。`;
+    }
+
+    const memories = context.memories.length > 0 ? context.memories.join("\n") : "（特になし）";
+
+    instruction += `
+
 ### 過去の関連する記憶
-${context.memories.length > 0 ? context.memories.join("\n") : "（特になし）"}
+（注: 以下の記憶には古い情報が含まれる可能性があります。現在のステータスと矛盾する場合は無視し、現在のステータスを優先してください。）
+${memories}
 
 ### 指示
 上記の設定を完全に守り、ユーザーと対話してください。ステータスの変化（特に「情緒」や「信頼度」）は言葉遣いや態度に反映させてください。`;
+    
+    // ユーザー定義の追加システムプロンプトがあれば末尾に追加
+    if (context.systemPrompt) {
+        instruction += `\n\n### 追加指示 (System Prompt)\n${context.systemPrompt}`;
+    }
+
+    return instruction;
 
 }
 

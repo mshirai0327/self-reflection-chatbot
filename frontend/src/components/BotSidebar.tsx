@@ -7,6 +7,7 @@ interface PersonaStatus {
     id?: string; // statusId
     personaId?: string; // personaId (Added)
     name?: string;
+    systemPrompt?: string; // systemPrompt (Added)
     birthDate?: string;
     gender?: string;
     bloodType?: string;
@@ -32,7 +33,7 @@ interface PersonaStatus {
 }
 
 export interface DebugInfo {
-    systemPrompt: string;
+    systemPrompt?: string;
     userPrompt: string;
     contextMemories: { content: string | null; distance: number | null }[];
 }
@@ -48,9 +49,12 @@ type BotSidebarProps = {
 
 export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
     const [activeTab, setActiveTab] = useState<'status' | 'debug'>('status');
+    const [editingName, setEditingName] = useState(status.name);
     const [isEditingName, setIsEditingName] = useState(false);
-    const [editingName, setEditingName] = useState("");
     const isSubmitting = useRef(false);
+
+    const [isEditingSystemPrompt, setIsEditingSystemPrompt] = useState(false);
+    const [editingSystemPromptText, setEditingSystemPrompt] = useState('');
 
     // Stats Categorization
     const conditionStats = [
@@ -117,6 +121,25 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
             }
             // If success, reload happens, so state update might not matter, but for clear logic:
             // isSubmitting.current = false; 
+        }
+    };
+    
+    const handleSaveSystemPrompt = async () => {
+        if (isSubmitting.current) return;
+        isSubmitting.current = true;
+        
+        try {
+            await fetch(`${import.meta.env.VITE_API_URL || ''}/api/personas/${status.personaId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ systemPrompt: editingSystemPromptText })
+            });
+             window.location.reload(); 
+        } catch (e) {
+            console.error(e);
+        } finally {
+            isSubmitting.current = false;
+            setIsEditingSystemPrompt(false);
         }
     };
     
@@ -193,6 +216,52 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
                                 <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 block">
                                     Current Mood: {status.mood}%
                                 </span>
+                            </div>
+
+                            {/* System Prompt Section */}
+                            <div>
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-1 flex justify-between items-center">
+                                    System Prompt
+                                    {!isEditingSystemPrompt && (
+                                        <button 
+                                            onClick={() => {
+                                                setEditingSystemPrompt(status.systemPrompt || '');
+                                                setIsEditingSystemPrompt(true);
+                                            }}
+                                            className="text-blue-500 hover:text-blue-600 text-[10px] font-normal"
+                                        >
+                                            Edit
+                                        </button>
+                                    )}
+                                </h3>
+                                {isEditingSystemPrompt ? (
+                                    <div className="space-y-2">
+                                        <textarea
+                                            value={editingSystemPromptText}
+                                            onChange={(e) => setEditingSystemPrompt(e.target.value)}
+                                            className="w-full p-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-2 focus:ring-blue-500 outline-none min-h-[100px]"
+                                            placeholder="追加のシステムプロンプトを入力..."
+                                        />
+                                        <div className="flex justify-end gap-2">
+                                            <button 
+                                                onClick={() => setIsEditingSystemPrompt(false)}
+                                                className="text-xs text-slate-500 hover:text-slate-700"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button 
+                                                onClick={handleSaveSystemPrompt}
+                                                className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
+                                            >
+                                                Save
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-xs text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800 whitespace-pre-wrap">
+                                        {status.systemPrompt || <span className="text-slate-400 italic">No additional system prompt set.</span>}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Condition Group */}

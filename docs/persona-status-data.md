@@ -16,55 +16,83 @@
 
 ## レベルごとの詳細
 
-### Lv1: 完全不変
+### Lv1: 不変の核 (Identity)
 
-AI人格の「核」となる部分です。原則、変更しないですが、これ単体で個性は出てきません。しかし、このデータが失われてLLMによる文章生成がされると、そのAIは人間味を失います。
+AI人格の根幹をなすデータ。原則として変更されず、人格の同一性を担保します。
 
-#### Lv1-1 (定量可能)
+#### Lv1-1: 定量可能で遺伝的に確定するデータ (QuantityUnchangeStatus)
+客観的な事実として定義できるデータです。
 
-- 名前
-- 誕生日
-- 性別
-- 血液型
-- クロノタイプ（朝型・夜型）
-- 苦味への感受性
-- 知能レベル
+- 名前 (name)
+- 生年月日 (birthDate)
+- 性別 (gender)
+- 血液型 (bloodType)
+- クロノタイプ (chronotype)
+- 苦味への感受性 (bitternessSense)
+- 知能 (intelligence)
 
-#### Lv1-2 (定量困難)
+#### Lv1-2: 根源的性格特性 (SemiquantityUnchangeStatus)
+数値化は難しいが、0-100のパラメータとして定義する性格の傾向です
 
-- 倫理観
-- 熱量
-- 好奇心
-- 積極性
-- 外向性
+- 倫理観 (ethics)
+- 情熱 (passion)
+- 好奇心 (curiosity)
+- 攻撃性 (aggressiveness)
+- 外向性 (extroversion)
 
-### Lv2: 不可逆的に変化する
+### Lv2: 不可逆的な成長 (Growth)
 
-時間の経過や経験によって積み重なるデータです。
+時間の経過や経験によって蓄積・変化する身体的データです。一度変化すると元に戻ることは稀です。履歴管理されます。
 
-- 身長
-- 骨密度
-- 体格
-- 声紋
+**モデル: QuantityIrreversibleStatus**
 
-### Lv3: 可変であるが範囲が限定的
+- 身長 (height)
+- 骨密度 (boneDensity)
+- 最大筋力/握力 (gripStrength)
+- 声の高さ (voicePitch)
+- 視力 (eyesight)
+- 聴力 (hearingAbility)
 
-#### Lv3-1 生物的なデータとして定量化可能
+### Lv3: 可変的な状態 (State)
 
-- 体重
-- 血糖値
-- 血圧
-- 睡眠時間
-- 睡眠質
+日常的に変動するステータスです。JSON形式で柔軟に管理され、時系列の履歴を持ちます。
 
-#### Lv3-2 定量化が難しい
+**JSONデータ構造 (共通)**:
+```json
+// QuantityReversibleStatus / SemiquantityReversibleStatus の value カラム
+[
+  { "label": "項目キー", "value": 数値, "unit": "単位(なければnull)" },
+  ...
+]
+```
 
-- ユーザに対する信頼度
-- ユーザに対する友好度
+#### Lv3-1: バイタルデータ (QuantityReversibleStatus)
 
-### Lv4: フラジャイル（情緒・文脈）
+生物的な活動によって変動する数値データです。
 
-最も流動的で、その場限りの解釈が重要なデータです。
+**主要な管理項目 (Keys)**:
+
+- 体重 (weight)
+- 体脂肪率 (body_fat_percentage)
+- 体温 (body_temperature)
+- 血糖値 (blood_sugar)
+- 血圧 (blood_pressure_sys / blood_pressure_dia)
+- 睡眠時間 (sleep_time)
+- 睡眠質 (sleep_quality)
+
+#### Lv3-2: 情緒・関係性 (SemiquantityReversibleStatus)
+
+内省や対話によって頻繁に更新される精神的・関係的パラメータです。
+
+**主要な管理項目 (Keys)**:
+- 健康度 (health)
+- 気分・情緒 (mood)
+- 信頼度 (trust)
+- 親しみやすさ (friendliness)
+
+### Lv4: フラジャイルな文脈 (Context)
+
+数値化できない、あるいは数値化するほどでもない一時的な文脈や記憶です。RDBではなく、**Vector Store (ChromaDB)** や **直近の会話ログ** として管理されます。
 
 - その日の気分
 - マイブーム
