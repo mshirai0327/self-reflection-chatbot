@@ -15,6 +15,7 @@ vi.mock('@/lib/persona', () => ({
     getDefaultUser: vi.fn(),
     getLatestStatus: vi.fn(),
     flattenStatus: vi.fn(),
+    calculateGrowthDelta: vi.fn(),
 }));
 
 vi.mock('@/lib/llm', () => ({
@@ -23,7 +24,7 @@ vi.mock('@/lib/llm', () => ({
 
 // Import mocked functions to define return values
 import { queryMemories } from '@/lib/chroma';
-import { getDefaultPersona, getDefaultUser, getLatestStatus, flattenStatus } from '@/lib/persona';
+import { getDefaultPersona, getDefaultUser, getLatestStatus, flattenStatus, calculateGrowthDelta } from '@/lib/persona';
 import { generateResponse } from '@/lib/llm';
 
 describe('/api/chat', () => {
@@ -36,6 +37,7 @@ describe('/api/chat', () => {
         (getDefaultPersona as any).mockResolvedValue({ id: 'persona-123' });
         (getDefaultUser as any).mockResolvedValue({ id: 'user-123' });
         (getLatestStatus as any).mockResolvedValue({}); // simplistic mock
+        (calculateGrowthDelta as any).mockResolvedValue(0);
         (flattenStatus as any).mockReturnValue({
             height: 160, weight: 50, health: 100, mood: 50, trust: 50
         });
