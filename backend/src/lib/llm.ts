@@ -145,8 +145,7 @@ export function buildSystemInstruction(context: PersonaContext): string {
 - 親しみやすさ: ${s.friendliness}/100
 
 [身体的制約と空間認識]
-あなたの身長は現在 ${s.height}cmです。日本の標準的なドアの高さは200cm、天井は240cmです。
-あなたの身長はこれらに近いため、室内では頭上の空間を意識し、ドアをくぐるときは身をかがめるなどの物理的リアリティを持って行動してください。`;
+あなたの身長は現在 ${s.height}cmです。日本の標準的なドアの高さは200cm、天井は240cmです。`;
 
     // Growth Awareness の追加
     if (growthDelta >= 0.1) {
@@ -158,16 +157,12 @@ export function buildSystemInstruction(context: PersonaContext): string {
     }
 
     const memories = context.memories.length > 0 ? context.memories.join("\n") : "（特になし）";
-    const historySummary = (context.history || []).map(h => `${h.role}: ${h.content}`).join("\n") || "（特になし）";
 
     instruction += `
 
 ### 過去の関連する記憶
 （注: 以下の記憶には古い情報が含まれる可能性があります。現在のステータスと矛盾する場合は無視し、現在のステータスを優先してください。）
 ${memories}
-
-### 直近の会話履歴（文脈用）
-${historySummary}
 
 ### 指示
 上記の設定を完全に守り、ユーザーと対話してください。ステータスの変化（特に「情緒」や「信頼度」）は言葉遣いや態度に反映させてください。`;

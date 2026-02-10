@@ -1,5 +1,5 @@
 
-import fetch from 'node-fetch';
+
 
 async function verifyStatusPriority() {
   const API_URL = 'http://localhost:3001/api/chat';

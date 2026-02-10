@@ -87,7 +87,8 @@ export async function POST(req: NextRequest) {
             status,
             memories: memoryStrings,
             history,
-            growthDelta
+            growthDelta,
+            systemPrompt: persona?.systemPrompt || undefined
         });
 
 
