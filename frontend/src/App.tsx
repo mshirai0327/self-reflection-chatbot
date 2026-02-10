@@ -357,7 +357,8 @@ function App() {
       const resChat = await axios.post(`${API_URL}/api/chat`, {
         message: followUpMessage,
         llmConfig,
-        chatId: currentChatId
+        chatId: currentChatId,
+        personaId: currentPersonaId
       });
       setMessages(prev => [...prev, { role: 'assistant', content: resChat.data.response }]);
       if (resChat.data.status) setStatus(resChat.data.status);

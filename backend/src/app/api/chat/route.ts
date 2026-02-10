@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
         console.log("[Chat API] Fetching persona status...");
         const fullStatus = await getLatestStatus(persona.id);
         const status = flattenStatus(fullStatus) || {
-            height: 160, weight: 50, health: 100, mood: 50, trust: 50
+            name: 'Reflecta', height: 160, weight: 50, health: 100, mood: 50, trust: 50
         };
 
         const growthDelta = await calculateGrowthDelta(persona.id);
