@@ -46,7 +46,10 @@ export async function PATCH(
 
         const updatedPersona = await prisma.persona.update({
             where: { id },
-            data: { name },
+            data: { 
+                name: name !== undefined ? name : undefined,
+                systemPrompt: body.systemPrompt !== undefined ? body.systemPrompt : undefined
+            },
         });
 
         return NextResponse.json(updatedPersona);

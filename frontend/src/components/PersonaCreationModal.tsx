@@ -33,6 +33,9 @@ export function PersonaCreationModal({ isOpen, onClose, onCreated }: PersonaCrea
         height: 160,
         weight: 50
     });
+    
+    // System Prompt
+    const [systemPrompt, setSystemPrompt] = useState('');
 
     const resetForm = () => {
         setName('');
@@ -247,35 +250,57 @@ export function PersonaCreationModal({ isOpen, onClose, onCreated }: PersonaCrea
                             </div>
                         </div>
                     )}
+                    {step === 3 && (
+                        <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+                             <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <span className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 flex items-center justify-center text-xs">3</span>
+                                追加システムプロンプト (任意)
+                            </h3>
+                            <div>
+                                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">System Prompt</label>
+                                <p className="text-[10px] text-slate-500 mb-2">
+                                    AIに対する追加の振る舞い指示や設定を入力できます。
+                                    （例: 「語尾に『にゃん』をつけて話して」「常に敬語を使って」「関西弁で話して」など）
+                                </p>
+                                <textarea
+                                    value={systemPrompt}
+                                    onChange={(e) => setSystemPrompt(e.target.value)}
+                                    className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm min-h-[150px]"
+                                    placeholder="ここに入力した指示は、AIのシステムプロンプトに追加されます。"
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer */}
                 <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
-                    {step === 2 ? (
-                        <>
-                             <button 
-                                onClick={() => setStep(1)}
-                                disabled={isLoading}
-                                className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-                            >
-                                戻る
-                            </button>
-                            <button 
-                                onClick={handleSubmit}
-                                disabled={isLoading}
-                                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-lg shadow-blue-500/20 disabled:opacity-50 flex items-center gap-2"
-                            >
-                                {isLoading ? '作成中...' : (
-                                    <>
-                                        <Sparkles className="w-4 h-4" />
-                                        作成する
-                                    </>
-                                )}
-                            </button>
-                        </>
+                    {step > 1 && (
+                         <button 
+                            onClick={() => setStep(step - 1)}
+                            disabled={isLoading}
+                            className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                        >
+                            戻る
+                        </button>
+                    )}
+
+                    {step === 3 ? (
+                        <button 
+                            onClick={handleSubmit}
+                            disabled={isLoading}
+                            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-lg shadow-blue-500/20 disabled:opacity-50 flex items-center gap-2"
+                        >
+                            {isLoading ? '作成中...' : (
+                                <>
+                                    <Sparkles className="w-4 h-4" />
+                                    作成する
+                                </>
+                            )}
+                        </button>
                     ) : (
                         <button 
-                            onClick={() => setStep(2)}
+                            onClick={() => setStep(step + 1)}
                             className="px-6 py-2 bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors"
                         >
                             次へ

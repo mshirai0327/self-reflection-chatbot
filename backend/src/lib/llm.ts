@@ -25,6 +25,7 @@ export interface PersonaContext {
     memories: string[];
     history?: { role: string; content: string }[]; // 直近の会話履歴
     growthDelta?: number; // 前回の計測からの身長の伸び
+    systemPrompt?: string; // ユーザー定義の追加システムプロンプト
 }
 
 // --- Model Instantiation ---
@@ -156,17 +157,27 @@ export function buildSystemInstruction(context: PersonaContext): string {
 急激な成長に伴う関節の違和感や、視界の高さがわずかに変化した感覚を持っています。ステータス更新による物理的な違和感を会話に織り交ぜてください。`;
     }
 
+    const memories = context.memories.length > 0 ? context.memories.join("\n") : "（特になし）";
+    const historySummary = (context.history || []).map(h => `${h.role}: ${h.content}`).join("\n") || "（特になし）";
+
     instruction += `
 
 ### 過去の関連する記憶
 （注: 以下の記憶には古い情報が含まれる可能性があります。現在のステータスと矛盾する場合は無視し、現在のステータスを優先してください。）
-${context.memories.length > 0 ? context.memories.join("\n") : "（特になし）"}
+${memories}
+
+### 直近の会話履歴（文脈用）
+${historySummary}
 
 ### 指示
 上記の設定を完全に守り、ユーザーと対話してください。ステータスの変化（特に「情緒」や「信頼度」）は言葉遣いや態度に反映させてください。`;
     
-    return instruction;
+    // ユーザー定義の追加システムプロンプトがあれば末尾に追加
+    if (context.systemPrompt) {
+        instruction += `\n\n### 追加指示 (System Prompt)\n${context.systemPrompt}`;
+    }
 
+    return instruction;
 
 }
 

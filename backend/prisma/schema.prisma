@@ -26,9 +26,11 @@ model User {
 
 /// AI人格（ペルソナ）の定義。ユーザーからは独立した個体として管理。
 model Persona {
-  id   String @id @default(uuid())
+  id           String  @id @default(uuid())
   /// ペルソナの名前（例: Reflecta）
-  name String @default("Reflecta")
+  name         String  @default("Reflecta")
+  /// ユーザー定義の追加システムプロンプト
+  systemPrompt String? @default("")
 
   /// 最新ステータスのポインタ。常に最新の状態へ単一リレーションでアクセス可能。
   status PersonaStatus?
