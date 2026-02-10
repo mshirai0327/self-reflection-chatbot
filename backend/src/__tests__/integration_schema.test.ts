@@ -6,9 +6,9 @@ import { describe, it, expect } from 'vitest';
 const prisma = new PrismaClient({
     datasources: {
         db: {
-            // ホスト側テスト実行時は必ず localhost を使用する
-            // env("DATABASE_URL") は "db:3306" になっている可能性があるため無視する
-            url: "mysql://user:password@localhost:3306/ai_reflection_db"
+            // CI環境（GitHub Actions等）では設定されたDATABASE_URLを使用
+            // ローカル環境（CI=false/undefined）では、.envが"db:3306"となっていてもホスト側から接続できるようにlocalhostを強制
+            url: process.env.CI ? process.env.DATABASE_URL : "mysql://user:password@localhost:3306/ai_reflection_db"
         }
     }
 });
