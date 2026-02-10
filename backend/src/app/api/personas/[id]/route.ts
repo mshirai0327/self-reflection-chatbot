@@ -39,18 +39,26 @@ export async function PATCH(
         const { id } = await params;
         const body = await req.json();
         const { name } = body;
+        
+        console.log(`[API] PATCH /api/personas/${id}`, body);
 
-        if (!name) {
-            return NextResponse.json({ error: "Name is required" }, { status: 400 });
-        }
+        // nameが必須だったバリデーションを削除し、部分更新を許可する
+        // if (!name) {
+        //     return NextResponse.json({ error: "Name is required" }, { status: 400 });
+        // }
+
+        const updateData: any = {};
+        if (name !== undefined) updateData.name = name;
+        if (body.systemPrompt !== undefined) updateData.systemPrompt = body.systemPrompt;
+
+        console.log(`[API] Updating persona with:`, updateData);
 
         const updatedPersona = await prisma.persona.update({
             where: { id },
-            data: { 
-                name: name !== undefined ? name : undefined,
-                systemPrompt: body.systemPrompt !== undefined ? body.systemPrompt : undefined
-            },
+            data: updateData,
         });
+
+        console.log(`[API] Updated persona result:`, updatedPersona);
 
         return NextResponse.json(updatedPersona);
     } catch (error: any) {

@@ -66,6 +66,7 @@ export async function getLatestStatus(personaId: string) {
     return {
         ...persona.status,
         name: persona.name, // Include persona name
+        systemPrompt: persona.systemPrompt, // Include system prompt (Added)
         quantityUnchange: persona.quantityUnchange,
         semiquantityUnchange: persona.semiquantityUnchange,
         // 配列の最初の要素（最新）を展開
@@ -98,6 +99,7 @@ export function flattenStatus(fullStatus: any) {
         id: fullStatus.statusId, // Status ID explicitly included
         personaId: fullStatus.personaId, // Persona ID explicitly included
         name: fullStatus.name, // Include persona name
+        systemPrompt: fullStatus.systemPrompt, // Include system prompt (Added)
         // Lv1-1: QuantityUnchange
         birthDate: fullStatus.quantityUnchange?.birthDate,
         gender: fullStatus.quantityUnchange?.gender,
