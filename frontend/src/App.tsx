@@ -130,14 +130,32 @@ function App() {
     return defaultSettings;
   });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
-  
-  // Persona Management State
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Load state from localStorage
+  const [currentPersonaId, setCurrentPersonaId] = useState<string | null>(() => localStorage.getItem('currentPersonaId'));
+  // currentChatId also needs to be persisted to restore session
+  const [currentChatId, setCurrentChatId] = useState<string | null>(() => localStorage.getItem('currentChatId'));
+
   const [personas, setPersonas] = useState<Persona[]>([]);
-  const [currentPersonaId, setCurrentPersonaId] = useState<string | null>(null);
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
 
-  const scrollRef = useRef<HTMLDivElement>(null);
+  // Persist state
+  useEffect(() => {
+    if (currentPersonaId) {
+        localStorage.setItem('currentPersonaId', currentPersonaId);
+    } else {
+        localStorage.removeItem('currentPersonaId');
+    }
+  }, [currentPersonaId]);
+
+  useEffect(() => {
+    if (currentChatId) {
+        localStorage.setItem('currentChatId', currentChatId);
+    } else {
+        localStorage.removeItem('currentChatId');
+    }
+  }, [currentChatId]);
 
   // 設定の永続化
   useEffect(() => {
@@ -167,7 +185,7 @@ function App() {
     try {
       const res = await axios.get(`${API_URL}/api/personas`);
       setPersonas(res.data);
-      // 未選択なら最初のペルソナを選択
+      // 未選択かつlocalStorageにもなければ最初のペルソナを選択
       if (!options.skipAutoSelect && res.data.length > 0 && !currentPersonaId) {
         setCurrentPersonaId(res.data[0].id);
       }
@@ -199,6 +217,9 @@ function App() {
   // 初回読み込み時に最新のチャットを自動選択 (PersonaId依存に変更)
   useEffect(() => {
     const fetchInitialChat = async () => {
+        // If we already have a chatId (from localStorage), don't override it with latest
+        if (currentChatId) return;
+
       try {
         console.log('[App] Fetching initial chats from:', `${API_URL}/api/chats`);
         const res = await axios.get(`${API_URL}/api/chats`, { params: { personaId: currentPersonaId } });
