@@ -218,51 +218,6 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
                                 </span>
                             </div>
 
-                            {/* System Prompt Section */}
-                            <div>
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-1 flex justify-between items-center">
-                                    System Prompt
-                                    {!isEditingSystemPrompt && (
-                                        <button 
-                                            onClick={() => {
-                                                setEditingSystemPrompt(status.systemPrompt || '');
-                                                setIsEditingSystemPrompt(true);
-                                            }}
-                                            className="text-blue-500 hover:text-blue-600 text-[10px] font-normal"
-                                        >
-                                            Edit
-                                        </button>
-                                    )}
-                                </h3>
-                                {isEditingSystemPrompt ? (
-                                    <div className="space-y-2">
-                                        <textarea
-                                            value={editingSystemPromptText}
-                                            onChange={(e) => setEditingSystemPrompt(e.target.value)}
-                                            className="w-full p-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-2 focus:ring-blue-500 outline-none min-h-[100px]"
-                                            placeholder="追加のシステムプロンプトを入力..."
-                                        />
-                                        <div className="flex justify-end gap-2">
-                                            <button 
-                                                onClick={() => setIsEditingSystemPrompt(false)}
-                                                className="text-xs text-slate-500 hover:text-slate-700"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button 
-                                                onClick={handleSaveSystemPrompt}
-                                                className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
-                                            >
-                                                Save
-                                            </button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-xs text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800 whitespace-pre-wrap">
-                                        {status.systemPrompt || <span className="text-slate-400 italic">No additional system prompt set.</span>}
-                                    </div>
-                                )}
-                            </div>
 
                             {/* Condition Group */}
                             <div>
@@ -334,6 +289,54 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
                         </div>
                     ) : (
                         <div className="space-y-6">
+                            {/* User System Prompt 編集セクション（STATUSから移動） */}
+                            <div>
+                                <h3 className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-2 px-1 flex justify-between items-center">
+                                    <span className="flex items-center gap-2">
+                                        <FileText className="w-3 h-3" /> Custom System Prompt
+                                    </span>
+                                    {!isEditingSystemPrompt && (
+                                        <button 
+                                            onClick={() => {
+                                                setEditingSystemPrompt(status.systemPrompt || '');
+                                                setIsEditingSystemPrompt(true);
+                                            }}
+                                            className="text-purple-500 hover:text-purple-600 text-[10px] font-normal"
+                                        >
+                                            Edit
+                                        </button>
+                                    )}
+                                </h3>
+                                {isEditingSystemPrompt ? (
+                                    <div className="space-y-2">
+                                        <textarea
+                                            value={editingSystemPromptText}
+                                            onChange={(e) => setEditingSystemPrompt(e.target.value)}
+                                            className="w-full p-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-2 focus:ring-purple-500 outline-none min-h-[100px]"
+                                            placeholder="追加のシステムプロンプトを入力..."
+                                        />
+                                        <div className="flex justify-end gap-2">
+                                            <button 
+                                                onClick={() => setIsEditingSystemPrompt(false)}
+                                                className="text-xs text-slate-500 hover:text-slate-700"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button 
+                                                onClick={handleSaveSystemPrompt}
+                                                className="text-xs bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded"
+                                            >
+                                                Save
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-xs text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800 whitespace-pre-wrap">
+                                        {status.systemPrompt || <span className="text-slate-400 italic">No additional system prompt set.</span>}
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Debug Info View */}
                             {!lastDebugInfo ? (
                                 <div className="text-center py-10 text-slate-400">
