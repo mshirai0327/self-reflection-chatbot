@@ -74,7 +74,12 @@
 
 共同作業であることを明示するため、AIエージェントがコミットするときは、コミットメッセージの末尾に次の`Co-authored-byトレーラー`を加えてどのAIエージェントが作業したか分かるようにしてください。
 
-- Co-Authored-By: gemini <218195315+gemini-cli@users.noreply.github.com>
+- Co-Authored-By: gemini <gemini-cli@users.noreply.github.com>
+
+Claude modelの場合は以下でも良いです
+
+- Co-Authored-By: claude <noreply@anthropic.com>
+
 
 ## コマンド操作について
 
