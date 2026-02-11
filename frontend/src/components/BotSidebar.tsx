@@ -45,9 +45,11 @@ type BotSidebarProps = {
     isOpen: boolean;
     status: PersonaStatus;
     lastDebugInfo: DebugInfo | null;
+    /** ステータス再取得コールバック（リロードせずにUIを更新するため） */
+    onStatusRefresh?: () => Promise<void>;
 };
 
-export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
+export function BotSidebar({ isOpen, status, lastDebugInfo, onStatusRefresh }: BotSidebarProps) {
     const [activeTab, setActiveTab] = useState<'status' | 'debug'>('status');
     const [editingName, setEditingName] = useState(status.name);
     const [isEditingName, setIsEditingName] = useState(false);
@@ -108,19 +110,15 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: editingName })
             });
-            // Note: UI update relies on parent re-fetch or optimistically we could update local state if we had a handler
-            // For now, we assume reloading or next interaction updates it, or we rely on re-fetch.
-            // A page reload or context refresh might be needed to see changes immediately if status prop doesn't update.
-             window.location.reload(); // Simple brute force update for now as we don't have a refetch handler passed down
+            // 親コンポーネントからステータスを再取得（リロードせずにUIを更新）
+            if (onStatusRefresh) {
+                await onStatusRefresh();
+            }
         } catch (e) {
             console.error(e);
-            isSubmitting.current = false;
         } finally {
-            if (!isSubmitting.current) { // If reload didn't happen (error case)
-                 setIsEditingName(false);
-            }
-            // If success, reload happens, so state update might not matter, but for clear logic:
-            // isSubmitting.current = false; 
+            isSubmitting.current = false;
+            setIsEditingName(false);
         }
     };
     
@@ -134,7 +132,10 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ systemPrompt: editingSystemPromptText })
             });
-             window.location.reload(); 
+            // 親コンポーネントからステータスを再取得（リロードせずにUIを更新し、タブ状態を維持）
+            if (onStatusRefresh) {
+                await onStatusRefresh();
+            }
         } catch (e) {
             console.error(e);
         } finally {

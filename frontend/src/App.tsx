@@ -205,19 +205,21 @@ function App() {
     fetchPersonas();
   }, []);
 
+  // ペルソナのステータスを取得する関数
+  const fetchPersonaStatus = async () => {
+      if (!currentPersonaId) return;
+      try {
+          const res = await axios.get(`${API_URL}/api/personas/${currentPersonaId}`);
+          if (res.data) {
+              setStatus(res.data);
+          }
+      } catch (error) {
+          console.error('Failed to fetch persona status:', error);
+      }
+  };
+
   // ペルソナ変更時にステータスを取得
   useEffect(() => {
-    const fetchPersonaStatus = async () => {
-        if (!currentPersonaId) return;
-        try {
-            const res = await axios.get(`${API_URL}/api/personas/${currentPersonaId}`);
-            if (res.data) {
-                setStatus(res.data);
-            }
-        } catch (error) {
-            console.error('Failed to fetch persona status:', error);
-        }
-    };
     fetchPersonaStatus();
   }, [currentPersonaId]);
 
@@ -462,6 +464,7 @@ function App() {
           isOpen={isLeftOpen}
           status={status}
           lastDebugInfo={lastDebugInfo}
+          onStatusRefresh={fetchPersonaStatus}
         />
 
         {/* Main Chat Area */}
