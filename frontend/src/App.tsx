@@ -1,16 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Send, Menu, ChevronLeft, Database, Sun, Moon, ChevronDown } from 'lucide-react';
+import { Send, Menu, ChevronLeft, Database, Sun, Moon, ChevronDown, MessageSquare, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast, { Toaster } from 'react-hot-toast';
 import { BotSidebar } from './components/BotSidebar';
 import { ChatHistory } from './components/ChatHistory';
 import { PersonaCreationModal } from './components/PersonaCreationModal';
+import { PersonaLogTab } from './components/PersonaLogTab';
 import { handleApiError } from './utils/errorHandler';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  /** メッセージの送信日時 */
+  createdAt?: string;
 }
 
 interface Persona {
@@ -131,6 +134,10 @@ function App() {
   });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  /** メインエリアのタブ状態: 'chat' | 'persona-log' */
+  const [activeTab, setActiveTab] = useState<'chat' | 'persona-log'>('chat');
 
   // Load state from localStorage
   const [currentPersonaId, setCurrentPersonaId] = useState<string | null>(() => localStorage.getItem('currentPersonaId'));
@@ -252,7 +259,8 @@ function App() {
         const res = await axios.get(`${API_URL}/api/chats/${currentChatId}`);
         const history = res.data.chatLogs.map((log: any) => ({
           role: log.role as 'user' | 'assistant',
-          content: log.content
+          content: log.content,
+          createdAt: log.createdAt
         }));
         setMessages(history);
 
@@ -285,10 +293,15 @@ function App() {
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
-    const userMsg: Message = { role: 'user', content: input };
+    const userMsg: Message = { role: 'user', content: input, createdAt: new Date().toISOString() };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
+
+    // テキストエリアの高さをリセット
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
 
     try {
       const llmConfig = {
@@ -308,7 +321,7 @@ function App() {
       if (!currentChatId && res.data.chatId) {
         setCurrentChatId(res.data.chatId);
       }
-      const aiMsg: Message = { role: 'assistant', content: res.data.response };
+      const aiMsg: Message = { role: 'assistant', content: res.data.response, createdAt: new Date().toISOString() };
       setMessages(prev => [...prev, aiMsg]);
       if (res.data.status) setStatus(res.data.status);
       if (res.data.debug) setLastDebugInfo(res.data.debug);
@@ -352,7 +365,7 @@ function App() {
       setLastReflection(res.data.reflection);
 
       const followUpMessage = "内省が終わったようですね。今の気分はどうですか？";
-      setMessages(prev => [...prev, { role: 'user', content: followUpMessage }]);
+      setMessages(prev => [...prev, { role: 'user', content: followUpMessage, createdAt: new Date().toISOString() }]);
 
       const resChat = await axios.post(`${API_URL}/api/chat`, {
         message: followUpMessage,
@@ -360,7 +373,7 @@ function App() {
         chatId: currentChatId,
         personaId: currentPersonaId
       });
-      setMessages(prev => [...prev, { role: 'assistant', content: resChat.data.response }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: resChat.data.response, createdAt: new Date().toISOString() }]);
       if (resChat.data.status) setStatus(resChat.data.status);
       setRefreshTrigger(prev => prev + 1);
     } catch (error) {
@@ -450,82 +463,143 @@ function App() {
         {/* Main Chat Area */}
         <main className="flex-1 flex flex-col relative bg-slate-50 dark:bg-slate-950 min-w-0">
 
-          {/* Messages */}
-          <div
-            ref={scrollRef}
-            className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth scrollbar-hide"
-          >
-            <div className="w-full max-w-[740px] mx-auto space-y-6">
-              <AnimatePresence initial={false}>
-                {messages.length === 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 space-y-4 py-20"
-                  >
-                    <Database size={48} className="opacity-10" />
-                    <p className="text-lg text-slate-500">対話を開始して、意識を呼び覚ましてください</p>
-                  </motion.div>
-                )}
-                {messages.map((m, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: 0, y: 10 }}
-                    animate={{ opacity: 1, x: 0, y: 0 }}
-                    className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className={`max-w-[85%] p-4 rounded-2xl shadow-sm transition-colors duration-300 ${m.role === 'user'
-                      ? 'bg-blue-600 text-white rounded-br-none'
-                      : 'bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 dark:text-slate-100 rounded-bl-none'
-                      }`}>
-                      <p className="leading-relaxed whitespace-pre-wrap">{m.content}</p>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl rounded-bl-none flex gap-2">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" />
-                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.2s]" />
-                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.4s]" />
-                  </div>
-                </div>
-              )}
-            </div>
+          {/* タブ切り替え (#38: メインディスプレイのタブ分割) */}
+          <div className="flex items-center border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm px-4 shrink-0">
+            <button
+              onClick={() => setActiveTab('chat')}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 ${
+                activeTab === 'chat'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600'
+              }`}
+            >
+              <MessageSquare className="w-4 h-4" />
+              Chat
+            </button>
+            <button
+              onClick={() => setActiveTab('persona-log')}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 ${
+                activeTab === 'persona-log'
+                  ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              人格ログ
+            </button>
           </div>
 
-          {/* Input Area */}
-          <div className="p-4 pt-0 z-10">
-            <div className="w-full max-w-[740px] mx-auto">
-              <div className="flex gap-3 p-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder="何でも話しかけてください..."
-                  className="flex-1 bg-transparent border-none outline-none px-4 py-2 text-slate-900 dark:text-slate-100 placeholder-slate-400"
-                />
-                <button
-                  onClick={handleSend}
-                  disabled={isLoading}
-                  className="p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 rounded-xl transition-colors shadow-lg shadow-blue-500/20 text-white"
-                >
-                  <Send size={20} />
-                </button>
+          {/* タブコンテンツ */}
+          {activeTab === 'chat' ? (
+            <>
+              {/* Messages (#14: 時刻表示付き) */}
+              <div
+                ref={scrollRef}
+                className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth scrollbar-hide"
+              >
+                <div className="w-full max-w-[740px] mx-auto space-y-6">
+                  <AnimatePresence initial={false}>
+                    {messages.length === 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 space-y-4 py-20"
+                      >
+                        <Database size={48} className="opacity-10" />
+                        <p className="text-lg text-slate-500">対話を開始して、意識を呼び覚ましてください</p>
+                      </motion.div>
+                    )}
+                    {messages.map((m, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, x: 0, y: 10 }}
+                        animate={{ opacity: 1, x: 0, y: 0 }}
+                        className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div className="flex flex-col gap-1 max-w-[85%]">
+                          <div className={`p-4 rounded-2xl shadow-sm transition-colors duration-300 ${m.role === 'user'
+                            ? 'bg-blue-600 text-white rounded-br-none'
+                            : 'bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 dark:text-slate-100 rounded-bl-none'
+                            }`}>
+                            <p className="leading-relaxed whitespace-pre-wrap">{m.content}</p>
+                          </div>
+                          {/* 時刻表示 (#14) */}
+                          {m.createdAt && (
+                            <span className={`text-[10px] text-slate-400 dark:text-slate-500 px-1 ${
+                              m.role === 'user' ? 'text-right' : 'text-left'
+                            }`}>
+                              {new Date(m.createdAt).toLocaleTimeString('ja-JP', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          )}
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                  {isLoading && (
+                    <div className="flex justify-start">
+                      <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl rounded-bl-none flex gap-2">
+                        <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" />
+                        <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.2s]" />
+                        <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:0.4s]" />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="text-center mt-4 mb-2">
-                <button
-                  onClick={handleReflect}
-                  disabled={isLoading}
-                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-300 text-xs font-semibold tracking-wide cursor-pointer disabled:cursor-not-allowed"
-                >
-                  内省を実行する
-                </button>
+
+              {/* Input Area (#24: Shift+Enterで改行対応) */}
+              <div className="p-4 pt-0 z-10">
+                <div className="w-full max-w-[740px] mx-auto">
+                  <div className="flex gap-3 p-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl focus-within:ring-2 focus-within:ring-blue-500/20 transition-all items-end">
+                    <textarea
+                      ref={textareaRef}
+                      value={input}
+                      onChange={(e) => {
+                        setInput(e.target.value);
+                        // テキストエリアの高さを自動調整
+                        const target = e.target;
+                        target.style.height = 'auto';
+                        target.style.height = Math.min(target.scrollHeight, 160) + 'px';
+                      }}
+                      onKeyDown={(e) => {
+                        // Enterのみで送信、Shift+Enterで改行
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSend();
+                        }
+                      }}
+                      placeholder="何でも話しかけてください... (Shift+Enterで改行)"
+                      rows={1}
+                      className="flex-1 bg-transparent border-none outline-none px-4 py-2 text-slate-900 dark:text-slate-100 placeholder-slate-400 resize-none overflow-y-auto scrollbar-hide"
+                      style={{ maxHeight: '160px' }}
+                    />
+                    <button
+                      onClick={handleSend}
+                      disabled={isLoading}
+                      className="p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 rounded-xl transition-colors shadow-lg shadow-blue-500/20 text-white shrink-0"
+                    >
+                      <Send size={20} />
+                    </button>
+                  </div>
+                  <div className="text-center mt-4 mb-2">
+                    <button
+                      onClick={handleReflect}
+                      disabled={isLoading}
+                      className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-300 text-xs font-semibold tracking-wide cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      内省を実行する
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          ) : (
+            /* 人格ログタブ (#38) */
+            <PersonaLogTab currentPersonaId={currentPersonaId} />
+          )}
         </main>
 
         {/* Chat History Sidebar (Right) */}
