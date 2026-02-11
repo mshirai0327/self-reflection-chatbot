@@ -362,7 +362,11 @@ function App() {
           secondary: '#10B981',
         },
       });
-      setLastReflection(res.data.reflection);
+      setLastReflection({
+        id: 'temp-id',
+        createdAt: new Date().toISOString(),
+        response: res.data.reflection
+      });
 
       const followUpMessage = "内省が終わったようですね。今の気分はどうですか？";
       setMessages(prev => [...prev, { role: 'user', content: followUpMessage, createdAt: new Date().toISOString() }]);
@@ -598,7 +602,10 @@ function App() {
             </>
           ) : (
             /* 人格ログタブ (#38) */
-            <PersonaLogTab currentPersonaId={currentPersonaId} />
+            <PersonaLogTab 
+              key={`${currentPersonaId}-${refreshTrigger}`} 
+              currentPersonaId={currentPersonaId} 
+            />
           )}
         </main>
 

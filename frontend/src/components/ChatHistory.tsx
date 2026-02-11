@@ -352,6 +352,20 @@ export function ChatHistory({
                                             </p>
                                         )}
                                     </div>
+                                    <div>
+                                        <span className="text-slate-400 block mb-1">New Memories</span>
+                                        {lastReflection.response?.newMemories && lastReflection.response.newMemories.length > 0 ? (
+                                            <ul className="list-disc list-inside text-slate-600 dark:text-slate-300 text-xs bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700">
+                                                {lastReflection.response.newMemories.map((mem, i) => (
+                                                    <li key={i}>{mem}</li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <p className="text-slate-400 dark:text-slate-600 text-xs italic pl-1">
+                                                No new memories recorded.
+                                            </p>
+                                        )}
+                                    </div>
                                 </motion.div>
                             )}
                         </motion.div>
