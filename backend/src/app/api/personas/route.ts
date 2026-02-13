@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
                     personaStatusId: personaStatus.statusId,
                     version: 1,
                     height: vitalData?.height ? Number(vitalData.height) : 160.0,
-                    boneDensity: 1.0, // Default
+                    boneDensity: 100.0, // Default YAM%
                     // others null
                 }
             });

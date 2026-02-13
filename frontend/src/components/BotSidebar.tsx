@@ -86,7 +86,7 @@ export function BotSidebar({ isOpen, status, lastDebugInfo, onStatusRefresh }: B
     // Lv2: 不可逆的成長データ
     const growthStats = [
         { label: '身長', value: `${status.height ?? '?'}cm` },
-        { label: '骨密度', value: `${status.boneDensity ?? '?'}` },
+        { label: '骨密度(YAM)', value: `${status.boneDensity ?? '?'}%` },
         { label: '握力', value: `${status.gripStrength ?? '?'}kg` },
         { label: '視力', value: `${status.eyesight ?? '?'}` },
         { label: '聴力', value: `${status.hearingAbility ?? '?'}dB` },
