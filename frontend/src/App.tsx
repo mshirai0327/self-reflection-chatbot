@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { Send, Menu, ChevronLeft, Database, Sun, Moon, MessageSquare, BarChart3 } from 'lucide-react';
+import { Send, Menu, ChevronLeft, Database, Sun, Moon, MessageSquare, BarChart3, ArrowDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast, { Toaster } from 'react-hot-toast';
 import { BotSidebar } from './components/BotSidebar';
@@ -91,6 +91,26 @@ export interface ReflectionResult {
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
+/**
+ * 日付ラベルを生成するヘルパー関数
+ * 今日・昨日は相対表示、それ以外は「YYYY年M月D日」形式
+ */
+const getDateLabel = (dateStr: string): string => {
+  const date = new Date(dateStr);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return '今日';
+  if (date.toDateString() === yesterday.toDateString()) return '昨日';
+
+  return date.toLocaleDateString('ja-JP', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+};
+
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -145,6 +165,8 @@ function App() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  /** スクロール位置が最下部付近にいるか（フローティングボタン表示判定用） */
+  const [isNearBottom, setIsNearBottom] = useState(true);
 
   /** メインエリアのタブ状態: 'chat' | 'persona-log' */
   const [activeTab, setActiveTab] = useState<'chat' | 'persona-log'>('chat');
@@ -344,7 +366,21 @@ function App() {
   }, [currentChatId, nextCursor, isLoadingMore, hasMore]);
 
   /**
-   * 上方向スクロール検知：スクロール位置が上部に近づいたら古いメッセージを取得
+   * 最下部へスムーズスクロールする
+   */
+  const scrollToBottom = useCallback(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, []);
+
+  /**
+   * スクロールイベントハンドラ
+   * - 上方向スクロール検知：古いメッセージを取得
+   * - 最下部判定：フローティングボタン表示用
    */
   useEffect(() => {
     const scrollEl = scrollRef.current;
@@ -355,6 +391,9 @@ function App() {
       if (scrollEl.scrollTop < 100 && hasMore && !isLoadingMore) {
         fetchOlderMessages();
       }
+      // 最下部付近にいるか判定（150px以内なら最下部とみなす）
+      const distanceFromBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight;
+      setIsNearBottom(distanceFromBottom < 150);
     };
 
     scrollEl.addEventListener('scroll', handleScroll);
@@ -606,34 +645,60 @@ function App() {
                         <p className="text-lg text-slate-500">対話を開始して、意識を呼び覚ましてください</p>
                       </motion.div>
                     )}
-                    {messages.map((m, i) => (
-                      <motion.div
-                        key={i}
-                        initial={{ opacity: 0, x: 0, y: 10 }}
-                        animate={{ opacity: 1, x: 0, y: 0 }}
-                        className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div className="flex flex-col gap-1 max-w-[85%]">
-                          <div className={`p-4 rounded-2xl shadow-sm transition-colors duration-300 ${m.role === 'user'
-                            ? 'bg-blue-600 text-white rounded-br-none'
-                            : 'bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 dark:text-slate-100 rounded-bl-none'
-                            }`}>
-                            <p className="leading-relaxed whitespace-pre-wrap">{m.content}</p>
-                          </div>
-                          {/* 時刻表示 (#14) */}
-                          {m.createdAt && (
-                            <span className={`text-[10px] text-slate-400 dark:text-slate-500 px-1 ${
-                              m.role === 'user' ? 'text-right' : 'text-left'
-                            }`}>
-                              {new Date(m.createdAt).toLocaleTimeString('ja-JP', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
+                    {messages.flatMap((m, i) => {
+                      const elements: React.ReactNode[] = [];
+
+                      // 日付が変わったタイミングで日付ラベルを挿入
+                      const showDateLabel = m.createdAt && (
+                        i === 0 ||
+                        !messages[i - 1].createdAt ||
+                        new Date(m.createdAt).toDateString() !== new Date(messages[i - 1].createdAt!).toDateString()
+                      );
+
+                      if (showDateLabel) {
+                        elements.push(
+                          <div
+                            key={`date-${i}`}
+                            className="sticky top-0 z-10 flex justify-center py-2"
+                          >
+                            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100/90 dark:bg-slate-800/90 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm border border-slate-200/50 dark:border-slate-700/50">
+                              {getDateLabel(m.createdAt!)}
                             </span>
-                          )}
-                        </div>
-                      </motion.div>
-                    ))}
+                          </div>
+                        );
+                      }
+
+                      elements.push(
+                        <motion.div
+                          key={`msg-${i}`}
+                          initial={{ opacity: 0, x: 0, y: 10 }}
+                          animate={{ opacity: 1, x: 0, y: 0 }}
+                          className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div className="flex flex-col gap-1 max-w-[85%]">
+                            <div className={`p-4 rounded-2xl shadow-sm transition-colors duration-300 ${m.role === 'user'
+                              ? 'bg-blue-600 text-white rounded-br-none'
+                              : 'bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 dark:text-slate-100 rounded-bl-none'
+                              }`}>
+                              <p className="leading-relaxed whitespace-pre-wrap">{m.content}</p>
+                            </div>
+                            {/* 時刻表示 (#14) */}
+                            {m.createdAt && (
+                              <span className={`text-[10px] text-slate-400 dark:text-slate-500 px-1 ${
+                                m.role === 'user' ? 'text-right' : 'text-left'
+                              }`}>
+                                {new Date(m.createdAt).toLocaleTimeString('ja-JP', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            )}
+                          </div>
+                        </motion.div>
+                      );
+
+                      return elements;
+                    })}
                   </AnimatePresence>
                   {isLoading && (
                     <div className="flex justify-start">
@@ -646,6 +711,23 @@ function App() {
                   )}
                 </div>
               </div>
+
+              {/* フローティングボタン: 最新メッセージへ */}
+              <AnimatePresence>
+                {!isNearBottom && messages.length > 0 && (
+                  <motion.button
+                    initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 20, scale: 0.9 }}
+                    transition={{ duration: 0.2 }}
+                    onClick={scrollToBottom}
+                    className="absolute bottom-24 right-8 z-20 flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-full shadow-lg hover:shadow-xl transition-all cursor-pointer"
+                  >
+                    <ArrowDown className="w-3.5 h-3.5" />
+                    最新のメッセージへ
+                  </motion.button>
+                )}
+              </AnimatePresence>
 
               {/* Input Area (#24: Shift+Enterで改行対応) */}
               <div className="p-4 pt-0 z-10">
