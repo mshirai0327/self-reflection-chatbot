@@ -213,7 +213,11 @@ ${logSummary}
         const irreversibleData = {
             personaStatusId: fullStatus.statusId,
             height: newHeight,
-            boneDensity: fullStatus.quantityIrreversible?.boneDensity ?? 1.0,
+            boneDensity: fullStatus.quantityIrreversible?.boneDensity ?? 100.0,
+            gripStrength: fullStatus.quantityIrreversible?.gripStrength,
+            voicePitch: fullStatus.quantityIrreversible?.voicePitch,
+            eyesight: fullStatus.quantityIrreversible?.eyesight,
+            hearingAbility: fullStatus.quantityIrreversible?.hearingAbility,
             version: (fullStatus.quantityIrreversible?.version || 0) + 1,
         };
 

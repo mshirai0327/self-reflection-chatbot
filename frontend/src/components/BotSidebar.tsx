@@ -21,6 +21,10 @@ interface PersonaStatus {
     height: number;
     weight: number;
     boneDensity?: number;
+    gripStrength?: number;
+    voicePitch?: number;
+    eyesight?: number;
+    hearingAbility?: number;
     bloodSugar?: number;
     bloodPressureSys?: number;
     bloodPressureDia?: number;
@@ -38,16 +42,15 @@ export interface DebugInfo {
     contextMemories: { content: string | null; distance: number | null }[];
 }
 
-
-
-
 type BotSidebarProps = {
     isOpen: boolean;
     status: PersonaStatus;
     lastDebugInfo: DebugInfo | null;
+    /** ステータス再取得コールバック（リロードせずにUIを更新するため） */
+    onStatusRefresh?: () => Promise<void>;
 };
 
-export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
+export function BotSidebar({ isOpen, status, lastDebugInfo, onStatusRefresh }: BotSidebarProps) {
     const [activeTab, setActiveTab] = useState<'status' | 'debug'>('status');
     const [editingName, setEditingName] = useState(status.name);
     const [isEditingName, setIsEditingName] = useState(false);
@@ -58,33 +61,45 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
 
     // Stats Categorization
     const conditionStats = [
-        { icon: Heart, label: 'Health', value: `${status.health}%`, color: 'text-rose-500' },
-        { icon: Sparkles, label: 'Mood', value: `${status.mood}%`, color: 'text-amber-500' },
-        { icon: Database, label: 'Trust', value: `${status.trust}%`, color: 'text-emerald-500' },
-        { icon: User, label: 'Friendliness', value: `${status.friendliness || 0}%`, color: 'text-pink-500' },
+        { icon: Heart, label: '健康', value: `${status.health}%`, color: 'text-rose-500' },
+        { icon: Sparkles, label: '気分', value: `${status.mood}%`, color: 'text-amber-500' },
+        { icon: Database, label: '信頼', value: `${status.trust}%`, color: 'text-emerald-500' },
+        { icon: User, label: '親愛', value: `${status.friendliness || 0}%`, color: 'text-pink-500' },
     ];
 
     const profileStats = [
-        { label: 'Name', value: status.name || 'Reflecta' },
-        { label: 'Age', value: status.birthDate ? `${new Date().getFullYear() - new Date(status.birthDate).getFullYear()}歳` : 'Unknown' },
-        { label: 'Gender', value: status.gender || 'Unknown' },
-        { label: 'Type', value: status.chronotype || 'Unknown' },
-        { label: 'IQ', value: status.intelligence?.toString() || '?' },
+        { label: '名前', value: status.name || 'Reflecta' },
+        { label: '年齢', value: status.birthDate ? `${new Date().getFullYear() - new Date(status.birthDate).getFullYear()}歳` : 'Unknown' },
+        { label: '性別', value: status.gender || 'Unknown' },
+        { label: '朝型/夜型', value: status.chronotype || 'Unknown' },
+        { label: '相対知性(IQ)', value: status.intelligence?.toString() || '?' },
     ];
 
     const personalityStats = [
-        { label: 'Ethics', value: status.ethics },
-        { label: 'Passion', value: status.passion },
-        { label: 'Curiosity', value: status.curiosity },
-        { label: 'Aggression', value: status.aggressiveness },
-        { label: 'Extroversion', value: status.extroversion },
+        { label: '倫理観', value: status.ethics },
+        { label: '情熱', value: status.passion },
+        { label: '好奇心', value: status.curiosity },
+        { label: '攻撃性', value: status.aggressiveness },
+        { label: '外向性', value: status.extroversion },
     ];
 
-    const bodyStats = [
-        { label: 'Height', value: `${status.height}cm` },
-        { label: 'Weight', value: `${status.weight}kg` },
-        { label: 'Sleep', value: `${status.sleepTime ?? '?'}h` },
-        { label: 'BP', value: `${status.bloodPressureSys ?? '?'}/${status.bloodPressureDia ?? '?'}` },
+    // Lv2: 不可逆的成長データ
+    const growthStats = [
+        { label: '身長', value: `${status.height ?? '?'}cm` },
+        { label: '骨密度(YAM)', value: `${status.boneDensity ?? '?'}%` },
+        { label: '握力', value: `${status.gripStrength ?? '?'}kg` },
+        { label: '視力', value: `${status.eyesight ?? '?'}` },
+        { label: '聴力', value: `${status.hearingAbility ?? '?'}dB` },
+        { label: '声の高さ', value: `${status.voicePitch ?? '?'}Hz` },
+    ];
+
+    // Lv3-1: バイタルデータ
+    const vitalStats = [
+        { label: '体重', value: `${status.weight ?? '?'}kg` },
+        { label: '血圧', value: `${status.bloodPressureSys ?? '?'}/${status.bloodPressureDia ?? '?'}` },
+        { label: '血糖値', value: `${status.bloodSugar ?? '?'}mg/dL` },
+        { label: '睡眠時間', value: `${status.sleepTime ?? '?'}h` },
+        { label: '睡眠の質', value: `${status.sleepQuality ?? '?'}%` },
     ];
 
     const handleStartEditName = () => {
@@ -108,19 +123,15 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: editingName })
             });
-            // Note: UI update relies on parent re-fetch or optimistically we could update local state if we had a handler
-            // For now, we assume reloading or next interaction updates it, or we rely on re-fetch.
-            // A page reload or context refresh might be needed to see changes immediately if status prop doesn't update.
-             window.location.reload(); // Simple brute force update for now as we don't have a refetch handler passed down
+            // 親コンポーネントからステータスを再取得（リロードせずにUIを更新）
+            if (onStatusRefresh) {
+                await onStatusRefresh();
+            }
         } catch (e) {
             console.error(e);
-            isSubmitting.current = false;
         } finally {
-            if (!isSubmitting.current) { // If reload didn't happen (error case)
-                 setIsEditingName(false);
-            }
-            // If success, reload happens, so state update might not matter, but for clear logic:
-            // isSubmitting.current = false; 
+            isSubmitting.current = false;
+            setIsEditingName(false);
         }
     };
     
@@ -134,7 +145,10 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ systemPrompt: editingSystemPromptText })
             });
-             window.location.reload(); 
+            // 親コンポーネントからステータスを再取得（リロードせずにUIを更新し、タブ状態を維持）
+            if (onStatusRefresh) {
+                await onStatusRefresh();
+            }
         } catch (e) {
             console.error(e);
         } finally {
@@ -174,7 +188,6 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
                     {status.name || 'Reflecta'}
                 </h2>
             )}
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-1">Self-Evolving AI</p>
         </div>
     );
 
@@ -218,55 +231,10 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
                                 </span>
                             </div>
 
-                            {/* System Prompt Section */}
-                            <div>
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-1 flex justify-between items-center">
-                                    System Prompt
-                                    {!isEditingSystemPrompt && (
-                                        <button 
-                                            onClick={() => {
-                                                setEditingSystemPrompt(status.systemPrompt || '');
-                                                setIsEditingSystemPrompt(true);
-                                            }}
-                                            className="text-blue-500 hover:text-blue-600 text-[10px] font-normal"
-                                        >
-                                            Edit
-                                        </button>
-                                    )}
-                                </h3>
-                                {isEditingSystemPrompt ? (
-                                    <div className="space-y-2">
-                                        <textarea
-                                            value={editingSystemPromptText}
-                                            onChange={(e) => setEditingSystemPrompt(e.target.value)}
-                                            className="w-full p-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-2 focus:ring-blue-500 outline-none min-h-[100px]"
-                                            placeholder="追加のシステムプロンプトを入力..."
-                                        />
-                                        <div className="flex justify-end gap-2">
-                                            <button 
-                                                onClick={() => setIsEditingSystemPrompt(false)}
-                                                className="text-xs text-slate-500 hover:text-slate-700"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button 
-                                                onClick={handleSaveSystemPrompt}
-                                                className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
-                                            >
-                                                Save
-                                            </button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-xs text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800 whitespace-pre-wrap">
-                                        {status.systemPrompt || <span className="text-slate-400 italic">No additional system prompt set.</span>}
-                                    </div>
-                                )}
-                            </div>
 
                             {/* Condition Group */}
                             <div>
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1">Current Condition</h3>
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1">今日の気分(Lv3-2)</h3>
                                 <div className="grid grid-cols-2 gap-2">
                                     {conditionStats.map((stat, i) => (
                                         <div key={i} className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-100 dark:border-slate-700/50 flex flex-col items-center">
@@ -281,7 +249,7 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
                             {/* Profile Group */}
                             <div>
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 flex items-center gap-1">
-                                    <User className="w-3 h-3" /> Basic Profile
+                                    <User className="w-3 h-3" /> 基本情報(Lv1)
                                 </h3>
                                 <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800">
                                     {profileStats.map((stat, i) => (
@@ -293,25 +261,11 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
                                 </div>
                             </div>
 
-                            {/* Body Stats */}
-                            <div>
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 flex items-center gap-1">
-                                    <Activity className="w-3 h-3" /> Body
-                                </h3>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {bodyStats.map((stat, i) => (
-                                        <div key={i} className="flex justify-between p-2 bg-slate-50 dark:bg-slate-800/30 rounded border border-slate-100 dark:border-slate-800 text-xs">
-                                            <span className="text-slate-500">{stat.label}</span>
-                                            <span className="font-mono text-slate-700 dark:text-slate-300">{stat.value}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
 
                             {/* Personality Chart */}
                             <div>
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 flex items-center gap-1">
-                                    <Terminal className="w-3 h-3" /> Personality (Lv2)
+                                    <Terminal className="w-3 h-3" /> 性格(Lv1-2)
                                 </h3>
                                 <div className="space-y-3">
                                     {personalityStats.map((stat, i) => (
@@ -331,9 +285,88 @@ export function BotSidebar({ isOpen, status, lastDebugInfo }: BotSidebarProps) {
                                     ))}
                                 </div>
                             </div>
+
+                            {/* Growth Stats (Lv2) */}
+                            <div>
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 flex items-center gap-1">
+                                    <Activity className="w-3 h-3" /> 身体成長(Lv2)
+                                </h3>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {growthStats.map((stat, i) => (
+                                        <div key={i} className="flex justify-between p-2 bg-slate-50 dark:bg-slate-800/30 rounded border border-slate-100 dark:border-slate-800 text-xs">
+                                            <span className="text-slate-500">{stat.label}</span>
+                                            <span className="font-mono text-slate-700 dark:text-slate-300">{stat.value}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Vital Stats (Lv3-1) */}
+                            <div>
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 flex items-center gap-1">
+                                    <Heart className="w-3 h-3" /> バイタル(Lv3-1)
+                                </h3>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {vitalStats.map((stat, i) => (
+                                        <div key={i} className="flex justify-between p-2 bg-slate-50 dark:bg-slate-800/30 rounded border border-slate-100 dark:border-slate-800 text-xs">
+                                            <span className="text-slate-500">{stat.label}</span>
+                                            <span className="font-mono text-slate-700 dark:text-slate-300">{stat.value}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
                         </div>
                     ) : (
                         <div className="space-y-6">
+                            {/* User System Prompt 編集セクション（STATUSから移動） */}
+                            <div>
+                                <h3 className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-2 px-1 flex justify-between items-center">
+                                    <span className="flex items-center gap-2">
+                                        <FileText className="w-3 h-3" /> Custom System Prompt
+                                    </span>
+                                    {!isEditingSystemPrompt && (
+                                        <button 
+                                            onClick={() => {
+                                                setEditingSystemPrompt(status.systemPrompt || '');
+                                                setIsEditingSystemPrompt(true);
+                                            }}
+                                            className="text-purple-500 hover:text-purple-600 text-[10px] font-normal"
+                                        >
+                                            Edit
+                                        </button>
+                                    )}
+                                </h3>
+                                {isEditingSystemPrompt ? (
+                                    <div className="space-y-2">
+                                        <textarea
+                                            value={editingSystemPromptText}
+                                            onChange={(e) => setEditingSystemPrompt(e.target.value)}
+                                            className="w-full p-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-2 focus:ring-purple-500 outline-none min-h-[100px]"
+                                            placeholder="追加のシステムプロンプトを入力..."
+                                        />
+                                        <div className="flex justify-end gap-2">
+                                            <button 
+                                                onClick={() => setIsEditingSystemPrompt(false)}
+                                                className="text-xs text-slate-500 hover:text-slate-700"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button 
+                                                onClick={handleSaveSystemPrompt}
+                                                className="text-xs bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded"
+                                            >
+                                                Save
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-xs text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800 whitespace-pre-wrap">
+                                        {status.systemPrompt || <span className="text-slate-400 italic">No additional system prompt set.</span>}
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Debug Info View */}
                             {!lastDebugInfo ? (
                                 <div className="text-center py-10 text-slate-400">

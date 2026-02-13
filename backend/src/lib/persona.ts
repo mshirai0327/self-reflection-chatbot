@@ -118,6 +118,10 @@ export function flattenStatus(fullStatus: any) {
         // Lv2: QuantityIrreversible
         height: fullStatus.quantityIrreversible?.height,
         boneDensity: fullStatus.quantityIrreversible?.boneDensity,
+        gripStrength: fullStatus.quantityIrreversible?.gripStrength,
+        voicePitch: fullStatus.quantityIrreversible?.voicePitch,
+        eyesight: fullStatus.quantityIrreversible?.eyesight,
+        hearingAbility: fullStatus.quantityIrreversible?.hearingAbility,
 
         // Lv3-1: QuantityReversible (JSON parsing)
         weight: getVal(reversibleVal, "weight"),

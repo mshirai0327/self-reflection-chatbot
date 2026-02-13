@@ -28,10 +28,22 @@ export function PersonaCreationModal({ isOpen, onClose, onCreated }: PersonaCrea
         extroversion: 50
     });
 
-    // Vital
+    // Vital（Lv2: 身体成長データ + Lv3-1: バイタルデータ）
     const [vitalData, setVitalData] = useState({
+        // Lv2: 身体成長（不可逆）
         height: 160,
-        weight: 50
+        boneDensity: 100,
+        gripStrength: 30,
+        eyesight: 1.0,
+        hearingAbility: 20,
+        voicePitch: 250,
+        // Lv3-1: バイタル（可逆）
+        weight: 50,
+        bloodPressureSys: 110,
+        bloodPressureDia: 70,
+        bloodSugar: 90,
+        sleepTime: 7,
+        sleepQuality: 70,
     });
     
     // System Prompt
@@ -43,7 +55,7 @@ export function PersonaCreationModal({ isOpen, onClose, onCreated }: PersonaCrea
         setBirthDate('2024-01-01');
         setIntelligence(100);
         setPersonality({ ethics: 50, passion: 50, curiosity: 50, aggressiveness: 50, extroversion: 50 });
-        setVitalData({ height: 160, weight: 50 });
+        setVitalData({ height: 160, boneDensity: 100, gripStrength: 30, eyesight: 1.0, hearingAbility: 20, voicePitch: 250, weight: 50, bloodPressureSys: 110, bloodPressureDia: 70, bloodSugar: 90, sleepTime: 7, sleepQuality: 70 });
         setStep(1);
     };
 
@@ -189,7 +201,7 @@ export function PersonaCreationModal({ isOpen, onClose, onCreated }: PersonaCrea
                             </div>
                             
                             <div>
-                                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">知能指数 (IQ)</label>
+                                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">相対知能 (IQ)</label>
                                 <input 
                                     type="number" 
                                     value={intelligence}
@@ -219,6 +231,106 @@ export function PersonaCreationModal({ isOpen, onClose, onCreated }: PersonaCrea
                                             className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded outline-none text-sm"
                                         />
                                     </div>
+                                    <div>
+                                        <label className="block text-[10px] text-slate-500 mb-1">骨密度 YAM (%)</label>
+                                        <input 
+                                            type="number" 
+                                            value={vitalData.boneDensity}
+                                            onChange={(e) => setVitalData({...vitalData, boneDensity: Number(e.target.value)})}
+                                            className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded outline-none text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] text-slate-500 mb-1">握力 (kg)</label>
+                                        <input 
+                                            type="number" 
+                                            value={vitalData.gripStrength}
+                                            onChange={(e) => setVitalData({...vitalData, gripStrength: Number(e.target.value)})}
+                                            className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded outline-none text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] text-slate-500 mb-1">視力</label>
+                                        <input 
+                                            type="number" 
+                                            step="0.1"
+                                            value={vitalData.eyesight}
+                                            onChange={(e) => setVitalData({...vitalData, eyesight: Number(e.target.value)})}
+                                            className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded outline-none text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] text-slate-500 mb-1">聴力 (dB)</label>
+                                        <input 
+                                            type="number" 
+                                            value={vitalData.hearingAbility}
+                                            onChange={(e) => setVitalData({...vitalData, hearingAbility: Number(e.target.value)})}
+                                            className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded outline-none text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] text-slate-500 mb-1">声の高さ (Hz)</label>
+                                        <input 
+                                            type="number" 
+                                            value={vitalData.voicePitch}
+                                            onChange={(e) => setVitalData({...vitalData, voicePitch: Number(e.target.value)})}
+                                            className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded outline-none text-sm"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Lv3-1: 生体データ */}
+                            <div>
+                                <h4 className="text-xs font-bold text-slate-400 mt-4 mb-2 flex items-center gap-1"><Activity className="w-3 h-3"/> 生体データ</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] text-slate-500 mb-1">最高血圧 (収縮期/mmHg)</label>
+                                        <input 
+                                            type="number" 
+                                            value={vitalData.bloodPressureSys}
+                                            onChange={(e) => setVitalData({...vitalData, bloodPressureSys: Number(e.target.value)})}
+                                            className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded outline-none text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] text-slate-500 mb-1">最低血圧 (拡張期/mmHg)</label>
+                                        <input 
+                                            type="number" 
+                                            value={vitalData.bloodPressureDia}
+                                            onChange={(e) => setVitalData({...vitalData, bloodPressureDia: Number(e.target.value)})}
+                                            className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded outline-none text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] text-slate-500 mb-1">空腹時血糖値 (mg/dL)</label>
+                                        <input 
+                                            type="number" 
+                                            value={vitalData.bloodSugar}
+                                            onChange={(e) => setVitalData({...vitalData, bloodSugar: Number(e.target.value)})}
+                                            className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded outline-none text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] text-slate-500 mb-1">睡眠時間 (h)</label>
+                                        <input 
+                                            type="number" 
+                                            step="0.5"
+                                            value={vitalData.sleepTime}
+                                            onChange={(e) => setVitalData({...vitalData, sleepTime: Number(e.target.value)})}
+                                            className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded outline-none text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] text-slate-500 mb-1">睡眠の質 (%)</label>
+                                        <input 
+                                            type="number" 
+                                            min="0" max="100"
+                                            value={vitalData.sleepQuality}
+                                            onChange={(e) => setVitalData({...vitalData, sleepQuality: Number(e.target.value)})}
+                                            className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded outline-none text-sm"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -232,21 +344,31 @@ export function PersonaCreationModal({ isOpen, onClose, onCreated }: PersonaCrea
                             </h3>
 
                             <div className="space-y-4">
-                                {Object.entries(personality).map(([key, val]) => (
-                                    <div key={key}>
-                                        <div className="flex justify-between text-xs mb-1">
-                                            <span className="capitalize text-slate-700 dark:text-slate-300">{key}</span>
-                                            <span className="text-slate-500">{val}</span>
+                                {Object.entries(personality).map(([key, val]) => {
+                                    /** 性格パラメータキーと日本語ラベルの対応マップ */
+                                    const labelMap: Record<string, string> = {
+                                        ethics: '倫理観',
+                                        passion: '情熱',
+                                        curiosity: '好奇心',
+                                        aggressiveness: '攻撃性',
+                                        extroversion: '外向性',
+                                    };
+                                    return (
+                                        <div key={key}>
+                                            <div className="flex justify-between text-xs mb-1">
+                                                <span className="text-slate-700 dark:text-slate-300">{labelMap[key] || key}</span>
+                                                <span className="text-slate-500">{val}</span>
+                                            </div>
+                                            <input 
+                                                type="range" 
+                                                min="0" max="100" 
+                                                value={val}
+                                                onChange={(e) => setPersonality({...personality, [key]: Number(e.target.value)})}
+                                                className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                                            />
                                         </div>
-                                        <input 
-                                            type="range" 
-                                            min="0" max="100" 
-                                            value={val}
-                                            onChange={(e) => setPersonality({...personality, [key]: Number(e.target.value)})}
-                                            className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                                        />
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -260,7 +382,7 @@ export function PersonaCreationModal({ isOpen, onClose, onCreated }: PersonaCrea
                                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">System Prompt</label>
                                 <p className="text-[10px] text-slate-500 mb-2">
                                     AIに対する追加の振る舞い指示や設定を入力できます。
-                                    （例: 「語尾に『にゃん』をつけて話して」「常に敬語を使って」「関西弁で話して」など）
+                                    （Note: 一応、デバッグ用の機能です。将来的には廃止し、AI側で性格を自己変化させるようにさせたい）
                                 </p>
                                 <textarea
                                     value={systemPrompt}

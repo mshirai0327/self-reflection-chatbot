@@ -85,19 +85,22 @@ export async function POST(req: NextRequest) {
                     personaStatusId: personaStatus.statusId,
                     version: 1,
                     height: vitalData?.height ? Number(vitalData.height) : 160.0,
-                    boneDensity: 1.0, // Default
-                    // others null
+                    boneDensity: vitalData?.boneDensity ? Number(vitalData.boneDensity) : 100.0,
+                    gripStrength: vitalData?.gripStrength ? Number(vitalData.gripStrength) : 30.0,
+                    eyesight: vitalData?.eyesight ? Number(vitalData.eyesight) : 1.0,
+                    hearingAbility: vitalData?.hearingAbility ? Number(vitalData.hearingAbility) : 20.0,
+                    voicePitch: vitalData?.voicePitch ? Number(vitalData.voicePitch) : 250.0,
                 }
             });
 
             // 6. Create Lv3-1: QuantityReversibleStatus (Initial JSON)
             const initialVitalJson = [
                 { label: "weight", value: vitalData?.weight ? Number(vitalData.weight) : 50.0, unit: "kg" },
-                { label: "bloodSugar", value: 90.0, unit: "mg/dL" },
-                { label: "bloodPressureSys", value: 110.0, unit: "mmHg" },
-                { label: "bloodPressureDia", value: 70.0, unit: "mmHg" },
-                { label: "sleepTime", value: 7.0, unit: "h" },
-                { label: "sleepQuality", value: 70.0, unit: null }
+                { label: "bloodSugar", value: vitalData?.bloodSugar ? Number(vitalData.bloodSugar) : 90.0, unit: "mg/dL" },
+                { label: "bloodPressureSys", value: vitalData?.bloodPressureSys ? Number(vitalData.bloodPressureSys) : 110.0, unit: "mmHg" },
+                { label: "bloodPressureDia", value: vitalData?.bloodPressureDia ? Number(vitalData.bloodPressureDia) : 70.0, unit: "mmHg" },
+                { label: "sleepTime", value: vitalData?.sleepTime ? Number(vitalData.sleepTime) : 7.0, unit: "h" },
+                { label: "sleepQuality", value: vitalData?.sleepQuality ? Number(vitalData.sleepQuality) : 70.0, unit: null }
             ];
 
             await tx.quantityReversibleStatus.create({
