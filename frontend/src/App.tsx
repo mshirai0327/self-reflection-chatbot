@@ -39,6 +39,10 @@ interface PersonaStatus {
   height: number;
   weight: number;
   boneDensity?: number;
+  gripStrength?: number;
+  voicePitch?: number;
+  eyesight?: number;
+  hearingAbility?: number;
   bloodSugar?: number;
   bloodPressureSys?: number;
   bloodPressureDia?: number;

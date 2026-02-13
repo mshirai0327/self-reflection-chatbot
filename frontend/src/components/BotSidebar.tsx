@@ -21,6 +21,10 @@ interface PersonaStatus {
     height: number;
     weight: number;
     boneDensity?: number;
+    gripStrength?: number;
+    voicePitch?: number;
+    eyesight?: number;
+    hearingAbility?: number;
     bloodSugar?: number;
     bloodPressureSys?: number;
     bloodPressureDia?: number;
@@ -79,11 +83,23 @@ export function BotSidebar({ isOpen, status, lastDebugInfo, onStatusRefresh }: B
         { label: '外向性', value: status.extroversion },
     ];
 
-    const bodyStats = [
-        { label: '身長', value: `${status.height}cm` },
-        { label: '体重', value: `${status.weight}kg` },
-        { label: '睡眠時間', value: `${status.sleepTime ?? '?'}h` },
+    // Lv2: 不可逆的成長データ
+    const growthStats = [
+        { label: '身長', value: `${status.height ?? '?'}cm` },
+        { label: '骨密度', value: `${status.boneDensity ?? '?'}` },
+        { label: '握力', value: `${status.gripStrength ?? '?'}kg` },
+        { label: '視力', value: `${status.eyesight ?? '?'}` },
+        { label: '聴力', value: `${status.hearingAbility ?? '?'}dB` },
+        { label: '声の高さ', value: `${status.voicePitch ?? '?'}Hz` },
+    ];
+
+    // Lv3-1: バイタルデータ
+    const vitalStats = [
+        { label: '体重', value: `${status.weight ?? '?'}kg` },
         { label: '血圧', value: `${status.bloodPressureSys ?? '?'}/${status.bloodPressureDia ?? '?'}` },
+        { label: '血糖値', value: `${status.bloodSugar ?? '?'}mg/dL` },
+        { label: '睡眠時間', value: `${status.sleepTime ?? '?'}h` },
+        { label: '睡眠の質', value: `${status.sleepQuality ?? '?'}%` },
     ];
 
     const handleStartEditName = () => {
@@ -270,13 +286,28 @@ export function BotSidebar({ isOpen, status, lastDebugInfo, onStatusRefresh }: B
                                 </div>
                             </div>
 
-                            {/* Body Stats */}
+                            {/* Growth Stats (Lv2) */}
                             <div>
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 flex items-center gap-1">
-                                    <Activity className="w-3 h-3" /> 身体特性(Lv3-1)
+                                    <Activity className="w-3 h-3" /> 身体成長(Lv2)
                                 </h3>
                                 <div className="grid grid-cols-2 gap-2">
-                                    {bodyStats.map((stat, i) => (
+                                    {growthStats.map((stat, i) => (
+                                        <div key={i} className="flex justify-between p-2 bg-slate-50 dark:bg-slate-800/30 rounded border border-slate-100 dark:border-slate-800 text-xs">
+                                            <span className="text-slate-500">{stat.label}</span>
+                                            <span className="font-mono text-slate-700 dark:text-slate-300">{stat.value}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Vital Stats (Lv3-1) */}
+                            <div>
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 flex items-center gap-1">
+                                    <Heart className="w-3 h-3" /> バイタル(Lv3-1)
+                                </h3>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {vitalStats.map((stat, i) => (
                                         <div key={i} className="flex justify-between p-2 bg-slate-50 dark:bg-slate-800/30 rounded border border-slate-100 dark:border-slate-800 text-xs">
                                             <span className="text-slate-500">{stat.label}</span>
                                             <span className="font-mono text-slate-700 dark:text-slate-300">{stat.value}</span>
