@@ -38,9 +38,6 @@ export interface DebugInfo {
     contextMemories: { content: string | null; distance: number | null }[];
 }
 
-
-
-
 type BotSidebarProps = {
     isOpen: boolean;
     status: PersonaStatus;
