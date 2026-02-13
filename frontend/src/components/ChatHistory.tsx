@@ -335,13 +335,13 @@ export function ChatHistory({
                                         )}
                                     </div>
                                     <div>
-                                        <span className="text-slate-400 block mb-1">Thought</span>
+                                        <span className="text-slate-400 block mb-1">考えたこと</span>
                                         <p className="text-slate-600 dark:text-slate-300 leading-relaxed bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700">
                                             {lastReflection.response?.thought || "No thought available"}
                                         </p>
                                     </div>
                                     <div>
-                                        <span className="text-slate-400 block mb-1">New Memory</span>
+                                        <span className="text-slate-400 block mb-1">ずっと覚えておくべきこと</span>
                                         {lastReflection.response?.permanentMemory ? (
                                             <p className="text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded border border-amber-100 dark:border-amber-900/50">
                                                 {lastReflection.response.permanentMemory}
@@ -353,7 +353,7 @@ export function ChatHistory({
                                         )}
                                     </div>
                                     <div>
-                                        <span className="text-slate-400 block mb-1">New Memories</span>
+                                        <span className="text-slate-400 block mb-1">新しい発見</span>
                                         {lastReflection.response?.newMemories && lastReflection.response.newMemories.length > 0 ? (
                                             <ul className="list-disc list-inside text-slate-600 dark:text-slate-300 text-xs bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700">
                                                 {lastReflection.response.newMemories.map((mem, i) => (
