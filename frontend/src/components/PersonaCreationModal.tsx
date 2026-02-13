@@ -189,7 +189,7 @@ export function PersonaCreationModal({ isOpen, onClose, onCreated }: PersonaCrea
                             </div>
                             
                             <div>
-                                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">知能指数 (IQ)</label>
+                                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">相対知能 (IQ)</label>
                                 <input 
                                     type="number" 
                                     value={intelligence}
@@ -260,7 +260,7 @@ export function PersonaCreationModal({ isOpen, onClose, onCreated }: PersonaCrea
                                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">System Prompt</label>
                                 <p className="text-[10px] text-slate-500 mb-2">
                                     AIに対する追加の振る舞い指示や設定を入力できます。
-                                    （例: 「語尾に『にゃん』をつけて話して」「常に敬語を使って」「関西弁で話して」など）
+                                    （Note: 一応、デバッグ用の機能です。将来的には廃止し、AI側で性格を自己変化させるようにさせたい）
                                 </p>
                                 <textarea
                                     value={systemPrompt}
