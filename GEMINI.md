@@ -84,10 +84,6 @@ geminiの場合は以下でお願いします
 
 - Co-Authored-By: gemini <218195315+gemini-cli@users.noreply.github.com>
 
-Claude modelの場合は以下でお願いします
-
-- Co-authored-by: anthropic-claude[bot] <145262791+anthropic-claude[bot]@users.noreply.github.com>
-
 
 ## コマンド操作について
 
