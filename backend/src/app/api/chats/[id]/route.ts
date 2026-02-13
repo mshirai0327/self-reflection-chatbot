@@ -19,7 +19,9 @@ export async function GET(
     try {
         const { id } = await params;
         const url = new URL(req.url);
-        const take = Math.min(Number(url.searchParams.get('take') || '20'), 100);
+        const rawTake = parseInt(url.searchParams.get('take') ?? '20', 10);
+        const parsedTake = (Number.isNaN(rawTake) || !Number.isFinite(rawTake)) ? 20 : rawTake;
+        const take = Math.min(Math.max(parsedTake, 1), 100);
         const cursor = url.searchParams.get('cursor') || undefined;
 
         const chat = await prisma.chat.findUnique({
