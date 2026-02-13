@@ -265,7 +265,7 @@ export function BotSidebar({ isOpen, status, lastDebugInfo, onStatusRefresh }: B
                             {/* Personality Chart */}
                             <div>
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 flex items-center gap-1">
-                                    <Terminal className="w-3 h-3" /> 性格(Lv2)
+                                    <Terminal className="w-3 h-3" /> 性格(Lv1-2)
                                 </h3>
                                 <div className="space-y-3">
                                     {personalityStats.map((stat, i) => (
