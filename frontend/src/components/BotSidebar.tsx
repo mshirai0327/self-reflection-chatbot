@@ -57,18 +57,18 @@ export function BotSidebar({ isOpen, status, lastDebugInfo, onStatusRefresh }: B
 
     // Stats Categorization
     const conditionStats = [
-        { icon: Heart, label: 'Health', value: `${status.health}%`, color: 'text-rose-500' },
-        { icon: Sparkles, label: 'Mood', value: `${status.mood}%`, color: 'text-amber-500' },
-        { icon: Database, label: 'Trust', value: `${status.trust}%`, color: 'text-emerald-500' },
-        { icon: User, label: 'Friendliness', value: `${status.friendliness || 0}%`, color: 'text-pink-500' },
+        { icon: Heart, label: '健康', value: `${status.health}%`, color: 'text-rose-500' },
+        { icon: Sparkles, label: '気分', value: `${status.mood}%`, color: 'text-amber-500' },
+        { icon: Database, label: '信頼', value: `${status.trust}%`, color: 'text-emerald-500' },
+        { icon: User, label: '親愛', value: `${status.friendliness || 0}%`, color: 'text-pink-500' },
     ];
 
     const profileStats = [
-        { label: 'Name', value: status.name || 'Reflecta' },
-        { label: 'Age', value: status.birthDate ? `${new Date().getFullYear() - new Date(status.birthDate).getFullYear()}歳` : 'Unknown' },
-        { label: 'Gender', value: status.gender || 'Unknown' },
-        { label: 'Type', value: status.chronotype || 'Unknown' },
-        { label: 'Intelligence', value: status.intelligence?.toString() || '?' },
+        { label: '名前', value: status.name || 'Reflecta' },
+        { label: '年齢', value: status.birthDate ? `${new Date().getFullYear() - new Date(status.birthDate).getFullYear()}歳` : 'Unknown' },
+        { label: '性別', value: status.gender || 'Unknown' },
+        { label: '朝型/夜型', value: status.chronotype || 'Unknown' },
+        { label: '相対知性(IQ)', value: status.intelligence?.toString() || '?' },
     ];
 
     const personalityStats = [
@@ -218,7 +218,7 @@ export function BotSidebar({ isOpen, status, lastDebugInfo, onStatusRefresh }: B
 
                             {/* Condition Group */}
                             <div>
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1">Current Condition</h3>
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1">今日の気分(Lv3-2)</h3>
                                 <div className="grid grid-cols-2 gap-2">
                                     {conditionStats.map((stat, i) => (
                                         <div key={i} className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-100 dark:border-slate-700/50 flex flex-col items-center">
@@ -233,7 +233,7 @@ export function BotSidebar({ isOpen, status, lastDebugInfo, onStatusRefresh }: B
                             {/* Profile Group */}
                             <div>
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 flex items-center gap-1">
-                                    <User className="w-3 h-3" /> Basic Profile
+                                    <User className="w-3 h-3" /> 基本情報(Lv1)
                                 </h3>
                                 <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800">
                                     {profileStats.map((stat, i) => (
@@ -245,25 +245,11 @@ export function BotSidebar({ isOpen, status, lastDebugInfo, onStatusRefresh }: B
                                 </div>
                             </div>
 
-                            {/* Body Stats */}
-                            <div>
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 flex items-center gap-1">
-                                    <Activity className="w-3 h-3" /> 身体特性
-                                </h3>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {bodyStats.map((stat, i) => (
-                                        <div key={i} className="flex justify-between p-2 bg-slate-50 dark:bg-slate-800/30 rounded border border-slate-100 dark:border-slate-800 text-xs">
-                                            <span className="text-slate-500">{stat.label}</span>
-                                            <span className="font-mono text-slate-700 dark:text-slate-300">{stat.value}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
 
                             {/* Personality Chart */}
                             <div>
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 flex items-center gap-1">
-                                    <Terminal className="w-3 h-3" /> 性格
+                                    <Terminal className="w-3 h-3" /> 性格(Lv2)
                                 </h3>
                                 <div className="space-y-3">
                                     {personalityStats.map((stat, i) => (
@@ -283,6 +269,22 @@ export function BotSidebar({ isOpen, status, lastDebugInfo, onStatusRefresh }: B
                                     ))}
                                 </div>
                             </div>
+
+                            {/* Body Stats */}
+                            <div>
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 flex items-center gap-1">
+                                    <Activity className="w-3 h-3" /> 身体特性(Lv3-1)
+                                </h3>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {bodyStats.map((stat, i) => (
+                                        <div key={i} className="flex justify-between p-2 bg-slate-50 dark:bg-slate-800/30 rounded border border-slate-100 dark:border-slate-800 text-xs">
+                                            <span className="text-slate-500">{stat.label}</span>
+                                            <span className="font-mono text-slate-700 dark:text-slate-300">{stat.value}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
                         </div>
                     ) : (
                         <div className="space-y-6">
