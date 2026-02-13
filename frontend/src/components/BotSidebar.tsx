@@ -68,22 +68,22 @@ export function BotSidebar({ isOpen, status, lastDebugInfo, onStatusRefresh }: B
         { label: 'Age', value: status.birthDate ? `${new Date().getFullYear() - new Date(status.birthDate).getFullYear()}歳` : 'Unknown' },
         { label: 'Gender', value: status.gender || 'Unknown' },
         { label: 'Type', value: status.chronotype || 'Unknown' },
-        { label: 'IQ', value: status.intelligence?.toString() || '?' },
+        { label: 'Intelligence', value: status.intelligence?.toString() || '?' },
     ];
 
     const personalityStats = [
-        { label: 'Ethics', value: status.ethics },
-        { label: 'Passion', value: status.passion },
-        { label: 'Curiosity', value: status.curiosity },
-        { label: 'Aggression', value: status.aggressiveness },
-        { label: 'Extroversion', value: status.extroversion },
+        { label: '倫理観', value: status.ethics },
+        { label: '情熱', value: status.passion },
+        { label: '好奇心', value: status.curiosity },
+        { label: '攻撃性', value: status.aggressiveness },
+        { label: '外向性', value: status.extroversion },
     ];
 
     const bodyStats = [
-        { label: 'Height', value: `${status.height}cm` },
-        { label: 'Weight', value: `${status.weight}kg` },
-        { label: 'Sleep', value: `${status.sleepTime ?? '?'}h` },
-        { label: 'BP', value: `${status.bloodPressureSys ?? '?'}/${status.bloodPressureDia ?? '?'}` },
+        { label: '身長', value: `${status.height}cm` },
+        { label: '体重', value: `${status.weight}kg` },
+        { label: '睡眠時間', value: `${status.sleepTime ?? '?'}h` },
+        { label: '血圧', value: `${status.bloodPressureSys ?? '?'}/${status.bloodPressureDia ?? '?'}` },
     ];
 
     const handleStartEditName = () => {
@@ -172,7 +172,6 @@ export function BotSidebar({ isOpen, status, lastDebugInfo, onStatusRefresh }: B
                     {status.name || 'Reflecta'}
                 </h2>
             )}
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-1">Self-Evolving AI</p>
         </div>
     );
 
@@ -249,7 +248,7 @@ export function BotSidebar({ isOpen, status, lastDebugInfo, onStatusRefresh }: B
                             {/* Body Stats */}
                             <div>
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 flex items-center gap-1">
-                                    <Activity className="w-3 h-3" /> Body
+                                    <Activity className="w-3 h-3" /> 身体特性
                                 </h3>
                                 <div className="grid grid-cols-2 gap-2">
                                     {bodyStats.map((stat, i) => (
@@ -264,7 +263,7 @@ export function BotSidebar({ isOpen, status, lastDebugInfo, onStatusRefresh }: B
                             {/* Personality Chart */}
                             <div>
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1 flex items-center gap-1">
-                                    <Terminal className="w-3 h-3" /> Personality (Lv2)
+                                    <Terminal className="w-3 h-3" /> 性格
                                 </h3>
                                 <div className="space-y-3">
                                     {personalityStats.map((stat, i) => (
