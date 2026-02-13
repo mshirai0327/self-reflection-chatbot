@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Send, Menu, ChevronLeft, Database, Sun, Moon, ChevronDown, MessageSquare, BarChart3 } from 'lucide-react';
+import { Send, Menu, ChevronLeft, Database, Sun, Moon, MessageSquare, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast, { Toaster } from 'react-hot-toast';
 import { BotSidebar } from './components/BotSidebar';
 import { ChatHistory } from './components/ChatHistory';
 import { PersonaCreationModal } from './components/PersonaCreationModal';
+import { PersonaSelector } from './components/PersonaSelector';
 import { PersonaLogTab } from './components/PersonaLogTab';
 import { handleApiError } from './utils/errorHandler';
 
@@ -418,29 +419,16 @@ function App() {
           <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 ml-2">Reflecta Chat</h1>
           
           {/* Persona Selector */}
-          <div className="relative ml-4">
-            <select
-                value={currentPersonaId || ""}
-                onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === "NEW") {
-                        setIsPersonaModalOpen(true);
-                    } else {
-                        setCurrentPersonaId(val);
-                        setCurrentChatId(null);
-                        setMessages([]); // Clear messages on persona switch
-                    }
-                }}
-                className="appearance-none pl-3 pr-8 py-1 bg-blue-50 dark:bg-slate-800 border border-blue-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:bg-blue-100 dark:hover:bg-slate-700 transition-colors"
-            >
-                {personas.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-                <option disabled>──────────</option>
-                <option value="NEW">＋ 新規ペルソナ作成</option>
-            </select>
-            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
-          </div>
+          <PersonaSelector
+            personas={personas}
+            currentPersonaId={currentPersonaId}
+            onSelect={(personaId) => {
+              setCurrentPersonaId(personaId);
+              setCurrentChatId(null);
+              setMessages([]); // ペルソナ切り替え時にメッセージをクリア
+            }}
+            onCreateNew={() => setIsPersonaModalOpen(true)}
+          />
         </div>
 
         <div className="flex items-center gap-2">
