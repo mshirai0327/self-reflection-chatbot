@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { Send, Menu, ChevronLeft, Database, Sun, Moon, MessageSquare, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -141,6 +141,11 @@ function App() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  /** ページネーション用ステート */
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   /** メインエリアのタブ状態: 'chat' | 'persona-log' */
   const [activeTab, setActiveTab] = useState<'chat' | 'persona-log'>('chat');
 
@@ -259,6 +264,8 @@ function App() {
       if (!currentChatId) {
         console.log('[App] No currentChatId, clearing messages.');
         setMessages([]);
+        setNextCursor(null);
+        setHasMore(false);
         return;
       }
       try {
@@ -270,6 +277,8 @@ function App() {
           createdAt: log.createdAt
         }));
         setMessages(history);
+        setNextCursor(res.data.nextCursor || null);
+        setHasMore(res.data.hasMore || false);
 
         // 内省結果があればセット
         if (res.data.latestReflection) {
@@ -291,10 +300,80 @@ function App() {
     fetchChatSession();
   }, [currentChatId]);
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  /**
+   * 古いメッセージを追加取得する（上方向スクロール時に呼ばれる）
+   * スクロール位置を古いメッセージ挿入後も維持するため、
+   * 挿入前のscrollHeightを記録し、挿入後に差分だけスクロール位置を補正する
+   */
+  const fetchOlderMessages = useCallback(async () => {
+    if (!currentChatId || !nextCursor || isLoadingMore || !hasMore) return;
+    setIsLoadingMore(true);
+    try {
+      const scrollEl = scrollRef.current;
+      const prevScrollHeight = scrollEl?.scrollHeight || 0;
+
+      const res = await axios.get(`${API_URL}/api/chats/${currentChatId}`, {
+        params: { cursor: nextCursor }
+      });
+      const olderMessages: Message[] = res.data.chatLogs.map((log: any) => ({
+        role: log.role as 'user' | 'assistant',
+        content: log.content,
+        createdAt: log.createdAt
+      }));
+
+      if (olderMessages.length > 0) {
+        setMessages(prev => [...olderMessages, ...prev]);
+        setNextCursor(res.data.nextCursor || null);
+        setHasMore(res.data.hasMore || false);
+
+        // スクロール位置を維持する（次のレンダリング後に補正）
+        requestAnimationFrame(() => {
+          if (scrollEl) {
+            const newScrollHeight = scrollEl.scrollHeight;
+            scrollEl.scrollTop = newScrollHeight - prevScrollHeight;
+          }
+        });
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error('[App] Failed to fetch older messages:', error);
+    } finally {
+      setIsLoadingMore(false);
     }
+  }, [currentChatId, nextCursor, isLoadingMore, hasMore]);
+
+  /**
+   * 上方向スクロール検知：スクロール位置が上部に近づいたら古いメッセージを取得
+   */
+  useEffect(() => {
+    const scrollEl = scrollRef.current;
+    if (!scrollEl) return;
+
+    const handleScroll = () => {
+      // スクロール位置が上部100px以内に来たら追加取得
+      if (scrollEl.scrollTop < 100 && hasMore && !isLoadingMore) {
+        fetchOlderMessages();
+      }
+    };
+
+    scrollEl.addEventListener('scroll', handleScroll);
+    return () => scrollEl.removeEventListener('scroll', handleScroll);
+  }, [hasMore, isLoadingMore, fetchOlderMessages]);
+
+  /** 新しいメッセージが追加された場合のみ最下部にスクロール */
+  const prevMessageCountRef = useRef(0);
+  useEffect(() => {
+    // メッセージ数が増えた場合（新規送信）のみ自動スクロール
+    // 古いメッセージの読み込み時はスクロールしない（fetchOlderMessages内で位置を維持済み）
+    if (messages.length > prevMessageCountRef.current && scrollRef.current) {
+      const isOlderMessageLoad = prevMessageCountRef.current === 0 ||
+        (messages.length - prevMessageCountRef.current <= 2);
+      if (isOlderMessageLoad || prevMessageCountRef.current === 0) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+    }
+    prevMessageCountRef.current = messages.length;
   }, [messages]);
 
   const handleSend = async () => {
@@ -497,6 +576,25 @@ function App() {
                 className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth scrollbar-hide"
               >
                 <div className="w-full max-w-[740px] mx-auto space-y-6">
+                  {/* 過去のメッセージ読み込みインジケーター */}
+                  {isLoadingMore && (
+                    <div className="flex justify-center py-3">
+                      <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-full">
+                        <span className="w-3 h-3 border-2 border-slate-300 dark:border-slate-600 border-t-blue-500 rounded-full animate-spin" />
+                        過去のメッセージを読み込み中...
+                      </div>
+                    </div>
+                  )}
+                  {hasMore && !isLoadingMore && (
+                    <div className="flex justify-center py-2">
+                      <button
+                        onClick={fetchOlderMessages}
+                        className="text-xs text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                      >
+                        ↑ 過去のメッセージを表示
+                      </button>
+                    </div>
+                  )}
                   <AnimatePresence initial={false}>
                     {messages.length === 0 && (
                       <motion.div
