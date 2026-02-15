@@ -1,0 +1,31 @@
+# =============================================
+# 本番環境用 docker-compose override
+# 使用方法: docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+# または: make prod
+# =============================================
+
+services:
+  chromadb:
+    environment:
+      # 本番環境ではバックエンドからのアクセスのみ許可
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["http://backend:3000"]
+
+  backend:
+    environment:
+      NODE_ENV: production
+      # 本番環境では Local LLM プロキシAPIを無効化（SSRF対策）
+      ENABLE_LOCAL_LLM_PROXY: "false"
+      # 本番用ドメインを設定してください
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-https://your-production-domain.com}"
+    ports:
+      - "3001:3000"
+    # 本番ではビルド済みイメージで起動（Dockerfileのデフォルト CMD を使用）
+    # command は指定しない → Dockerfile の CMD ["npm", "start"] が使われる
+
+  frontend:
+    environment:
+      - NODE_ENV=production
+    ports:
+      - "5173:5173"
+    # 本番では Vite の preview サーバーを使用
+    command: sh -c "npm run build && npm run preview -- --host 0.0.0.0"

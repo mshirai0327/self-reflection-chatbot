@@ -16,8 +16,6 @@ services:
 
   chromadb:
     image: chromadb/chroma:latest
-    environment:
-      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["*"]
     ports:
       - "8000:8000"
     volumes:
@@ -36,40 +34,16 @@ services:
       GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY}
       CHROMA_URL: "http://chromadb:8000"
       IS_DOCKER: "true"
-    ports:
-      - "3001:3000"
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-      - /app/.next
-    command: sh -c "npx prisma generate && npm run dev"
     depends_on:
       - db
       - chromadb
     networks:
       - ai_network
-    # GPU support for future local LLM
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [ gpu ]
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - "5173:5173"
-    environment:
-      - NODE_ENV=development
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - ./.env:/app/.env
-    command: npm run dev -- --host 0.0.0.0
     networks:
       - ai_network
 

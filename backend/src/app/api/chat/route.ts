@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { queryMemories, addMemory } from "@/lib/chroma";
 import { getDefaultPersona, getDefaultUser, getLatestStatus, flattenStatus, calculateGrowthDelta } from "@/lib/persona";
 import { generateResponse, LLMConfig } from "@/lib/llm";
+import { isProviderAllowed } from "@/lib/env";
 import { ulid } from "ulid";
 
 /**
@@ -19,6 +20,14 @@ export async function POST(req: NextRequest) {
             provider: "gemini",
             model: model || "gemini-1.5-flash"
         };
+
+        // SSRF対策: 本番環境では local プロバイダーを拒否
+        if (!isProviderAllowed(activeConfig.provider)) {
+            return NextResponse.json(
+                { error: "Local LLM provider is not available in this environment." },
+                { status: 403 }
+            );
+        }
 
         console.log("[Chat API] Received message:", message);
         console.log("[Chat API] LLM Provider:", activeConfig.provider);

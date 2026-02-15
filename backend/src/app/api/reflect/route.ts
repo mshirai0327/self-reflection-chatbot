@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { addMemory } from "@/lib/chroma";
 import { getDefaultPersona, getLatestStatus, flattenStatus } from "@/lib/persona";
 import { generateJson, LLMConfig } from "@/lib/llm";
+import { isProviderAllowed } from "@/lib/env";
 import { z } from "zod";
 import { ulid } from "ulid";
 
@@ -48,6 +49,15 @@ export async function POST(req: NextRequest) {
             provider: "gemini",
             model: "gemini-1.5-pro-latest" // 内省処理には高性能なモデルを推奨
         };
+
+        // SSRF対策: 本番環境では local プロバイダーを拒否
+        if (!isProviderAllowed(activeConfig.provider)) {
+            return NextResponse.json(
+                { error: "Local LLM provider is not available in this environment." },
+                { status: 403 }
+            );
+        }
+
         console.log(`[Reflect API] Using provider: ${activeConfig.provider}, chatId: ${chatId}`);
 
         // 5. デフォルトのペルソナではなく、チャットに関連付けられたペルソナを取得
