@@ -15,8 +15,8 @@ services:
       NODE_ENV: production
       # 本番環境では Local LLM プロキシAPIを無効化（SSRF対策）
       ENABLE_LOCAL_LLM_PROXY: "false"
-      # 本番用ドメインを設定してください
-      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-https://your-production-domain.com}"
+      # 本番用ドメインを設定してください（ローカルテスト用にlocalhostも許可）
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-https://your-production-domain.com},http://localhost:5173"
     ports:
       - "3001:3000"
     # 本番ではビルド済みイメージで起動（Dockerfileのデフォルト CMD を使用）
@@ -27,5 +27,5 @@ services:
       - NODE_ENV=production
     ports:
       - "5173:5173"
-    # 本番では Vite の preview サーバーを使用
-    command: sh -c "npm run build && npm run preview -- --host 0.0.0.0"
+    # 本番では Vite の preview サーバーを使用（ポートを5173に固定）
+    command: sh -c "npm run build && npm run preview -- --host 0.0.0.0 --port 5173"
