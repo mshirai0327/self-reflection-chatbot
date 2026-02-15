@@ -36,6 +36,18 @@ npx prisma studio
 psql -h 127.0.0.1 -p 5432 -U user -d ai_reflection_db
 ```
 
+#### psql 基本コマンド（MySQL との対応表）
+
+| MySQL | psql | 説明 |
+|-------|------|------|
+| `SHOW DATABASES;` | `\l` | データベース一覧 |
+| `USE dbname;` | `\c dbname` | データベース切替 |
+| `SHOW TABLES;` | `\dt` | テーブル一覧 |
+| `DESCRIBE tablename;` | `\d tablename` | テーブル構造 |
+| `SHOW CREATE TABLE t;` | `\d+ tablename` | 詳細なテーブル情報 |
+| — | `\?` | psqlコマンドのヘルプ |
+| — | `\q` | psql終了 |
+
 ---
 
 ## バックエンド API の動作確認
