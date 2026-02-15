@@ -20,7 +20,7 @@ help:
 # 開発環境の起動
 dev:
 	@echo "🚀 Starting Reflecta in DEVELOPMENT mode..."
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
 
 # 本番環境の起動
 prod:
