@@ -1,16 +1,14 @@
 services:
   db:
-    image: mysql:8.0
-    platform: linux/amd64
+    image: postgres:16-alpine
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: ai_reflection_db
-      MYSQL_USER: user
-      MYSQL_PASSWORD: password
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ai_reflection_db
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - db_data:/var/lib/mysql
+      - db_data:/var/lib/postgresql/data
     networks:
       - ai_network
 
@@ -28,9 +26,9 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       args:
-        DATABASE_URL: "mysql://user:password@db:3306/ai_reflection_db"
+        DATABASE_URL: "postgresql://user:password@db:5432/ai_reflection_db"
     environment:
-      DATABASE_URL: "mysql://user:password@db:3306/ai_reflection_db"
+      DATABASE_URL: "postgresql://user:password@db:5432/ai_reflection_db"
       GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY}
       CHROMA_URL: "http://chromadb:8000"
       IS_DOCKER: "true"

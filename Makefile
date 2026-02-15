@@ -36,7 +36,7 @@ stop:
 # ホストマシンから Docker 内の DB に接続するため、DATABASE_URL を localhost に上書きしています。
 prisma-studio:
 	@echo "Starting Prisma Studio..."
-	@cd backend && DATABASE_URL="mysql://root:rootpassword@localhost:3306/ai_reflection_db" npx prisma studio --browser none --port 5555
+	@cd backend && DATABASE_URL="postgresql://user:password@localhost:5432/ai_reflection_db" npx prisma studio --browser none --port 5555
 
 # ChromaDBのリセット（コレクション全削除）
 chroma-reset:

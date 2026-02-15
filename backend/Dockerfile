@@ -9,7 +9,7 @@ RUN npm install
 COPY . .
 
 # ビルド時にダミーのDATABASE_URLを設定
-ARG DATABASE_URL="mysql://user:password@db:3306/ai_reflection_db"
+ARG DATABASE_URL="postgresql://user:password@db:5432/ai_reflection_db"
 ENV DATABASE_URL=${DATABASE_URL}
 
 # Generate Prisma Client

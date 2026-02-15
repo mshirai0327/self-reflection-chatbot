@@ -17,7 +17,7 @@
 
 ---
 
-## データベース (MySQL) の調査
+## データベース (PostgreSQL) の調査
 
 Prismaを使用してデータベースの状態を確認する方法です。
 
@@ -29,11 +29,11 @@ cd backend
 npx prisma studio
 ```
 
-### 直接クエリ (MySQL経由)
+### 直接クエリ (psql経由)
 ターミナルから直接SQLを実行する場合。
 
 ```bash
-mysql -h 127.0.0.1 -P 3306 -u root -prootpassword ai_reflection_db
+psql -h 127.0.0.1 -p 5432 -U user -d ai_reflection_db
 ```
 
 ---

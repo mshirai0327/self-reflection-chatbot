@@ -1,6 +1,6 @@
 # Reflecta 処理フロー詳細設計
 
-このドキュメントでは、Reflecta の主要な処理フロー（チャットと内省）について、**データベース(MySQL)との具体的なデータのやり取り**と、**LLMへのプロンプト構築ロジック**を詳細に定義します。
+このドキュメントでは、Reflecta の主要な処理フロー（チャットと内省）について、**データベース(PostgreSQL)との具体的なデータのやり取り**と、**LLMへのプロンプト構築ロジック**を詳細に定義します。
 
 ## 1. チャット処理 (Chat Interaction)
 
@@ -12,7 +12,7 @@
 sequenceDiagram
     participant U as ユーザー
     participant API as API (/api/chat)
-    participant DB as MySQL (Prisma)
+    participant DB as PostgreSQL (Prisma)
     participant Vec as ChromaDB
     participant LLM as Gemini/LocalLLM
 
@@ -37,7 +37,7 @@ sequenceDiagram
     LLM-->>API: responseText
 
     %% 5. ログ保存
-    API->>DB: ChatLog.create (MySQLのみ)
+    API->>DB: ChatLog.create (PostgreSQLのみ)
     Note right of API: ※会話ログ自体はベクトル化しない<br/>(ノイズ低減のため)
 
     API-->>U: { response, status }
@@ -96,7 +96,7 @@ LLMに渡す `System Instruction` は、各テーブルのデータを元に以�
 sequenceDiagram
     participant U as ユーザー
     participant API as API (/api/reflect)
-    participant DB as MySQL (Prisma)
+    participant DB as PostgreSQL (Prisma)
     participant Vec as ChromaDB
     participant LLM as Gemini/LocalLLM
 
@@ -145,8 +145,8 @@ sequenceDiagram
 
 Reflecta の最大の特徴は、**「全ての会話を覚えるのではなく、重要なことだけを覚える」** 点にあります。
 
-1.  **Raw Logs (MySQL)**:
-    *   全ての会話 (`ChatLog`) は MySQL に保存されますが、これらは直接ベクトル検索の対象にはなりません（ノイズ過多のため）。
+1.  **Raw Logs (PostgreSQL)**:
+    *   全ての会話 (`ChatLog`) は PostgreSQL に保存されますが、これらは直接ベクトル検索の対象にはなりません（ノイズ過多のため）。
 2.  **Reflection (LLM)**:
     *   内省プロセスで、LLM が直近の会話から「永続的に覚えておくべき事実」を `newMemories` として抽出します。
     *   例：「ユーザーは辛いものが苦手だ」「来週旅行に行くと言っていた」

@@ -162,7 +162,7 @@ ${logSummary}
         );
         console.log("[Reflect API] Parsed reflection successfully:", reflection);
 
-        // 5. RDB (MySQL) のステータスを更新 (Hubパターンの新スキーマに対応)
+        // 5. RDB (PostgreSQL) のステータスを更新 (Hubパターンの新スキーマに対応)
         console.log("[Reflect API] Updating status in Prisma (Hub pattern)...");
 
         // 新しいステータス値の計算 (Clamp 0-100)
@@ -199,7 +199,7 @@ ${logSummary}
             { label: "friendliness", value: newFriendliness, unit: null },
         ];
 
-        // 5. RDB (MySQL) のステータスを更新 (Hubパターンの新スキーマに対応)
+        // 5. RDB (PostgreSQL) のステータスを更新 (Hubパターンの新スキーマに対応)
         console.log("[Reflect API] Updating status in Prisma (Hub pattern 1:N)...");
 
 

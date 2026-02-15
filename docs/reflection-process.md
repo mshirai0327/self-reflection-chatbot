@@ -20,7 +20,7 @@ Reflecta の最大の特徴は、AI が自らの対話を振り返り、自ら�
 
 **実装箇所:** `route.ts` L46-50
 
-RDB (MySQL) の `ChatLog` テーブルから、対象ペルソナに紐づく直近の最大 **20件** の会話ログを取得します。
+RDB (PostgreSQL) の `ChatLog` テーブルから、対象ペルソナに紐づく直近の最大 **20件** の会話ログを取得します。
 
 ```typescript
 const recentLogs = await prisma.chatLog.findMany({

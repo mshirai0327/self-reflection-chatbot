@@ -12,7 +12,7 @@
 - **バックエンド**: Next.js, TypeScript, Prisma
 - **AI**: Google Gemini API
 - **データベース**:
-  - **MySQL**: `PersonaStatus`（人格ステータス）や `ChatLog`（会話履歴）などの構造化データを永続化します。PrismaをORMとして使用します。
+  - **PostgreSQL**: `PersonaStatus`（人格ステータス）や `ChatLog`（会話履歴）などの構造化データを永続化します。PrismaをORMとして使用します。
   - **ChromaDB**: 会話の埋め込みベクトルを保存し、類似性検索によって関連する過去の記憶を文脈に含めるために使用します。
 - **インフラ**: Docker, Docker Compose
 
