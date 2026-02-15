@@ -32,12 +32,14 @@ Reflecta（仮名）は、自己進化型のAIチャットボットを開発す�
 
 ```text
 .
-├── frontend/             # React (Vite) + Tailwind CSS + Framer Motion
-├── backend/              # Next.js (App Router) + Prisma + Gemini API
-├── docker-compose.yml    # MySQL, ChromaDB, Front/Back, GPUサポート
-├── prisma/               # RDBスキーマ定義
-├── docs/                 # 設計ドキュメント・シークエンス図
-└── README.md             # 起動手順と設計思想のまとめ
+├── frontend/                 # React (Vite) + Tailwind CSS + Framer Motion
+├── backend/                  # Next.js (App Router) + Prisma + Gemini API
+├── docker-compose.yml        # 共通ベース定義
+├── docker-compose.dev.yml    # 開発環境用 override
+├── docker-compose.prod.yml   # 本番環境用 override
+├── prisma/                   # RDBスキーマ定義
+├── docs/                     # 設計ドキュメント・シークエンス図
+└── README.md                 # 起動手順と設計思想のまとめ
 
 ```
 
@@ -76,6 +78,11 @@ Reflecta（仮名）は、自己進化型のAIチャットボットを開発す�
 
 ## 🛠 起動方法
 
+### 前提条件
+
+- Docker および Docker Compose がインストールされていること
+- Google Gemini API キーを取得していること
+
 ### 1. APIキーの設定
 
 ルートディレクトリの `.env` ファイルに Gemini API キーを入力してください。
@@ -84,17 +91,59 @@ Reflecta（仮名）は、自己進化型のAIチャットボットを開発す�
 GOOGLE_GENERATIVE_AI_API_KEY="あなたのAPIキー"
 ```
 
-### 2. 起動
+### 2. 環境の起動
+
+本プロジェクトは **開発環境** と **本番環境** を docker-compose の override ファイルで切り分けています。
+
+#### 開発環境（推奨）
+
+ホットリロード有効、Local LLM 対応、CORS 全許可の開発向け構成です。
 
 ```bash
-docker-compose up --build
+make dev
+# または: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+#### 本番環境
+
+ビルド済みイメージで起動、Local LLM 無効（SSRF対策）、CORS 制限ありの本番向け構成です。
+
+```bash
+make prod
+# または: docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+```
+
+#### 停止
+
+```bash
+make stop
 ```
 
 ### 3. アクセス
 *   **Frontend**: [http://localhost:5173](http://localhost:5173)
 *   **Backend API**: [http://localhost:3001](http://localhost:3001)
 
-「内省を実行する」ボタンを押すと、AIがこれまでの会話を振り返り、自らのステータスを書き換える「自己進化ループ」が動作します
+「内省を実行する」ボタンを押すと、AIがこれまでの会話を振り返り、自らのステータスを書き換える「自己進化ループ」が動作します。
+
+### 開発環境 vs 本番環境の違い
+
+| 項目 | 開発環境 (`make dev`) | 本番環境 (`make prod`) |
+|------|----------------------|----------------------|
+| ホットリロード | ✅ 有効 | ❌ 無効 |
+| Local LLM | ✅ 利用可能 | ❌ 無効（SSRF対策） |
+| CORS | 全許可 | 指定ドメインのみ |
+| ソースマウント | ✅ あり | ❌ なし（ビルド済み） |
+| GPU サポート | ✅ あり | ❌ なし |
+
+### その他の便利コマンド
+
+```bash
+make help           # 利用可能なコマンド一覧を表示
+make prisma-studio  # Prisma Studio を起動（DBブラウザ）
+make chroma-reset   # ChromaDB のコレクションをリセット
+make chroma-inspect # ChromaDB のデータを確認
+make test           # バックエンドのテストを実行
+```
 
 ## 📜 License
 
