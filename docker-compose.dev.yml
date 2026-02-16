@@ -43,5 +43,4 @@ services:
       # ソースコードのホットリロード用マウント
       - ./frontend:/app
       - /app/node_modules
-      - ./.env:/app/.env
     command: npm run dev -- --host 0.0.0.0

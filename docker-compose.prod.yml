@@ -15,8 +15,9 @@ services:
       NODE_ENV: production
       # 本番環境では Local LLM プロキシAPIを無効化（SSRF対策）
       ENABLE_LOCAL_LLM_PROXY: "false"
-      # 本番用ドメインを設定してください（ローカルテスト用にlocalhostも許可）
-      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-https://your-production-domain.com},http://localhost:5173"
+      # 本番用ドメインを.envのALLOWED_ORIGINSで必ず設定してください（例: https://example.com,http://localhost:5173）
+      # デフォルト値は空にして、未設定時にエラーまたは拒否されるようにします
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS}"
     ports:
       - "3001:3000"
     # 本番ではビルド済みイメージで起動（Dockerfileのデフォルト CMD を使用）
