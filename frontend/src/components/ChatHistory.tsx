@@ -102,6 +102,25 @@ export function ChatHistory({
     const [loadingModels, setLoadingModels] = useState(false);
     const [editingChatId, setEditingChatId] = useState<string | null>(null);
     const [editingTitle, setEditingTitle] = useState("");
+    /** 本番環境では Local LLM UI を非表示にするためのフラグ */
+    const [isLocalLLMEnabled, setIsLocalLLMEnabled] = useState(true);
+
+    // 環境情報を取得して Local LLM の表示/非表示を制御
+    useEffect(() => {
+        const fetchEnvConfig = async () => {
+            try {
+                const res = await axios.get(`${API_URL}/api/env`);
+                setIsLocalLLMEnabled(res.data.isLocalLLMEnabled ?? true);
+                // 本番環境でlocalが選択されていた場合はgeminiにフォールバック
+                if (!res.data.isLocalLLMEnabled && llmSettings.provider === 'local') {
+                    setLlmSettings(p => ({ ...p, provider: 'gemini' }));
+                }
+            } catch (error) {
+                console.warn('[ChatHistory] Failed to fetch env config, defaulting to dev mode:', error);
+            }
+        };
+        fetchEnvConfig();
+    }, []);
 
     const startEditing = (chat: Chat, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -403,12 +422,15 @@ export function ChatHistory({
                                             >
                                                 Gemini
                                             </button>
-                                            <button
-                                                onClick={() => setLlmSettings(p => ({ ...p, provider: 'local' }))}
-                                                className={`flex-1 py-1 text-xs rounded transition-all ${llmSettings.provider === 'local' ? 'bg-white dark:bg-slate-700 shadow text-green-600 dark:text-green-300 font-bold' : 'text-slate-500'}`}
-                                            >
-                                                Local LLM
-                                            </button>
+                                            {/* 本番環境では Local LLM ボタンを非表示（SSRF対策） */}
+                                            {isLocalLLMEnabled && (
+                                                <button
+                                                    onClick={() => setLlmSettings(p => ({ ...p, provider: 'local' }))}
+                                                    className={`flex-1 py-1 text-xs rounded transition-all ${llmSettings.provider === 'local' ? 'bg-white dark:bg-slate-700 shadow text-green-600 dark:text-green-300 font-bold' : 'text-slate-500'}`}
+                                                >
+                                                    Local LLM
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
 

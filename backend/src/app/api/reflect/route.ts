@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { addMemory } from "@/lib/chroma";
-import { getDefaultPersona, getLatestStatus, flattenStatus } from "@/lib/persona";
+import { getLatestStatus, flattenStatus } from "@/lib/persona";
 import { generateJson, LLMConfig } from "@/lib/llm";
+import { isProviderAllowed } from "@/lib/env";
 import { z } from "zod";
 import { ulid } from "ulid";
 
@@ -48,6 +49,15 @@ export async function POST(req: NextRequest) {
             provider: "gemini",
             model: "gemini-1.5-pro-latest" // 内省処理には高性能なモデルを推奨
         };
+
+        // SSRF対策: 本番環境では local プロバイダーを拒否
+        if (!isProviderAllowed(activeConfig.provider)) {
+            return NextResponse.json(
+                { error: "Local LLM provider is not available in this environment." },
+                { status: 403 }
+            );
+        }
+
         console.log(`[Reflect API] Using provider: ${activeConfig.provider}, chatId: ${chatId}`);
 
         // 5. デフォルトのペルソナではなく、チャットに関連付けられたペルソナを取得
@@ -99,7 +109,7 @@ export async function POST(req: NextRequest) {
         // 3. LLMに送信するプロンプトを作成
         //todo たまにこのJSONで帰ってこなくて、データが壊れる時がある
         const reflectionPrompt = `
-あなたは自己進化型AI「${status.name || 'Reflecta'}」です。以下の情報に基づいて自己分析を行い、あなた自身のステータスがどのように変化すべきかを判断してください。
+あなたの名前は「${status.name || 'Reflecta'}」です。以下の情報に基づいて自己分析を行い、あなた自身のステータスがどのように変化すべきかを判断してください。
 
 ### 分析対象の会話履歴:
 ${logSummary}
@@ -152,10 +162,9 @@ ${logSummary}
         );
         console.log("[Reflect API] Parsed reflection successfully:", reflection);
 
-        // 5. RDB (MySQL) のステータスを更新 (Hubパターンの新スキーマに対応)
-        console.log("[Reflect API] Updating status in Prisma (Hub pattern)...");
+        // ステータス更新値の計算
+        console.log("[Reflect API] Calculating status updates...");
 
-        // 新しいステータス値の計算 (Clamp 0-100)
         // 新しいステータス値の計算 (Clamp 0-100)
         let trustBonus = 0;
         let friendlinessBonus = 0;
@@ -189,7 +198,7 @@ ${logSummary}
             { label: "friendliness", value: newFriendliness, unit: null },
         ];
 
-        // 5. RDB (MySQL) のステータスを更新 (Hubパターンの新スキーマに対応)
+        // 5. RDB (PostgreSQL) のステータスを更新 (Hubパターンの新スキーマに対応)
         console.log("[Reflect API] Updating status in Prisma (Hub pattern 1:N)...");
 
 

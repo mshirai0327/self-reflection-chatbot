@@ -12,7 +12,7 @@
 - **バックエンド**: Next.js, TypeScript, Prisma
 - **AI**: Google Gemini API
 - **データベース**:
-  - **MySQL**: `PersonaStatus`（人格ステータス）や `ChatLog`（会話履歴）などの構造化データを永続化します。PrismaをORMとして使用します。
+  - **PostgreSQL**: `PersonaStatus`（人格ステータス）や `ChatLog`（会話履歴）などの構造化データを永続化します。PrismaをORMとして使用します。
   - **ChromaDB**: 会話の埋め込みベクトルを保存し、類似性検索によって関連する過去の記憶を文脈に含めるために使用します。
 - **インフラ**: Docker, Docker Compose
 
@@ -33,10 +33,22 @@
     ```
 
 2.  **Dockerコンテナの起動**:
-    以下のコマンドを実行して、すべてのサービス（フロントエンド、バックエンド、データベース）を起動します。初回起動時はイメージのビルドに時間がかかります。
 
+    **開発環境の場合:**
     ```bash
-    docker-compose up --build
+    make dev
+    # または: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+    ```
+
+    **本番環境の場合:**
+    ```bash
+    make prod
+    # または: docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+    ```
+
+    **コンテナの停止:**
+    ```bash
+    make stop
     ```
 
 3.  **アプリケーションへのアクセス**:

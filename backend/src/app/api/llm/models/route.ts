@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 import { normalizeLocalEndpoint } from "@/lib/llm";
+import { isLocalLLMProxyEnabled } from "@/lib/env";
 
 /**
  * 指定された OpenAI 互換エンドポイントから利用可能なモデル一覧を取得します。
  * クライアントサイドでの CORS 回避のため、バックエンドがプロキシとして動作します。
+ *
+ * 注意: SSRF対策として、本番環境ではこのエンドポイントは無効化されます。
+ * 環境変数 ENABLE_LOCAL_LLM_PROXY="true" で明示的に有効化できます。
  */
 export async function POST(req: NextRequest) {
+    // SSRF対策: 本番環境では Local LLM プロキシを無効化
+    if (!isLocalLLMProxyEnabled()) {
+        return NextResponse.json(
+            { error: "Local LLM proxy is disabled in this environment." },
+            { status: 403 }
+        );
+    }
+
     try {
         const { endpoint, apiKey } = await req.json();
 

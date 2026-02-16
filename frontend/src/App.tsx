@@ -224,9 +224,16 @@ function App() {
     try {
       const res = await axios.get(`${API_URL}/api/personas`);
       setPersonas(res.data);
-      // 未選択かつlocalStorageにもなければ最初のペルソナを選択
-      if (!options.skipAutoSelect && res.data.length > 0 && !currentPersonaId) {
-        setCurrentPersonaId(res.data[0].id);
+      
+      // 未選択、または選択中のペルソナが一覧に存在しない場合は最初のペルソナを選択
+      if (!options.skipAutoSelect && res.data.length > 0) {
+        const currentExists = currentPersonaId && res.data.some((p: Persona) => p.id === currentPersonaId);
+        if (!currentExists) {
+            console.log('Selected persona not found in current list, resetting to default.');
+            setCurrentPersonaId(res.data[0].id);
+            // ペルソナが変わった（無効だった）ので、紐づくチャットもリセット
+            setCurrentChatId(null);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch personas:', error);

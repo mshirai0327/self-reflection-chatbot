@@ -1,0 +1,46 @@
+# =============================================
+# 開発環境用 docker-compose override
+# 使用方法: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+# または: make dev
+# =============================================
+
+services:
+  chromadb:
+    environment:
+      # 開発環境ではCORS全許可（ブラウザから直接アクセスする場合があるため）
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["*"]
+
+  backend:
+    environment:
+      NODE_ENV: development
+      # 開発環境では Local LLM プロキシAPIを有効化
+      ENABLE_LOCAL_LLM_PROXY: "true"
+      ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:3000"
+    ports:
+      - "3001:3000"
+    volumes:
+      # ソースコードのホットリロード用マウント
+      - ./backend:/app
+      - /app/node_modules
+      - /app/.next
+    # 開発サーバーで起動（prisma generate → npm run dev）
+    command: sh -c "npx prisma generate && npm run dev"
+    # GPU support for future local LLM
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+
+  frontend:
+    environment:
+      - NODE_ENV=development
+    ports:
+      - "5173:5173"
+    volumes:
+      # ソースコードのホットリロード用マウント
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0

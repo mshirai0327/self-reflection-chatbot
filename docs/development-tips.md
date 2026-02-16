@@ -17,7 +17,7 @@
 
 ---
 
-## データベース (MySQL) の調査
+## データベース (PostgreSQL) の調査
 
 Prismaを使用してデータベースの状態を確認する方法です。
 
@@ -29,12 +29,24 @@ cd backend
 npx prisma studio
 ```
 
-### 直接クエリ (MySQL経由)
+### 直接クエリ (psql経由)
 ターミナルから直接SQLを実行する場合。
 
 ```bash
-mysql -h 127.0.0.1 -P 3306 -u root -prootpassword ai_reflection_db
+psql -h 127.0.0.1 -p 5432 -U user -d ai_reflection_db
 ```
+
+#### psql 基本コマンド（MySQL との対応表）
+
+| MySQL | psql | 説明 |
+|-------|------|------|
+| `SHOW DATABASES;` | `\l` | データベース一覧 |
+| `USE dbname;` | `\c dbname` | データベース切替 |
+| `SHOW TABLES;` | `\dt` | テーブル一覧 |
+| `DESCRIBE tablename;` | `\d tablename` | テーブル構造 |
+| `SHOW CREATE TABLE t;` | `\d+ tablename` | 詳細なテーブル情報 |
+| — | `\?` | psqlコマンドのヘルプ |
+| — | `\q` | psql終了 |
 
 ---
 
