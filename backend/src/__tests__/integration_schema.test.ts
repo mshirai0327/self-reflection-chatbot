@@ -7,7 +7,7 @@ const prisma = new PrismaClient({
     datasources: {
         db: {
             // CI環境（GitHub Actions等）では設定されたDATABASE_URLを使用
-            // ローカル環境（CI=false/undefined）では、.envが"db:3306"となっていてもホスト側から接続できるようにlocalhostを強制
+            // ローカル環境（CI=false/undefined）では、.envが"db:5432"となっていてもホスト側から接続できるようにlocalhostを強制
             url: process.env.CI ? process.env.DATABASE_URL : "postgresql://user:password@localhost:5432/ai_reflection_db"
         }
     }
