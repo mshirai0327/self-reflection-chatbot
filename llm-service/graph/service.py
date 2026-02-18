@@ -40,14 +40,21 @@ class GraphService:
                 if attempt < max_retries - 1:
                     time.sleep(delay)
                 else:
-                    raise e
+                    print("Could not connect to Neo4j. Graph capabilities will be disabled.")
+                    return None
 
     def _ensure_indices(self):
+        if not self.graph:
+            return
         self.graph.query("CREATE CONSTRAINT IF NOT EXISTS FOR (c:Concept) REQUIRE c.name IS UNIQUE")
         # Define vector index for Concept names/descriptions if supported by current setup
         # For now, we rely on Neo4jVector to manage the index "concept_index"
 
     def add_triples(self, triples: List[KnowledgeTriple]):
+        if not self.graph:
+            print("[Graph] Skipping save (Neo4j not connected)")
+            return
+
         timestamp = datetime.now().isoformat()
         
         for t in triples:
@@ -75,6 +82,9 @@ class GraphService:
             })
 
     def get_relevant_context(self, query: str) -> str:
+        if not self.graph:
+            return ""
+
         # 1. Vector Search to find relevant Concepts
         # We try to use Neo4jVector to find top concepts
         try:
@@ -124,6 +134,9 @@ class GraphService:
         そのため Cypher 側で type(r) を文字列として取得し、
         プロパティも r.weight / r.is_personal で直接取得する。
         """
+        if not self.graph:
+            return {"nodes": [], "links": []}
+
         cypher = """
         MATCH (n)-[r]->(m)
         RETURN n.name AS source,
