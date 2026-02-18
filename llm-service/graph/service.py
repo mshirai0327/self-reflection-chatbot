@@ -9,8 +9,10 @@ import os
 
 class GraphService:
     def __init__(self):
+        # 埋め込みモデル名を環境変数から取得（backend/.env の GOOGLE_EMBEDDING_MODEL と統一）
+        embedding_model = os.getenv("GOOGLE_EMBEDDING_MODEL", "gemini-embedding-001")
         self.embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/gemini-embedding-001",
+            model=f"models/{embedding_model}",
             google_api_key=os.getenv("GOOGLE_API_KEY")
         )
         self.graph = self._connect_to_neo4j()

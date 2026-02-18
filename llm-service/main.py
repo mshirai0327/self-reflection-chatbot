@@ -34,6 +34,7 @@ chat_service = ChatService()
 graph_service = GraphService()
 
 # 知識抽出用モデル（バックグラウンドタスクで使用）
+# todo local LLM接続するべき
 extraction_llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-pro",  # 抽出ロジックには精度の高い Pro モデルを使用
     google_api_key=os.getenv("GOOGLE_API_KEY"),
