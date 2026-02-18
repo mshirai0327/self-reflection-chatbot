@@ -1,6 +1,6 @@
 # Reflecta プロジェクト便利コマンド
 
-.PHONY: help dev prod stop prisma-studio chroma-reset chroma-inspect test
+.PHONY: help dev prod stop prisma-studio chroma-reset chroma-inspect neo4j-inspect test
 
 # デフォルトのヘルプ表示
 help:
@@ -15,6 +15,7 @@ help:
 	@echo "  make prisma-studio  - Prisma Studio を起動します (localhost接続用)"
 	@echo "  make chroma-reset   - ChromaDBのコレクションをリセット（全削除）します"
 	@echo "  make chroma-inspect - ChromaDBに保存されている記憶を確認します"
+	@echo "  make neo4j-inspect  - Neo4jナレッジグラフの中身を確認します"
 	@echo "  make test           - バックエンドのテストを実行します"
 
 # 開発環境の起動
@@ -52,3 +53,8 @@ chroma-inspect:
 test:
 	@echo "Running backend tests..."
 	@cd backend && npm run test
+
+# Neo4j ナレッジグラフの中身確認
+neo4j-inspect:
+	@echo "Inspecting Neo4j Knowledge Graph..."
+	@docker exec self-reflection-chatbot-llm-service-1 python scripts/inspect_neo4j.py
