@@ -191,47 +191,43 @@ export async function generateResponse(
     userPrompt: string,
     context: PersonaContext
 ): Promise<{ content: string; systemInstruction: string }> {
-    const modelName = config.model || 'default';
-    console.log(`[LLM] Generating response using provider: ${config.provider}, model: ${modelName}`);
+    // LLM Service (Python) へのリクエストに切り替え
+    const llmServiceUrl = process.env.LLM_SERVICE_URL || "http://llm-service:8080";
+    console.log(`[LLM] Delegating generation to Python Service: ${llmServiceUrl}`);
 
-    const chatModel = createChatModel(config);
-    const systemInstruction = buildSystemInstruction(context);
+    try {
+        const response = await fetch(`${llmServiceUrl}/chat`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                message: userPrompt,
+                history: context.history || [],
+                context: {
+                    status: context.status,
+                    memories: context.memories,
+                    growth_delta: context.growthDelta || 0,
+                    system_prompt: context.systemPrompt
+                }
+            }),
+        });
 
-    const isSystemInstructionSupported = !modelName.toLowerCase().startsWith("gemma");
-
-    let messages: BaseMessage[];
-
-    // 履歴をLangChainのメッセージ形式に変換
-    const historyMessages: BaseMessage[] = (context.history || []).map(h => {
-        if (h.role === 'user') {
-            return new HumanMessage(h.content);
-        } else {
-            return new AIMessage(h.content);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`LLM Service Error (${response.status}): ${errorText}`);
         }
-    });
 
-    if (isSystemInstructionSupported) {
-        messages = [
-            new SystemMessage(systemInstruction),
-            ...historyMessages,
-            new HumanMessage(userPrompt),
-        ];
-    } else {
-        // System Instruction未サポートモデルへのフォールバック
-        // 履歴もテキストとして埋め込む
-        const historyText = (context.history || []).map(h => `${h.role}: ${h.content}`).join("\n");
-        messages = [
-            new HumanMessage(`System Instruction:\n${systemInstruction}\n\nChat History:\n${historyText}\n\nUser Message: ${userPrompt}`),
-        ];
+        const data = await response.json();
+        return {
+            content: data.content,
+            systemInstruction: data.system_instruction
+        };
+
+    } catch (error) {
+        console.error("[LLM] Failed to call LLM Service:", error);
+        throw error;
     }
-
-    console.log(`[LLM] Messages:`, messages);
-
-    const result = await chatModel.invoke(messages);
-    return {
-        content: result.content as string,
-        systemInstruction
-    };
 }
 
 /**

@@ -10,6 +10,12 @@ services:
       # 開発環境ではCORS全許可（ブラウザから直接アクセスする場合があるため）
       - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["*"]
 
+  llm-service:
+    volumes:
+      - ./llm-service:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+
+
   backend:
     environment:
       NODE_ENV: development
