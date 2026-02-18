@@ -1,19 +1,24 @@
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
+
 class KnowledgeTriple(BaseModel):
+    """ナレッジグラフに保存する知識トリプル（主語・述語・目的語）"""
     subject: str = Field(description="The source concept or event (e.g., 'Lack of sleep')")
     predicate: str = Field(description="The relationship type (e.g., 'CAUSES', 'RELATED_TO', 'HAS_PART')")
     object: str = Field(description="The target concept or event (e.g., 'Fatigue')")
     weight: float = Field(description="Confidence or strength of the relationship (0.0 to 1.0)", default=1.0)
     is_personal: bool = Field(description="True if this is a personal/learned fact, False if it is a universal/invariant fact", default=True)
 
+
 class ExtractionResult(BaseModel):
+    """知識抽出の結果。トリプルのリストを保持する。"""
     triples: List[KnowledgeTriple] = Field(description="List of extracted relationships")
 
-def create_extraction_chain(llm: ChatGoogleGenerativeAI):
+
+def create_extraction_chain(llm: BaseChatModel):
     prompt = ChatPromptTemplate.from_messages([
         ("system", """
 You are a knowledge extractor for a self-reflection AI.

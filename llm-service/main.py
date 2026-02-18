@@ -32,16 +32,14 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 chat_service = ChatService()
 graph_service = GraphService()
 
-# 知識抽出用モデル（バックグラウンドタスクで使用）
-# 環境変数で設定可能。デフォルトは Gemini Pro。
-extraction_llm_config = LLMConfig(
+# 知識抽出用モデルのデフォルト設定（環境変数から読み込み）
+# チャットリクエストで llm_config が渡された場合は、そちらを優先して使用する。
+_default_extraction_llm_config = LLMConfig(
     provider=os.getenv("EXTRACTION_LLM_PROVIDER", "gemini"),
     model=os.getenv("EXTRACTION_LLM_MODEL", "gemini-2.5-pro"),
     base_url=os.getenv("EXTRACTION_LLM_ENDPOINT"),
 )
-extraction_llm = create_chat_model(extraction_llm_config)
-print(f"[Extraction] Using provider={extraction_llm_config.provider}, model={extraction_llm_config.model}")
-extraction_chain = create_extraction_chain(extraction_llm)
+print(f"[Extraction] Default config: provider={_default_extraction_llm_config.provider}, model={_default_extraction_llm_config.model}")
 
 
 class ChatRequest(BaseModel):
@@ -53,16 +51,34 @@ class ChatRequest(BaseModel):
     llm_config: LLMConfig | None = None
 
 
-def run_extraction(message: str):
-    """バックグラウンドタスク: ユーザーメッセージからナレッジトリプルを抽出"""
+def run_extraction(message: str, llm_config: LLMConfig | None = None):
+    """
+    バックグラウンドタスク: ユーザーメッセージからナレッジトリプルを抽出してNeo4jに保存する。
+
+    llm_config が指定された場合はそのプロバイダー・モデルを使用する。
+    指定されない場合は環境変数のデフォルト設定（_default_extraction_llm_config）を使用する。
+    これにより、フロントエンドで Local LLM を選択している場合は、
+    知識抽出も同じ Local LLM で行われ、Gemini API のクォータを消費しない。
+
+    @param message - 抽出対象のユーザーメッセージ
+    @param llm_config - 使用するLLM設定（省略時はデフォルト設定を使用）
+    """
+    # リクエストで使われた llm_config を優先。なければデフォルト設定を使用。
+    active_config = llm_config if llm_config else _default_extraction_llm_config
     try:
-        print(f"Running extraction for: {message}")
-        result = extraction_chain.invoke({"input": message})
+        print(f"[Extraction] Running for: {message}")
+        print(f"[Extraction] Using provider={active_config.provider}, model={active_config.model}")
+        # リクエストごとにモデルを動的生成（Local LLM の場合は endpoint も含む）
+        extraction_llm = create_chat_model(active_config)
+        chain = create_extraction_chain(extraction_llm)
+        result = chain.invoke({"input": message})
         if result and result.triples:
-            print(f"Extracted {len(result.triples)} triples")
+            print(f"[Extraction] Extracted {len(result.triples)} triples")
             graph_service.add_triples(result.triples)
+        else:
+            print("[Extraction] No triples extracted.")
     except Exception as e:
-        print(f"Extraction failed: {e}")
+        print(f"[Extraction] Failed: {e}")
 
 
 @app.get("/")
@@ -88,8 +104,9 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks):
         )
 
         # 3. バックグラウンドで知識抽出を実行
-        print("[DEBUG] neo4j insert")
-        background_tasks.add_task(run_extraction, request.message)
+        # チャットで使用した llm_config を抽出にも流用することで、
+        # Local LLM 使用時は Gemini API のクォータを消費しない。
+        background_tasks.add_task(run_extraction, request.message, request.llm_config)
 
         return result
     except Exception as e:
