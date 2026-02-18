@@ -209,7 +209,14 @@ export async function generateResponse(
                     memories: context.memories,
                     growth_delta: context.growthDelta || 0,
                     system_prompt: context.systemPrompt
-                }
+                },
+                // LLM接続設定をPythonサービスに渡す（provider/model/endpointの動的切替用）
+                llm_config: config ? {
+                    provider: config.provider || "gemini",
+                    model: config.model,
+                    api_key: config.apiKey,
+                    base_url: config.baseURL || config.endpoint,
+                } : null,
             }),
         });
 

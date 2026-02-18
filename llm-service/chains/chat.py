@@ -1,9 +1,19 @@
+"""
+チャットサービスモジュール。
+ペルソナのコンテキストに基づいたシステムプロンプトの構築と、
+LLMを使用した応答生成を担当します。
+Gemini / OpenAI / Local LLM（OpenAI互換API）に対応しています。
+"""
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, BaseMessage
 from pydantic import BaseModel
 import os
 
+
 class PersonaStatus(BaseModel):
+    """ペルソナの現在のステータスを表すモデル"""
     name: str = "Reflecta"
     gender: str | None = None
     birthDate: str | None = None
@@ -28,14 +38,73 @@ class PersonaStatus(BaseModel):
     trust: int = 50
     friendliness: int = 50
 
+
+class LLMConfig(BaseModel):
+    """LLM接続設定。フロントエンドから渡されるプロバイダー・モデル・エンドポイント情報。"""
+    provider: str = "gemini"  # "gemini" | "openai" | "local"
+    model: str | None = None
+    api_key: str | None = None
+    # OpenAI互換エンドポイント（Local LLM用）
+    base_url: str | None = None
+    endpoint: str | None = None  # フロントエンドからは 'endpoint' で渡される場合がある
+
+
 class ChatContext(BaseModel):
+    """チャットのコンテキスト情報"""
     status: PersonaStatus
     memories: list[str] = []
     growth_delta: float = 0.0
     system_prompt: str | None = None
     graph_context: str | None = None
 
+
+# --- デフォルトモデル名 ---
+DEFAULT_GEMINI_CHAT_MODEL = "gemini-2.0-flash"
+DEFAULT_OPENAI_CHAT_MODEL = "gpt-4o"
+
+
+def create_chat_model(config: LLMConfig | None = None) -> BaseChatModel:
+    """
+    指定された設定に基づいて LangChain のチャットモデルインスタンスを生成します。
+    プロバイダー（Gemini / OpenAI / Local）に応じて適切なクラスを初期化します。
+
+    @param config - LLM接続設定（プロバイダー、モデル名、APIキー、エンドポイントなど）
+    @returns 初期化された LangChain の BaseChatModel インスタンス
+    """
+    if config is None:
+        config = LLMConfig()
+
+    provider = config.provider or "gemini"
+    base_url = config.base_url or config.endpoint
+
+    if provider in ("openai", "local"):
+        # 'local' プロバイダーは OpenAI 互換のエンドポイントを使用します。
+        # 本物の OpenAI API キーは不要ですが、ライブラリの仕様上何らかの文字列が必要です。
+        model_name = config.model or DEFAULT_OPENAI_CHAT_MODEL
+        return ChatOpenAI(
+            api_key=config.api_key or os.getenv("OPENAI_API_KEY") or "no-key-required",
+            model=model_name,
+            base_url=base_url,
+            temperature=0.7,
+        )
+
+    # デフォルト: Gemini
+    model_name = config.model or DEFAULT_GEMINI_CHAT_MODEL
+    return ChatGoogleGenerativeAI(
+        model=model_name,
+        google_api_key=config.api_key or os.getenv("GOOGLE_API_KEY"),
+        temperature=0.7,
+    )
+
+
 def build_system_instruction(context: ChatContext) -> str:
+    """
+    ペルソナのコンテキスト情報（ステータスや記憶）から、システムプロンプトを構築します。
+    AIに対して、自身の役割や現在の状態を認識させるための指示文を生成します。
+
+    @param context - ペルソナの現在のステータスと関連する記憶のリスト
+    @returns 構築されたシステムプロンプト文字列
+    """
     s = context.status
     growth_delta = context.growth_delta
 
@@ -108,33 +177,64 @@ def build_system_instruction(context: ChatContext) -> str:
 
     return instruction
 
+
 class ChatService:
+    """
+    チャット応答生成サービス。
+    リクエストごとにLLMプロバイダーを動的に切り替えることが可能。
+    llm_configが指定されない場合はデフォルト（Gemini Flash）を使用。
+    """
     def __init__(self):
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
             print("WARNING: GOOGLE_API_KEY is not set")
-        
-        self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash",
-            google_api_key=api_key,
-            temperature=0.7
-        )
 
-    async def generate_response(self, message: str, history: list[dict], context: ChatContext):
+        # デフォルトのLLMインスタンス（Gemini Flash）
+        self.default_llm = create_chat_model(LLMConfig(
+            provider="gemini",
+            model=DEFAULT_GEMINI_CHAT_MODEL,
+            api_key=api_key,
+        ))
+
+    async def generate_response(
+        self,
+        message: str,
+        history: list[dict],
+        context: ChatContext,
+        llm_config: LLMConfig | None = None,
+    ):
+        """
+        メッセージに対する応答を生成します。
+        llm_configが指定された場合、そのプロバイダー・モデルを使用します。
+        指定されない場合はデフォルトのGeminiを使用します。
+
+        @param message - ユーザーからの入力メッセージ
+        @param history - 会話履歴
+        @param context - ペルソナコンテキスト
+        @param llm_config - LLM接続設定（省略時はデフォルト）
+        @returns 生成された応答とシステムプロンプト
+        """
         system_instruction = build_system_instruction(context)
-        
+
+        # llm_configが指定された場合、動的にモデルを生成
+        if llm_config and llm_config.provider != "gemini":
+            print(f"[ChatService] Using dynamic LLM: provider={llm_config.provider}, model={llm_config.model}")
+            llm = create_chat_model(llm_config)
+        else:
+            llm = self.default_llm
+
         messages: list[BaseMessage] = [SystemMessage(content=system_instruction)]
-        
+
         for h in history:
             if h.get("role") == "user":
                 messages.append(HumanMessage(content=h.get("content")))
             else:
                 messages.append(AIMessage(content=h.get("content")))
-        
+
         messages.append(HumanMessage(content=message))
-        
-        response = await self.llm.ainvoke(messages)
-        
+
+        response = await llm.ainvoke(messages)
+
         return {
             "content": response.content,
             "system_instruction": system_instruction

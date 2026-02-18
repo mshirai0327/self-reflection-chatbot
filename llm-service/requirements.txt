@@ -2,6 +2,7 @@ fastapi
 uvicorn
 langchain
 langchain-google-genai
+langchain-openai
 langchain-community
 neo4j
 python-dotenv

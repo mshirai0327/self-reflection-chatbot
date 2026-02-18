@@ -10,7 +10,7 @@ import os
 class GraphService:
     def __init__(self):
         self.embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/text-embedding-004",
+            model="models/gemini-embedding-001",
             google_api_key=os.getenv("GOOGLE_API_KEY")
         )
         self.graph = self._connect_to_neo4j()
