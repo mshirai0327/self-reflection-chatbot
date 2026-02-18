@@ -88,6 +88,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks):
         )
 
         # 3. バックグラウンドで知識抽出を実行
+        print("[DEBUG] neo4j insert")
         background_tasks.add_task(run_extraction, request.message)
 
         return result
