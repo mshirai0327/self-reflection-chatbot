@@ -84,6 +84,8 @@
 
 ## コミットルール
 
+commitは原則ユーザが行います。ユーザが許可した場合にのみcommitを実行してください
+
 共同作業であることを明示するため、AIエージェントがコミットするときは、コミットメッセージの末尾に次の`Co-authored-byトレーラー`を加えてどのAIエージェントが作業したか分かるようにしてください。
 空行を挟んでください。
 ```
@@ -91,11 +93,6 @@ feat: commit message
 
 Co-Authored-By: gemini <218195315+gemini-cli@users.noreply.github.com>
 ```
-
-geminiの場合は以下でお願いします
-
-- Co-Authored-By: gemini <218195315+gemini-cli@users.noreply.github.com>
-
 
 ## コマンド操作について
 
