@@ -83,13 +83,20 @@ def main():
 
         # --- ノードのプロパティサンプル ---
         print(f"=== ノードサンプル（最大 5 件）===")
-        nodes = session.run("MATCH (n) RETURN n LIMIT 5")
+        # embedding プロパティはベクトル配列（数千次元）のため除外して表示する。
+        # Neo4jVector が get_relevant_context() 内でノードに埋め込みを書き込むため、
+        # n.name のみ取得することで巨大な出力を防ぐ。
+        nodes = session.run(
+            "MATCH (n) RETURN labels(n) AS labels, n.name AS name LIMIT 5"
+        )
         for record in nodes:
-            node = record["n"]
-            print(f"  Labels: {list(node.labels)}, Properties: {dict(node)}")
+            labels_list = record["labels"]
+            name = record["name"]
+            print(f"  Labels: {labels_list}, name: {name}")
 
     driver.close()
     print("\nDone.")
+
 
 
 if __name__ == "__main__":
