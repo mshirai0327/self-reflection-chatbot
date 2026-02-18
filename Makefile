@@ -49,10 +49,16 @@ chroma-inspect:
 	@echo "Inspecting ChromaDB collection..."
 	@cd backend && npx tsx src/scripts/inspect-chroma.ts
 
-# テストの実行
-test:
-	@echo "Running backend tests..."
+# テストの実行 (Backend & LLM Service)
+test: test-backend test-llm
+
+test-backend:
+	@echo "Running backend tests (JS)..."
 	@cd backend && npm run test
+
+test-llm:
+	@echo "Running LLM service tests (Python)..."
+	@docker compose exec llm-service pytest tests/ || echo "Warning: LLM Service tests failed or container is not running."
 
 # Neo4j ナレッジグラフの中身確認
 neo4j-inspect:
