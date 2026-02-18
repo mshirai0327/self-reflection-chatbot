@@ -244,3 +244,36 @@ curl http://localhost:8080/graph
 | `llm-service/main.py` | バックグラウンドタスクの起動（`run_extraction`） |
 | `llm-service/scripts/inspect_neo4j.py` | デバッグ用検査スクリプト |
 | `llm-service/.env` | 環境変数設定 |
+
+---
+
+## グラフ描画 (Visualization)
+
+フロントエンド (`frontend/src/components/GraphViewer.tsx`) では、Neo4j に蓄積された知識グラフを可視化しています。
+
+### 使用ライブラリ
+
+*   **[react-force-graph-2d](https://github.com/vasturiano/react-force-graph)**: HTML5 Canvas を使用した Force-Directed Graph の描画ライブラリ。
+    *   物理演算によりノードが自然に配置されます。
+    *   ズーム、パン、ノードドラッグなどのインタラクションが可能です。
+
+### データフロー
+
+1.  **React App** (`GraphViewer.tsx`)
+    *   コンポーネントマウント時に `/api/graph` を呼び出します。
+    *   `ResizeObserver` を使用して親コンテナのサイズ変更を検知し、グラフの描画領域を動的に調整します（タブ切り替え時の描画崩れ防止）。
+
+2.  **Next.js Backend** (`/api/graph`)
+    *   リクエストを `llm-service` にプロキシします。
+
+3.  **Python LLM Service** (`/graph`)
+    *   Neo4j から全ノードとリレーションを取得します。
+    *   `react-force-graph-2d` が解釈可能な形式 (`{ nodes: [], links: [] }`) に変換して返します。
+
+### 描画の仕組み
+
+*   **ノード**: `Concept` ラベルを持つノードが表示されます。
+    *   グループ (`group`) によって自動的に色分けされます（現在はすべて `Concept`）。
+*   **リンク**: リレーションシップが表示されます。
+    *   矢印（Directional Arrow）として描画され、因果関係の方向を示します。
+    *   リレーションタイプ（`CAUSES` など）がラベルとして表示されます。
