@@ -8,10 +8,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
-from chains.chat import ChatService, ChatContext, PersonaStatus, LLMConfig
+from chains.chat import ChatService, ChatContext, PersonaStatus, LLMConfig, create_chat_model
 from graph.service import GraphService
 from chains.extraction import create_extraction_chain
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 load_dotenv()
 
@@ -34,12 +33,14 @@ chat_service = ChatService()
 graph_service = GraphService()
 
 # 知識抽出用モデル（バックグラウンドタスクで使用）
-# todo local LLM接続するべき
-extraction_llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-pro",  # 抽出ロジックには精度の高い Pro モデルを使用
-    google_api_key=os.getenv("GOOGLE_API_KEY"),
-    temperature=0
+# 環境変数で設定可能。デフォルトは Gemini Pro。
+extraction_llm_config = LLMConfig(
+    provider=os.getenv("EXTRACTION_LLM_PROVIDER", "gemini"),
+    model=os.getenv("EXTRACTION_LLM_MODEL", "gemini-2.5-pro"),
+    base_url=os.getenv("EXTRACTION_LLM_ENDPOINT"),
 )
+extraction_llm = create_chat_model(extraction_llm_config)
+print(f"[Extraction] Using provider={extraction_llm_config.provider}, model={extraction_llm_config.model}")
 extraction_chain = create_extraction_chain(extraction_llm)
 
 
