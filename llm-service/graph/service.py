@@ -116,32 +116,43 @@ class GraphService:
             return ""
 
     def get_whole_graph(self):
+        """
+        ナレッジグラフ全体を取得してフロントエンド用のノード・リンク形式に変換する。
+
+        neo4j ドライバの新バージョンでは RETURN n, r, m としたとき
+        row['r'] がタプルとして返るため、.type アクセスが AttributeError になる。
+        そのため Cypher 側で type(r) を文字列として取得し、
+        プロパティも r.weight / r.is_personal で直接取得する。
+        """
         cypher = """
         MATCH (n)-[r]->(m)
-        RETURN n, r, m
+        RETURN n.name AS source,
+               m.name AS target,
+               type(r) AS rel_type,
+               r.weight AS weight,
+               r.is_personal AS is_personal
         LIMIT 100
         """
         results = self.graph.query(cypher)
-        
+
         nodes = {}
         links = []
-        
+
         for row in results:
-            n = row['n']
-            m = row['m']
-            r = row['r']
-            
-            nodes[n['name']] = {"id": n['name'], "group": "Concept"}
-            nodes[m['name']] = {"id": m['name'], "group": "Concept"}
-            
+            source = row['source']
+            target = row['target']
+
+            nodes[source] = {"id": source, "group": "Concept"}
+            nodes[target] = {"id": target, "group": "Concept"}
+
             links.append({
-                "source": n['name'],
-                "target": m['name'],
-                "label": row['r'].type,
-                "weight": r.get('weight', 1.0),
-                "is_personal": r.get('is_personal', False)
+                "source": source,
+                "target": target,
+                "label": row['rel_type'] or "",
+                "weight": row['weight'] if row['weight'] is not None else 1.0,
+                "is_personal": row['is_personal'] if row['is_personal'] is not None else False,
             })
-            
+
         return {
             "nodes": list(nodes.values()),
             "links": links

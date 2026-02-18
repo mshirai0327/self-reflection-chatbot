@@ -610,7 +610,7 @@ function App() {
               }`}
             >
               <Network className="w-4 h-4" />
-              脳内グラフ
+              知識グラフ
             </button>
             <button
               onClick={() => setActiveTab('persona-log')}
