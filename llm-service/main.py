@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from chains.chat import ChatService, ChatContext, PersonaStatus, LLMConfig, create_chat_model
 from graph.service import GraphService
 from chains.extraction import create_extraction_chain
+from chains.reflection import create_reflection_chain, ReflectionResult
 
 load_dotenv()
 
@@ -47,6 +48,14 @@ class ChatRequest(BaseModel):
     message: str
     history: list[dict] = []
     context: ChatContext
+    # フロントエンドから渡されるLLM接続設定（省略時はデフォルトのGeminiを使用）
+    llm_config: LLMConfig | None = None
+
+
+class ReflectionRequest(BaseModel):
+    """内省リクエストのスキーマ"""
+    log_summary: str
+    status: PersonaStatus
     # フロントエンドから渡されるLLM接続設定（省略時はデフォルトのGeminiを使用）
     llm_config: LLMConfig | None = None
 
@@ -109,6 +118,64 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks):
         background_tasks.add_task(run_extraction, request.message, request.llm_config)
 
         return result
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/reflect")
+async def reflect(request: ReflectionRequest):
+    """内省を実行するエンドポイント"""
+    try:
+        print(f"[Reflection] Starting reflection with provider: {request.llm_config.provider if request.llm_config else 'default'}")
+        
+        # 1. ナレッジグラフから関連コンテキストを取得
+        # 会話ログの要約をクエリとして、関連する過去の知識を引き出す
+        graph_context = graph_service.get_relevant_context(request.log_summary[:200]) # 長すぎるので制限
+        print(f"[Reflection] Graph context retrieved: {len(graph_context)} chars")
+
+        # 2. LLMモデルの初期化
+        llm = create_chat_model(request.llm_config)
+        
+        # 3. 内省チェーンの実行
+        chain = create_reflection_chain(llm)
+        
+        # ステータス情報の展開
+        s = request.status
+        
+        result = chain.invoke({
+            "name": s.name or "Reflecta",
+            "log_summary": request.log_summary,
+            "gender": s.gender or "不明",
+            "age": (s.birthDate.split('-')[0] + '年生まれ') if s.birthDate else "不明",
+            
+            # Pydanticモデルのフィールドに合わせて展開
+            "blood_type": s.bloodType or "不明",
+            "chronotype": s.chronotype or "不明",
+            "intelligence": s.intelligence or "不明",
+            "ethics": s.ethics or 50,
+            "passion": s.passion or 50,
+            "curiosity": s.curiosity or 50,
+            "aggressiveness": s.aggressiveness or 50,
+            "extroversion": s.extroversion or 50,
+            "height": s.height or 160.0,
+            "weight": s.weight or 50.0,
+            "bone_density": s.boneDensity or 100.0,
+            "sleep_time": s.sleepTime or 7.0,
+            "sleep_quality": s.sleepQuality or 80,
+            "bp_sys": s.bloodPressureSys or 120,
+            "bp_dia": s.bloodPressureDia or 80,
+            "blood_sugar": s.bloodSugar or 90,
+            "health": s.health or 80,
+            "mood": s.mood or 50,
+            "trust": s.trust or 50,
+            "friendliness": s.friendliness or 50,
+            "graph_context": graph_context,
+       })
+
+        return result
+
     except Exception as e:
         import traceback
         traceback.print_exc()

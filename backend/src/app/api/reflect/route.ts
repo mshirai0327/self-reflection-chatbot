@@ -3,25 +3,10 @@ export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { addMemory } from "@/lib/chroma";
 import { getLatestStatus, flattenStatus } from "@/lib/persona";
-import { generateJson, LLMConfig } from "@/lib/llm";
+import { LLMConfig } from "@/lib/llm";
 import { isProviderAllowed } from "@/lib/env";
-import { z } from "zod";
 import { ulid } from "ulid";
 
-// Zodスキーマを定義して、LLMの出力構造を保証する
-const reflectionSchema = z.object({
-    thought: z.string().describe("内省の思考過程、日本語で記述"),
-    statusUpdate: z.object({
-        health: z.number().int().describe("健康度の変化量 (例: 5, -10, 0)"),
-        mood: z.number().int().describe("情緒の変化量 (例: 5, -10, 0)"),
-        trust: z.number().int().describe("信頼度の変化量 (例: 5, -10, 0)"),
-        friendliness: z.number().int().describe("親しみやすさの変化量 (例: 5, -10, 0)"),
-        heightIncrease: z.number().describe("分析の結果、身長が伸びたと判断される場合の増加量(cm)。基本は0。伸びた場合は0.1〜0.5の範囲で指定。"),
-    }),
-    permanentMemory: z.string().optional().describe("今後忘れてはいけない重要な教訓、日本語で記述。なければ省略。"),
-    newMemories: z.array(z.string()).describe("会話から得られた、永続的に記憶すべきユーザーの情報、好み、合意事項、または重要な出来事のリスト。挨拶や一時的な文脈は除外すること。"),
-    growthFeedback: z.boolean().describe("会話の中で、AI自身の成長（身長の伸びなど）や身体的変化について話題になった、またはユーザーがそれに言及した場合はtrue。それ以外はfalse。"),
-});
 
 
 /**
@@ -106,61 +91,40 @@ export async function POST(req: NextRequest) {
         }
         console.log("[Reflect API] Current status:", status);
 
-        // 3. LLMに送信するプロンプトを作成
-        //todo たまにこのJSONで帰ってこなくて、データが壊れる時がある
-        const reflectionPrompt = `
-あなたの名前は「${status.name || 'Reflecta'}」です。以下の情報に基づいて自己分析を行い、あなた自身のステータスがどのように変化すべきかを判断してください。
+        // 3. Python LLM Serviceに内省を依頼
+        const llmServiceUrl = process.env.LLM_SERVICE_URL || "http://llm-service:8080";
+        console.log(`[Reflect API] Delegating reflection to Python Service: ${llmServiceUrl}`);
 
-### 分析対象の会話履歴:
-${logSummary}
+        /* 
+         * Python側 (Result) に合わせてプロンプト構築はPython側で行うため、
+         * JS側では logSummary と status を送るだけでよい。
+         */
 
-### 現在のあなたのステータス:
-[基本情報]
-- 性別: ${status.gender || '不明'}
-- 年齢: ${status.birthDate ? new Date(status.birthDate).getFullYear() + '年生まれ' : '不明'}
-- 血液型: ${status.bloodType || '不明'}
-- クロノタイプ: ${status.chronotype || '不明'}
-- 知能指数: ${status.intelligence || '不明'}
+        const res = await fetch(`${llmServiceUrl}/reflect`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                log_summary: logSummary,
+                status: status,
+                llm_config: activeConfig ? {
+                    provider: activeConfig.provider || "gemini",
+                    model: activeConfig.model,
+                    api_key: activeConfig.apiKey,
+                    base_url: activeConfig.baseURL || activeConfig.endpoint,
+                } : null,
+            }),
+        });
 
-[性格特性(Lv1-2)]
-- 倫理観: ${status.ethics}/100
-- 情熱: ${status.passion}/100
-- 好奇心: ${status.curiosity}/100
-- 攻撃性: ${status.aggressiveness}/100
-- 外向性: ${status.extroversion}/100
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(`LLM Service Reflection Error (${res.status}): ${errorText}`);
+        }
 
-[身体情報]
-- 身長: ${status.height}cm
-- 体重: ${status.weight}kg
-- 骨密度: ${status.boneDensity || '不明'}
-- 睡眠時間: ${status.sleepTime || '不明'}h (質: ${status.sleepQuality || '?'}/10)
-- バイタル: 血圧 ${status.bloodPressureSys || '?'}/${status.bloodPressureDia || '?'}, 血糖値 ${status.bloodSugar || '?'}
+        const reflection = await res.json();
+        console.log("[Reflect API] Received reflection result from Python Service:", reflection);
 
-[現在の状態(Lv3-2)]
-- 健康度: ${status.health}/100
-- 情緒: ${status.mood}/100
-- 信頼度(ユーザーへの): ${status.trust}/100
-- 親しみやすさ: ${status.friendliness}/100
-
-### 指示:
-会話履歴と現在のステータスを深く考察し、必ず以下の**JSON形式**で回答を出力してください。
-            余計な解説やMarkdownのコードブロック（\`\`\`json ... \`\`\`）は含めず、純粋なJSONオブジェクトのみを出力してください。
-
-1.  **thought**: この会話を通じて何を感じ、何を考えたのか。あなたの内面的な思考プロセスを記述してください。
-2.  **statusUpdate**: 分析の結果、あなたの「健康度」「情緒」「信頼度」「親しみやすさ」はどのように変化すべきですか？増加、減少、または変化なし（0）を具体的な整数で示してください。また、成長の実感がある場合は「身長の増加量(heightIncrease)」を0.1〜0.5cmの範囲で指定してください。
-3.  **permanentMemory**: 自身の人格形成に関わる「教訓」や「自己の指針」があれば記述してください。
-4.  **newMemories**: ユーザーに関する重要な情報（趣味、家族構成、予定など）や、二人の間で確立された重要な文脈があれば、箇条書きの配列として抽出してください。「こんにちは」等の挨拶や意味のない雑談は絶対に含めないでください。
-5.  **growthFeedback**: 今回の会話で、あなたの身体的成長（背が伸びたことなど）について話題になりましたか？ true または false で答えてください。
-`;
-
-        // 4. LangChainの`generateJson`を使用して、構造化されたレスポンスを取得
-        console.log("[Reflect API] Requesting AI reflection (structured output)...");
-        const reflection = await generateJson(
-            activeConfig,
-            reflectionPrompt,
-            reflectionSchema
-        );
-        console.log("[Reflect API] Parsed reflection successfully:", reflection);
 
         // ステータス更新値の計算
         console.log("[Reflect API] Calculating status updates...");
@@ -264,7 +228,7 @@ ${logSummary}
             data: {
                 personaId: personaId,
                 response: reflection, // JSONとして丸ごと保存
-                prompt: reflectionPrompt
+                prompt: "(Generated in Python Service)"
             }
         });
 
@@ -305,7 +269,7 @@ ${logSummary}
         return NextResponse.json({
             reflection: {
                 ...reflection,
-                prompt: reflectionPrompt
+                prompt: "(Generated in Python Service)"
             }
         });
 

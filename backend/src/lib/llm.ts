@@ -36,6 +36,7 @@ const DEFAULT_GEMINI_EMBEDDING_MODEL = "text-embedding-004";
 const DEFAULT_OPENAI_EMBEDDING_MODEL = "text-embedding-3-small";
 
 /**
+ * @deprecated Python Service (llm-service) に移行済み。
  * 指定された設定に基づいて LangChain のチャットモデルインスタンスを生成します。
  * プロバイダー（Gemini または OpenAI）に応じて適切なクラスを初期化します。
  *
@@ -98,6 +99,8 @@ export function createEmbeddingModel(config: LLMConfig): Embeddings {
 // --- Core Functions ---
 
 /**
+ * @deprecated Python Service (llm-service) に移行済み。
+ *
  * ペルソナのコンテキスト情報（ステータスや記憶）から、システムプロンプトを構築します。
  * AIに対して、自身の役割や現在の状態を認識させるための指示文を生成します。
  * 
@@ -238,6 +241,8 @@ export async function generateResponse(
 }
 
 /**
+ * @deprecated Python Service (llm-service) /reflect エンドポイントに移行済み。
+ *
  * LLMを使用して、指定されたZodスキーマに基づいた構造化データ（JSON）を生成します。
  * LangChainの `withStructuredOutput` 機能を利用して、型安全な出力を保証します。
  * 内省（Reflection）処理など、プログラムで扱いやすい形式の回答が必要な場合に適しています。
