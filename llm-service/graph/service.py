@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import List
+import time
 from langchain_community.graphs import Neo4jGraph
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import Neo4jVector
@@ -8,16 +9,36 @@ import os
 
 class GraphService:
     def __init__(self):
-        self.graph = Neo4jGraph(
-            url=os.getenv("NEO4J_URI", "bolt://neo4j:7687"),
-            username=os.getenv("NEO4J_USER", "neo4j"),
-            password=os.getenv("NEO4J_PASSWORD", "password")
-        )
         self.embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001",
+            model="models/text-embedding-004",
             google_api_key=os.getenv("GOOGLE_API_KEY")
         )
+        self.graph = self._connect_to_neo4j()
         self._ensure_indices()
+
+    def _connect_to_neo4j(self, max_retries=10, delay=5):
+        url = os.getenv("NEO4J_URI", "bolt://neo4j:7687")
+        username = os.getenv("NEO4J_USER", "neo4j")
+        password = os.getenv("NEO4J_PASSWORD", "password")
+
+        for attempt in range(max_retries):
+            try:
+                print(f"Connecting to Neo4j ({url})... Attempt {attempt + 1}/{max_retries}")
+                graph = Neo4jGraph(
+                    url=url,
+                    username=username,
+                    password=password
+                )
+                # Verify connection
+                graph.query("RETURN 1")
+                print("Successfully connected to Neo4j")
+                return graph
+            except Exception as e:
+                print(f"Failed to connect to Neo4j: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(delay)
+                else:
+                    raise e
 
     def _ensure_indices(self):
         self.graph.query("CREATE CONSTRAINT IF NOT EXISTS FOR (c:Concept) REQUIRE c.name IS UNIQUE")

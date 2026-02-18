@@ -9,7 +9,7 @@ class PersonaStatus(BaseModel):
     birthDate: str | None = None
     bloodType: str | None = None
     chronotype: str | None = None
-    intelligence: str | None = None
+    intelligence: int | None = None
     ethics: int = 50
     passion: int = 50
     curiosity: int = 50
@@ -17,12 +17,12 @@ class PersonaStatus(BaseModel):
     extroversion: int = 50
     height: float = 160.0
     weight: float = 50.0
-    boneDensity: str | None = None
-    sleepTime: str | None = None
-    sleepQuality: str | None = None
-    bloodPressureSys: str | None = None
-    bloodPressureDia: str | None = None
-    bloodSugar: str | None = None
+    boneDensity: float | None = None
+    sleepTime: float | None = None
+    sleepQuality: float | None = None
+    bloodPressureSys: float | None = None
+    bloodPressureDia: float | None = None
+    bloodSugar: float | None = None
     health: int = 50
     mood: int = 50
     trust: int = 50
@@ -115,7 +115,7 @@ class ChatService:
             print("WARNING: GOOGLE_API_KEY is not set")
         
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",
+            model="gemini-2.0-flash",
             google_api_key=api_key,
             temperature=0.7
         )

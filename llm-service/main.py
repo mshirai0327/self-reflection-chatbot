@@ -1,4 +1,6 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
@@ -10,12 +12,23 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 load_dotenv()
 
 app = FastAPI(title="Reflecta LLM Service")
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    import json
+    print(f"Validation Error: {json.dumps(exc.errors(), indent=2)}")
+    print(f"Body: {await request.body()}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": str(await request.body())},
+    )
+
 chat_service = ChatService()
 graph_service = GraphService()
 
 # Extraction model
 extraction_llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-pro", # Use Pro for better extraction logic
+    model="gemini-2.5-pro", # Use Pro for better extraction logic
     google_api_key=os.getenv("GOOGLE_API_KEY"),
     temperature=0
 )
