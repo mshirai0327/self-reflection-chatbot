@@ -35,9 +35,10 @@ stop:
 
 # Prisma Studio の起動
 # ホストマシンから Docker 内の DB に接続するため、DATABASE_URL を localhost に上書きしています。
+# 認証情報は .env の POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB を参照します。
 prisma-studio:
 	@echo "Starting Prisma Studio..."
-	@cd backend && DATABASE_URL="postgresql://user:password@localhost:5432/ai_reflection_db" npx prisma studio --browser none --port 5555
+	@cd backend && DATABASE_URL="postgresql://$${POSTGRES_USER:-user}:$${POSTGRES_PASSWORD:-password}@localhost:5432/$${POSTGRES_DB:-ai_reflection_db}" npx prisma studio --browser none --port 5555
 
 # ChromaDBのリセット（コレクション全削除）
 chroma-reset:
