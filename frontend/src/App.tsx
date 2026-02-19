@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { Send, Menu, ChevronLeft, Database, Sun, Moon, MessageSquare, BarChart3, ArrowDown } from 'lucide-react';
+import { Send, Menu, ChevronLeft, Database, Sun, Moon, MessageSquare, BarChart3, ArrowDown, Network } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast, { Toaster } from 'react-hot-toast';
 import { BotSidebar } from './components/BotSidebar';
@@ -8,6 +8,7 @@ import { ChatHistory } from './components/ChatHistory';
 import { PersonaCreationModal } from './components/PersonaCreationModal';
 import { PersonaSelector } from './components/PersonaSelector';
 import { PersonaLogTab } from './components/PersonaLogTab';
+import { GraphViewer } from './components/GraphViewer';
 import { handleApiError } from './utils/errorHandler';
 
 interface Message {
@@ -168,8 +169,8 @@ function App() {
   /** スクロール位置が最下部付近にいるか（フローティングボタン表示判定用） */
   const [isNearBottom, setIsNearBottom] = useState(true);
 
-  /** メインエリアのタブ状態: 'chat' | 'persona-log' */
-  const [activeTab, setActiveTab] = useState<'chat' | 'persona-log'>('chat');
+  /** メインエリアのタブ状態: 'chat' | 'persona-log' | 'graph' */
+  const [activeTab, setActiveTab] = useState<'chat' | 'persona-log' | 'graph'>('chat');
 
   // Load state from localStorage
   const [currentPersonaId, setCurrentPersonaId] = useState<string | null>(() => localStorage.getItem('currentPersonaId'));
@@ -601,6 +602,17 @@ function App() {
               Chat
             </button>
             <button
+              onClick={() => setActiveTab('graph')}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 ${
+                activeTab === 'graph'
+                  ? 'border-green-500 text-green-600 dark:text-green-400'
+                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600'
+              }`}
+            >
+              <Network className="w-4 h-4" />
+              知識グラフ
+            </button>
+            <button
               onClick={() => setActiveTab('persona-log')}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 ${
                 activeTab === 'persona-log'
@@ -782,6 +794,10 @@ function App() {
                 </div>
               </div>
             </>
+          ) : activeTab === 'graph' ? (
+             <div className="flex-1 overflow-hidden p-4 bg-slate-900 border-l border-slate-800">
+               <GraphViewer />
+             </div>
           ) : (
             /* 人格ログタブ (#38) */
             <PersonaLogTab 

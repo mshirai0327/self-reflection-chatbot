@@ -80,9 +80,14 @@
 - **コードフォーマット**: PrettierやESLintの規約に従ってください（設定ファイル参照）。
 - **型チェック**: TypeScriptを全面的に採用しています。静的型付けの恩恵を最大限に活用してください。anyは可能な限り使わないでください
 - **データベーススキーマ**: データベースの変更は、`/backend/prisma/schema.prisma` ファイルを編集し、`npx prisma migrate dev` コマンドでマイグレーションファイルを生成してください。
-- **コメント**: コードに処理に関するコメントをJSDoc形式で、日本語で記載してください。
+- **コメント**: 
+  - tsの場合、コードに処理に関するコメントをJSDoc形式で、日本語で記載してください。
+
+  - pythonの場合、コードに処理に関するコメントをDocstring形式で、Google Styleで日本語で記載してください。
 
 ## コミットルール
+
+commitは原則ユーザが行います。ユーザが許可した場合にのみcommitを実行してください
 
 共同作業であることを明示するため、AIエージェントがコミットするときは、コミットメッセージの末尾に次の`Co-authored-byトレーラー`を加えてどのAIエージェントが作業したか分かるようにしてください。
 空行を挟んでください。
@@ -91,11 +96,6 @@ feat: commit message
 
 Co-Authored-By: gemini <218195315+gemini-cli@users.noreply.github.com>
 ```
-
-geminiの場合は以下でお願いします
-
-- Co-Authored-By: gemini <218195315+gemini-cli@users.noreply.github.com>
-
 
 ## コマンド操作について
 

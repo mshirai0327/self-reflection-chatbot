@@ -1,6 +1,6 @@
 # Reflecta プロジェクト便利コマンド
 
-.PHONY: help dev prod stop prisma-studio chroma-reset chroma-inspect test
+.PHONY: help dev prod stop prisma-studio chroma-reset chroma-inspect neo4j-inspect test
 
 # デフォルトのヘルプ表示
 help:
@@ -15,6 +15,7 @@ help:
 	@echo "  make prisma-studio  - Prisma Studio を起動します (localhost接続用)"
 	@echo "  make chroma-reset   - ChromaDBのコレクションをリセット（全削除）します"
 	@echo "  make chroma-inspect - ChromaDBに保存されている記憶を確認します"
+	@echo "  make neo4j-inspect  - Neo4jナレッジグラフの中身を確認します"
 	@echo "  make test           - バックエンドのテストを実行します"
 
 # 開発環境の起動
@@ -34,9 +35,10 @@ stop:
 
 # Prisma Studio の起動
 # ホストマシンから Docker 内の DB に接続するため、DATABASE_URL を localhost に上書きしています。
+# 認証情報は .env の POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB を参照します。
 prisma-studio:
 	@echo "Starting Prisma Studio..."
-	@cd backend && DATABASE_URL="postgresql://user:password@localhost:5432/ai_reflection_db" npx prisma studio --browser none --port 5555
+	@cd backend && DATABASE_URL="postgresql://$${POSTGRES_USER:-user}:$${POSTGRES_PASSWORD:-password}@localhost:5432/$${POSTGRES_DB:-ai_reflection_db}" npx prisma studio --browser none --port 5555
 
 # ChromaDBのリセット（コレクション全削除）
 chroma-reset:
@@ -48,7 +50,18 @@ chroma-inspect:
 	@echo "Inspecting ChromaDB collection..."
 	@cd backend && npx tsx src/scripts/inspect-chroma.ts
 
-# テストの実行
-test:
-	@echo "Running backend tests..."
+# テストの実行 (Backend & LLM Service)
+test: test-backend test-llm
+
+test-backend:
+	@echo "Running backend tests (JS)..."
 	@cd backend && npm run test
+
+test-llm:
+	@echo "Running LLM service tests (Python)..."
+	@docker compose exec llm-service pytest tests/ || echo "Warning: LLM Service tests failed or container is not running."
+
+# Neo4j ナレッジグラフの中身確認
+neo4j-inspect:
+	@echo "Inspecting Neo4j Knowledge Graph..."
+	@docker exec self-reflection-chatbot-llm-service-1 python scripts/inspect_neo4j.py

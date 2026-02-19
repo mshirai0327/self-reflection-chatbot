@@ -30,17 +30,95 @@ Reflecta（仮名）は、自己進化型のAIチャットボットを開発す�
 
 ## 🏗️ アーキテクチャ
 
+```mermaid
+graph TD
+    %% Users
+    User((User / Browser))
+
+    %% Frontend Layer
+    subgraph Frontend ["Frontend Layer (React + Vite)"]
+        UI["Reflecta UI Components"]
+        GraphView["Graph Visualization<br/>(react-force-graph)"]
+    end
+
+    %% Backend Layer
+    subgraph Backend ["Backend Layer (Next.js)"]
+        API["API Routes / Edge"]
+        Prisma["Prisma ORM"]
+        ChromaClient["Chroma Client"]
+    end
+
+    %% Intelligence Layer
+    subgraph LLM_Service ["Intelligence Layer (Python + FastAPI)"]
+        LLM_API["FastAPI Endpoints"]
+        Chain["LangChain Logic"]
+        Extractor["Knowledge Extractor<br/>(Background Task)"]
+        GraphClient["Graph Service"]
+    end
+
+    %% Persistence Layer
+    subgraph Database ["Persistence Layer"]
+        Postgres[("PostgreSQL<br/>Status & Chat Logs")]
+        Chroma[("ChromaDB<br/>Vector Memory")]
+        Neo4j[("Neo4j<br/>Knowledge Graph")]
+    end
+
+    %% External Services
+    External_AI["Gemini API / Local LLM"]
+
+    %% Dependencies & Data Flow
+    User -->|Interaction| UI
+    UI -->|REST API| API
+    
+    %% Backend Logic
+    API -->|Read/Write Status| Prisma
+    Prisma --> Postgres
+    API -->|Vector Search/Save| ChromaClient
+    ChromaClient --> Chroma
+    
+    %% LLM Delegation
+    API -->|Delegate Chat/Reflect| LLM_API
+    
+    %% Python Service Logic
+    LLM_API -->|Orchestration| Chain
+    Chain -->|Inference| External_AI
+    
+    %% Knowledge Graph RAG & Extraction
+    Chain -->|Get Context| GraphClient
+    GraphClient -->|Query| Neo4j
+    
+    LLM_API -.->|Async Extraction| Extractor
+    Extractor -->|Extract Triples| External_AI
+    Extractor -->|Save Knowledge| GraphClient
+    
+    %% Visualization Flow
+    API -->|Proxy Graph Data| LLM_API
+    LLM_API -->|Fetch Whole Graph| GraphClient
+
+    %% Styling
+    classDef frontend fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef backend fill:#fff3e0,stroke:#e65100,stroke-width:2px;
+    classDef python fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef db fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+    classDef external fill:#fafafa,stroke:#424242,stroke-width:2px,stroke-dasharray: 5 5;
+
+    class UI,GraphView frontend;
+    class API,Prisma,ChromaClient backend;
+    class LLM_API,Chain,Extractor,GraphClient python;
+    class Postgres,Chroma,Neo4j db;
+    class External_AI external;
+```
+
+本プロジェクトは、Next.js (Backend) と Python (LLM Service) のマイクロサービス構成を採用しています。
+
 ```text
 .
-├── frontend/                 # React (Vite) + Tailwind CSS + Framer Motion
-├── backend/                  # Next.js (App Router) + Prisma + Gemini API
-├── docker-compose.yml        # 共通ベース定義
-├── docker-compose.dev.yml    # 開発環境用 override
-├── docker-compose.prod.yml   # 本番環境用 override
-├── prisma/                   # RDBスキーマ定義
-├── docs/                     # 設計ドキュメント・シークエンス図
-└── README.md                 # 起動手順と設計思想のまとめ
-
+├── frontend/                 # React (Vite) + Tailwind CSS
+├── backend/                  # Next.js (App Router) + Prisma (BFF/DB管理)
+├── llm-service/              # FastAPI + LangChain (チャット生成・知識グラフ管理)
+├── docker-compose.yml        # 共通ベース定義 (Postgres, Chroma, Neo4j)
+├── docs/                     # 設計ドキュメント
+└── README.md                 # ドキュメント
 ```
 
 ## 📚 ドキュメント
@@ -61,16 +139,23 @@ Reflecta（仮名）は、自己進化型のAIチャットボットを開発す�
 *   **PostgreSQL (Prisma)**: 「身長・体重・情緒・健康」などの数値を管理。`PersonaStatus` テーブルで不変・可逆・非可逆なステータスを保持します。
 *   **ChromaDB (Vector Store)**: 会話履歴をベクトル化して保存。「フラジャイルな記憶」として、次回の会話時に類似の文脈を引き出すために使用します。
 
-### 2. デュアルLLMロジック
+### 2. デュアルLLM・マイクロサービス
+*   **Next.js (Backend)**: データの永続化、ユーザー認証、BFF (Backend For Frontend) としての役割を担当。
+*   **Python (LLM Service)**: LangChainを用いた高度な推論フロー、グラフRAG、知識抽出を担当。
 
-*   **Interaction**: 高速な応答を担当。現在のステータスと過去の類似記憶をプロンプトに注入し、一貫性のある人格を維持します。 (Gemini Flashなど)
-*   **Reflection**: 「内省ボタン」により起動。直近の履歴を分析し、「自身の情緒をどう変化させるべきか」「後世に残すべき教訓は何か」を論理推論し、RDBとVectorを更新します。(Gemini Proなどの推論能力の高いもの)
+### 3. Graph RAG (Neo4j)
+*   会話から「知識トリプル（主語・述語・目的語）」を抽出し、**Neo4j** に保存。
+*   単なるベクトル検索だけでなく、因果関係や構造化された知識をコンテキストとしてLLMに提供します。
 
-### 3. プレミアムなUI/UX
-
+### 4. プレミアムなUI/UX
 *   **ステータス可視化**: サイドバーでAIの「健康度」「情緒」「信頼」をゲージ表示。
+*   **知識グラフ**: Force Graphにより、AIが獲得した知識構造を視覚的に探索可能。
 *   **アニメーション**: `framer-motion` を使用し、AIの思考やメッセージの登場を滑らかに演出。
-*   **ダークテーマ**: 深い紺色を基調としたガラスモーフィズム（Glassmorphism）デザイン。
+
+<div align="center">
+  <img src="./assets/screen_shot_01.png" width="500" alt="Reflecta logo">
+</div>
+
 
 ### 4. Docker & GPU
 

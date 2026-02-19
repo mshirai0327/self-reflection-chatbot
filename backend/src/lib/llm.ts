@@ -36,6 +36,7 @@ const DEFAULT_GEMINI_EMBEDDING_MODEL = "text-embedding-004";
 const DEFAULT_OPENAI_EMBEDDING_MODEL = "text-embedding-3-small";
 
 /**
+ * @deprecated Python Service (llm-service) に移行済み。
  * 指定された設定に基づいて LangChain のチャットモデルインスタンスを生成します。
  * プロバイダー（Gemini または OpenAI）に応じて適切なクラスを初期化します。
  *
@@ -98,6 +99,8 @@ export function createEmbeddingModel(config: LLMConfig): Embeddings {
 // --- Core Functions ---
 
 /**
+ * @deprecated Python Service (llm-service) に移行済み。
+ *
  * ペルソナのコンテキスト情報（ステータスや記憶）から、システムプロンプトを構築します。
  * AIに対して、自身の役割や現在の状態を認識させるための指示文を生成します。
  * 
@@ -191,50 +194,55 @@ export async function generateResponse(
     userPrompt: string,
     context: PersonaContext
 ): Promise<{ content: string; systemInstruction: string }> {
-    const modelName = config.model || 'default';
-    console.log(`[LLM] Generating response using provider: ${config.provider}, model: ${modelName}`);
+    // LLM Service (Python) へのリクエストに切り替え
+    const llmServiceUrl = process.env.LLM_SERVICE_URL || "http://llm-service:8080";
+    console.log(`[LLM] Delegating generation to Python Service: ${llmServiceUrl}`);
 
-    const chatModel = createChatModel(config);
-    const systemInstruction = buildSystemInstruction(context);
+    try {
+        const response = await fetch(`${llmServiceUrl}/chat`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                message: userPrompt,
+                history: context.history || [],
+                context: {
+                    status: context.status,
+                    memories: context.memories,
+                    growth_delta: context.growthDelta || 0,
+                    system_prompt: context.systemPrompt
+                },
+                // LLM接続設定をPythonサービスに渡す（provider/model/endpointの動的切替用）
+                llm_config: config ? {
+                    provider: config.provider || "gemini",
+                    model: config.model,
+                    api_key: config.apiKey,
+                    base_url: config.baseURL || config.endpoint,
+                } : null,
+            }),
+        });
 
-    const isSystemInstructionSupported = !modelName.toLowerCase().startsWith("gemma");
-
-    let messages: BaseMessage[];
-
-    // 履歴をLangChainのメッセージ形式に変換
-    const historyMessages: BaseMessage[] = (context.history || []).map(h => {
-        if (h.role === 'user') {
-            return new HumanMessage(h.content);
-        } else {
-            return new AIMessage(h.content);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`LLM Service Error (${response.status}): ${errorText}`);
         }
-    });
 
-    if (isSystemInstructionSupported) {
-        messages = [
-            new SystemMessage(systemInstruction),
-            ...historyMessages,
-            new HumanMessage(userPrompt),
-        ];
-    } else {
-        // System Instruction未サポートモデルへのフォールバック
-        // 履歴もテキストとして埋め込む
-        const historyText = (context.history || []).map(h => `${h.role}: ${h.content}`).join("\n");
-        messages = [
-            new HumanMessage(`System Instruction:\n${systemInstruction}\n\nChat History:\n${historyText}\n\nUser Message: ${userPrompt}`),
-        ];
+        const data = await response.json();
+        return {
+            content: data.content,
+            systemInstruction: data.system_instruction
+        };
+
+    } catch (error) {
+        console.error("[LLM] Failed to call LLM Service:", error);
+        throw error;
     }
-
-    console.log(`[LLM] Messages:`, messages);
-
-    const result = await chatModel.invoke(messages);
-    return {
-        content: result.content as string,
-        systemInstruction
-    };
 }
 
 /**
+ * @deprecated Python Service (llm-service) /reflect エンドポイントに移行済み。
+ *
  * LLMを使用して、指定されたZodスキーマに基づいた構造化データ（JSON）を生成します。
  * LangChainの `withStructuredOutput` 機能を利用して、型安全な出力を保証します。
  * 内省（Reflection）処理など、プログラムで扱いやすい形式の回答が必要な場合に適しています。

@@ -49,3 +49,24 @@ jobs:
           npx prisma generate
           npx prisma db push
           npm run test
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: |
+          cd llm-service
+          pip install -r requirements.txt
+          pip install pytest httpx
+
+      - name: Run Python tests
+        env:
+          GOOGLE_API_KEY: "dummy_key_for_ci"
+          GOOGLE_GENERATIVE_AI_API_KEY: "dummy_key_for_ci"
+          NEO4J_URI: "bolt://localhost:7687"
+        run: |
+          cd llm-service
+          pytest tests/
