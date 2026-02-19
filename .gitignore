@@ -15,5 +15,8 @@ spec.md
 
 # Python キャッシュ（自動生成のため管理不要）
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
