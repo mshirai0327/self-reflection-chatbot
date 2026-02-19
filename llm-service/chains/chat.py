@@ -217,10 +217,12 @@ class ChatService:
         system_instruction = build_system_instruction(context)
 
         # llm_configが指定された場合、動的にモデルを生成
-        if llm_config and llm_config.provider != "gemini":
+        if llm_config:
+            # プロバイダーに関わらず、指定された設定（モデル名やAPIキーなど）を優先して使用する
             print(f"[ChatService] Using dynamic LLM: provider={llm_config.provider}, model={llm_config.model}")
             llm = create_chat_model(llm_config)
         else:
+            # 指定がない場合はデフォルトの Gemini Flash インスタンスを使用
             llm = self.default_llm
 
         messages: list[BaseMessage] = [SystemMessage(content=system_instruction)]

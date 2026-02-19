@@ -4,7 +4,10 @@ from langchain_community.graphs import Neo4jGraph
 def get_graph_client() -> Neo4jGraph:
     uri = os.getenv("NEO4J_URI", "bolt://neo4j:7687")
     username = os.getenv("NEO4J_USER", "neo4j")
-    password = os.getenv("NEO4J_PASSWORD", "password")
+    password = os.getenv("NEO4J_PASSWORD")
+
+    if not password:
+        raise ValueError("NEO4J_PASSWORD environment variable is not set")
 
     return Neo4jGraph(
         url=uri,

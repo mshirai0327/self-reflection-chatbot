@@ -21,7 +21,10 @@ class GraphService:
     def _connect_to_neo4j(self, max_retries=10, delay=5):
         url = os.getenv("NEO4J_URI", "bolt://neo4j:7687")
         username = os.getenv("NEO4J_USER", "neo4j")
-        password = os.getenv("NEO4J_PASSWORD", "password")
+        password = os.getenv("NEO4J_PASSWORD")
+        if not password:
+            print("Error: NEO4J_PASSWORD environment variable is not set")
+            return None
 
         for attempt in range(max_retries):
             try:
@@ -92,7 +95,7 @@ class GraphService:
                 embedding=self.embeddings,
                 url=os.getenv("NEO4J_URI", "bolt://neo4j:7687"),
                 username=os.getenv("NEO4J_USER", "neo4j"),
-                password=os.getenv("NEO4J_PASSWORD", "password"),
+                password=os.getenv("NEO4J_PASSWORD"),
                 index_name="concept_index",
                 node_label="Concept",
                 text_node_properties=["name"],
