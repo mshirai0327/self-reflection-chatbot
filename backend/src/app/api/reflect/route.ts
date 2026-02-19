@@ -7,7 +7,55 @@ import { LLMConfig } from "@/lib/llm";
 import { isProviderAllowed } from "@/lib/env";
 import { ulid } from "ulid";
 
+/** LLMサービスへのリクエストタイムアウト（ミリ秒） */
+const REFLECT_TIMEOUT_MS = 15_000;
 
+/**
+ * Python LLMサービスから返却される内省結果の期待する型。
+ * バリデーション関数 {@link validateReflection} で検証する。
+ */
+type ReflectionResult = {
+    statusUpdate: {
+        health: number;
+        mood: number;
+        trust: number;
+        friendliness: number;
+        heightIncrease?: number;
+    };
+    growthFeedback?: string | null;
+    permanentMemory?: string | null;
+    newMemories?: string[];
+    thought?: string;
+    [key: string]: unknown;
+};
+
+/**
+ * Python LLMサービスから返却されたJSONが期待する形状かどうかを検証するガード関数。
+ *
+ * @param data - 検証対象のオブジェクト
+ * @returns `data` が {@link ReflectionResult} 型であれば `true`
+ * @throws バリデーション失敗時に詳細なメッセージを含む Error をスローする
+ */
+function validateReflection(data: unknown): asserts data is ReflectionResult {
+    if (typeof data !== "object" || data === null) {
+        throw new Error(`[Reflect API] Invalid reflection response: expected object, got ${typeof data}`);
+    }
+    const d = data as Record<string, unknown>;
+
+    if (typeof d.statusUpdate !== "object" || d.statusUpdate === null) {
+        throw new Error("[Reflect API] Invalid reflection response: 'statusUpdate' is missing or not an object");
+    }
+    const su = d.statusUpdate as Record<string, unknown>;
+
+    const numericFields = ["health", "mood", "trust", "friendliness"] as const;
+    for (const field of numericFields) {
+        if (typeof su[field] !== "number") {
+            throw new Error(
+                `[Reflect API] Invalid reflection response: 'statusUpdate.${field}' is missing or not a number (got ${typeof su[field]})`
+            );
+        }
+    }
+}
 
 /**
  * 直近のチャットログに基づいて内省処理を実行し、ペルソナの状態を更新しRDBに保存する POST リクエスト
@@ -100,29 +148,62 @@ export async function POST(req: NextRequest) {
          * JS側では logSummary と status を送るだけでよい。
          */
 
-        const res = await fetch(`${llmServiceUrl}/reflect`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                log_summary: logSummary,
-                status: status,
-                llm_config: activeConfig ? {
-                    provider: activeConfig.provider || "gemini",
-                    model: activeConfig.model,
-                    api_key: activeConfig.apiKey,
-                    base_url: activeConfig.baseURL || activeConfig.endpoint,
-                } : null,
-            }),
-        });
+        // AbortController でタイムアウトを制御する
+        const reflectController = new AbortController();
+        const reflectTimeoutId = setTimeout(() => reflectController.abort(), REFLECT_TIMEOUT_MS);
+
+        let res: Response;
+        try {
+            res = await fetch(`${llmServiceUrl}/reflect`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    log_summary: logSummary,
+                    status: status,
+                    llm_config: activeConfig ? {
+                        provider: activeConfig.provider || "gemini",
+                        model: activeConfig.model,
+                        api_key: activeConfig.apiKey,
+                        base_url: activeConfig.baseURL || activeConfig.endpoint,
+                    } : null,
+                }),
+                signal: reflectController.signal,
+            });
+        } catch (fetchError) {
+            // タイムアウト（AbortError）の場合は専用のエラーメッセージを返す
+            if (fetchError instanceof Error && fetchError.name === "AbortError") {
+                throw new Error(
+                    `[Reflect API] LLM Service request timed out after ${REFLECT_TIMEOUT_MS}ms`
+                );
+            }
+            throw fetchError;
+        } finally {
+            // 成功・失敗にかかわらずタイマーを解除してリソースリークを防ぐ
+            clearTimeout(reflectTimeoutId);
+        }
 
         if (!res.ok) {
             const errorText = await res.text();
             throw new Error(`LLM Service Reflection Error (${res.status}): ${errorText}`);
         }
 
-        const reflection = await res.json();
+        // JSONパース失敗に備えて try-catch でラップする
+        let reflection: unknown;
+        try {
+            reflection = await res.json();
+        } catch (parseError) {
+            throw new Error(
+                `[Reflect API] Failed to parse JSON response from LLM Service: ${
+                    parseError instanceof Error ? parseError.message : String(parseError)
+                }`
+            );
+        }
+
+        // レスポンスの shape をバリデーションし、不正な場合は早期にエラーをスローする
+        validateReflection(reflection);
+
         console.log("[Reflect API] Received reflection result from Python Service:", reflection);
 
 
@@ -227,7 +308,9 @@ export async function POST(req: NextRequest) {
         await prisma.reflectionEvent.create({
             data: {
                 personaId: personaId,
-                response: reflection, // JSONとして丸ごと保存
+                // ReflectionResult は index signature を持つため Prisma の InputJsonValue へ
+                // 直接代入できない。実体はJSONパース済みの安全なオブジェクトなので unknown 経由でキャストする
+                response: reflection as unknown as import("@prisma/client").Prisma.InputJsonValue,
                 prompt: "(Generated in Python Service)"
             }
         });
