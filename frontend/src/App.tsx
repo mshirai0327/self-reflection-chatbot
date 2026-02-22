@@ -16,6 +16,8 @@ interface Message {
   content: string;
   /** メッセージの送信日時 */
   createdAt?: string;
+  /** 話しているペルソナの名前 */
+  name?: string;
 }
 
 interface Persona {
@@ -309,7 +311,8 @@ function App() {
         const history = res.data.chatLogs.map((log: any) => ({
           role: log.role as 'user' | 'assistant',
           content: log.content,
-          createdAt: log.createdAt
+          createdAt: log.createdAt,
+          name: log.persona?.name
         }));
         setMessages(history);
         setNextCursor(res.data.nextCursor || null);
@@ -490,7 +493,7 @@ function App() {
         setCurrentChatId(res.data.chatId);
       }
       setUserMessageCountSinceLastReflection(prev => prev + 1);
-      const aiMsg: Message = { role: 'assistant', content: res.data.response, createdAt: new Date().toISOString() };
+      const aiMsg: Message = { role: 'assistant', content: res.data.response, createdAt: new Date().toISOString(), name: res.data.name };
       setMessages(prev => [...prev, aiMsg]);
       if (res.data.status) setStatus(res.data.status);
       if (res.data.debug) setLastDebugInfo(res.data.debug);
@@ -547,7 +550,7 @@ function App() {
         chatId: currentChatId,
         personaId: currentPersonaId
       });
-      setMessages(prev => [...prev, { role: 'assistant', content: resChat.data.response, createdAt: new Date().toISOString() }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: resChat.data.response, createdAt: new Date().toISOString(), name: resChat.data.name }]);
       if (resChat.data.status) setStatus(resChat.data.status);
       setRefreshTrigger(prev => prev + 1);
     } catch (error) {
@@ -738,17 +741,20 @@ function App() {
                               }`}>
                               <p className="leading-relaxed whitespace-pre-wrap">{m.content}</p>
                             </div>
-                            {/* 時刻表示 (#14) */}
-                            {m.createdAt && (
-                              <span className={`text-[10px] text-slate-400 dark:text-slate-500 px-1 ${
-                                m.role === 'user' ? 'text-right' : 'text-left'
-                              }`}>
-                                {new Date(m.createdAt).toLocaleTimeString('ja-JP', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </span>
-                            )}
+                            {/* 時刻と名前表示 (#14, 複数ペルソナ対応) */}
+                            <div className={`flex items-center gap-2 px-1 text-[10px] text-slate-400 dark:text-slate-500 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                              {m.role === 'assistant' && m.name && (
+                                <span className="font-semibold text-slate-500 dark:text-slate-400">{m.name}</span>
+                              )}
+                              {m.createdAt && (
+                                <span>
+                                  {new Date(m.createdAt).toLocaleTimeString('ja-JP', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </motion.div>
                       );
@@ -851,6 +857,7 @@ function App() {
           onSelectChat={(id: string) => setCurrentChatId(id)}
           currentChatId={currentChatId}
           currentPersonaId={currentPersonaId}
+          personas={personas}
           onNewChat={() => setCurrentChatId(null)}
           chatModel={chatModel}
           setChatModel={setChatModel}

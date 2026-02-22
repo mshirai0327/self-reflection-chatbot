@@ -26,7 +26,7 @@ export async function GET(
 
         const chat = await prisma.chat.findUnique({
             where: { id },
-            select: { id: true, title: true, personaId: true, createdAt: true, updatedAt: true }
+            select: { id: true, title: true, personaId: true, additionalPersonaId: true, options: true, createdAt: true, updatedAt: true }
         });
 
         if (!chat) {
@@ -39,6 +39,7 @@ export async function GET(
             where: { chatId: id },
             orderBy: { createdAt: 'desc' },
             take: take + 1, // 次ページの有無を判定するために1件多く取得
+            include: { persona: { select: { name: true } } },
             ...(cursor ? {
                 cursor: { id: cursor },
                 skip: 1, // カーソル自体はスキップする
@@ -115,15 +116,20 @@ export async function PATCH(
     try {
         const { id } = await params;
         const body = await req.json();
-        const { title } = body;
+        const { title, additionalPersonaId, options } = body;
 
-        if (!title) {
-            return NextResponse.json({ error: "Title is required" }, { status: 400 });
+        const data: any = {};
+        if (title !== undefined) data.title = title;
+        if (additionalPersonaId !== undefined) data.additionalPersonaId = additionalPersonaId;
+        if (options !== undefined) data.options = options;
+
+        if (Object.keys(data).length === 0) {
+            return NextResponse.json({ error: "No fields to update" }, { status: 400 });
         }
 
         const updatedChat = await prisma.chat.update({
             where: { id },
-            data: { title },
+            data,
         });
 
         return NextResponse.json(updatedChat);
