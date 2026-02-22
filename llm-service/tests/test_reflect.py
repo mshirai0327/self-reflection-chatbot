@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 import sys
 import os
 import json
@@ -41,7 +41,8 @@ def test_reflect_endpoint():
                 
                 # Chainインスタンスのモック
                 mock_chain_instance = MagicMock()
-                mock_chain_instance.invoke.return_value = mock_result
+                # ainvoke を AsyncMock でモック化する
+                mock_chain_instance.ainvoke = AsyncMock(return_value=mock_result)
                 mock_create_chain.return_value = mock_chain_instance
 
                 # 3. リクエストデータ (JS側から送られるJSONを模倣)

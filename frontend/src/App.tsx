@@ -385,6 +385,16 @@ function App() {
   }, [currentChatId, nextCursor, isLoadingMore, hasMore]);
 
   /**
+   * 現在のスクロール位置が最下部付近かチェックする
+   */
+  const checkScrollPosition = useCallback(() => {
+    const scrollEl = scrollRef.current;
+    if (!scrollEl) return;
+    const distanceFromBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight;
+    setIsNearBottom(distanceFromBottom < 150);
+  }, []);
+
+  /**
    * 最下部へスムーズスクロールする
    */
   const scrollToBottom = useCallback(() => {
@@ -393,8 +403,10 @@ function App() {
         top: scrollRef.current.scrollHeight,
         behavior: 'smooth'
       });
+      // スクロール開始後に判定を更新
+      setTimeout(checkScrollPosition, 500);
     }
-  }, []);
+  }, [checkScrollPosition]);
 
   /**
    * スクロールイベントハンドラ
@@ -410,29 +422,41 @@ function App() {
       if (scrollEl.scrollTop < 100 && hasMore && !isLoadingMore) {
         fetchOlderMessages();
       }
-      // 最下部付近にいるか判定（150px以内なら最下部とみなす）
-      const distanceFromBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight;
-      setIsNearBottom(distanceFromBottom < 150);
+      checkScrollPosition();
     };
 
     scrollEl.addEventListener('scroll', handleScroll);
     return () => scrollEl.removeEventListener('scroll', handleScroll);
-  }, [hasMore, isLoadingMore, fetchOlderMessages]);
+  }, [hasMore, isLoadingMore, fetchOlderMessages, checkScrollPosition]);
 
-  /** 新しいメッセージが追加された場合のみ最下部にスクロール */
+  /** メッセージが追加・更新された場合のスクロール制御 */
   const prevMessageCountRef = useRef(0);
   useEffect(() => {
-    // メッセージ数が増えた場合（新規送信）のみ自動スクロール
-    // 古いメッセージの読み込み時はスクロールしない（fetchOlderMessages内で位置を維持済み）
-    if (messages.length > prevMessageCountRef.current && scrollRef.current) {
-      const isOlderMessageLoad = prevMessageCountRef.current === 0 ||
-        (messages.length - prevMessageCountRef.current <= 2);
-      if (isOlderMessageLoad || prevMessageCountRef.current === 0) {
+    // メッセージ数が増えた場合（新規送信や初回ロード）の制御
+    if (messages.length > 0 && scrollRef.current) {
+      if (prevMessageCountRef.current === 0) {
+        // 初回ロード時は最下部へ
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      } else if (messages.length > prevMessageCountRef.current) {
+        // 新規メッセージ追加時
+        const isOlderMessageLoad = messages.length - prevMessageCountRef.current > 2;
+        if (!isOlderMessageLoad) {
+          // 自分が送った、あるいは返信がきた場合は最下部へ
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
       }
+      // メッセージ更新後にスクロール位置を再判定
+      setTimeout(checkScrollPosition, 100);
     }
     prevMessageCountRef.current = messages.length;
-  }, [messages]);
+  }, [messages, checkScrollPosition]);
+
+  /** タブ切り替え時にスクロール位置を再チェック */
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      setTimeout(checkScrollPosition, 100);
+    }
+  }, [activeTab, checkScrollPosition]);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
