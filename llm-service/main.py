@@ -144,7 +144,7 @@ async def reflect(request: ReflectionRequest):
         # ステータス情報の展開
         s = request.status
         
-        result = chain.invoke({
+        result = await chain.ainvoke({
             "name": s.name or "Reflecta",
             "log_summary": request.log_summary,
             "gender": s.gender or "不明",
@@ -185,4 +185,18 @@ async def reflect(request: ReflectionRequest):
 @app.get("/graph")
 async def get_graph():
     """ナレッジグラフ全体を取得するエンドポイント"""
-    return graph_service.get_whole_graph()
+    import time
+    start_time = time.time()
+    print("[Graph] Fetching whole graph...")
+    try:
+        result = graph_service.get_whole_graph()
+        duration = time.time() - start_time
+        print(f"[Graph] Successfully fetched graph in {duration:.3f}s")
+        return result
+    except Exception as e:
+        duration = time.time() - start_time
+        print(f"[Graph] Failed to fetch graph after {duration:.3f}s: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
