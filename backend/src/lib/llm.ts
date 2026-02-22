@@ -112,7 +112,7 @@ export function buildSystemInstruction(context: PersonaContext): string {
     const s = context.status;
     const growthDelta = context.growthDelta || 0;
 
-    let instruction = `あなたは自己進化型AI「${s.name || 'Reflecta'}」です。
+    let instruction = `あなたの名前は「${s.name || 'Reflecta'}」です。
 以下のステータスと記憶に基づいて、一貫性のある人格として振る舞ってください。
 
 【重要】

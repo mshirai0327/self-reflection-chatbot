@@ -108,7 +108,7 @@ def build_system_instruction(context: ChatContext) -> str:
     s = context.status
     growth_delta = context.growth_delta
 
-    instruction = f"""あなたは自己進化型AI「{s.name}」です。
+    instruction = f"""あなたの名前は「{s.name}」です。
 以下のステータスと記憶に基づいて、一貫性のある人格として振る舞ってください。
 
 【重要】
