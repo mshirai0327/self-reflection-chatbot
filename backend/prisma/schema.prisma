@@ -46,8 +46,10 @@ model Persona {
   reflectionEvents ReflectionEvent[]
   /// ペルソナの生成日時
   createdAt        DateTime          @default(now())
-  /// ペルソナが参加しているチャットセッション
-  chats            Chat[]
+  /// ペルソナがメインとして参加しているチャットセッション
+  chats            Chat[]            @relation("MainPersonaChats")
+  /// ペルソナがゲストとして参加しているチャットセッション
+  additionalChats  Chat[]            @relation("AdditionalPersonaChats")
 
   @@map("personas")
 }
@@ -195,21 +197,26 @@ model SemiquantityReversibleStatus {
 
 /// チャットセッション。ユーザーとペルソナの対話をまとめる単位。
 model Chat {
-  id        String    @id @default(uuid())
+  id                  String    @id @default(uuid())
   /// セッションのタイトル
-  title     String    @default("New Chat")
+  title               String    @default("New Chat")
   /// 参加しているユーザー
-  userId    String
-  user      User      @relation(fields: [userId], references: [id])
-  /// 参加しているペルソナ
-  personaId String
-  persona   Persona   @relation(fields: [personaId], references: [id])
+  userId              String
+  user                User      @relation(fields: [userId], references: [id])
+  /// 参加しているメインペルソナ
+  personaId           String
+  persona             Persona   @relation("MainPersonaChats", fields: [personaId], references: [id])
+  /// 参加している追加ペルソナ（実験的機能：ペルソナ同士の対話用など）
+  additionalPersonaId String?
+  additionalPersona   Persona?  @relation("AdditionalPersonaChats", fields: [additionalPersonaId], references: [id])
+  /// チャットセッションのメタデータや設定値（例: {"mode": "persona_interaction"}）
+  options             Json?
   /// セッション開始日時
-  createdAt DateTime  @default(now())
+  createdAt           DateTime  @default(now())
   /// 最後に発言があった日時
-  updatedAt DateTime  @updatedAt
+  updatedAt           DateTime  @updatedAt
   /// このセッションに紐づく個別の発言
-  chatLogs  ChatLog[]
+  chatLogs            ChatLog[]
 
   @@map("chats")
 }
