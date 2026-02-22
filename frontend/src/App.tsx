@@ -116,6 +116,7 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isReflecting, setIsReflecting] = useState(false);
   const [status, setStatus] = useState<PersonaStatus>({
     height: 160,
     weight: 50,
@@ -483,7 +484,7 @@ function App() {
       return;
     }
 
-    setIsLoading(true);
+    setIsReflecting(true);
     try {
       const llmConfig = {
         provider: llmSettings.provider,
@@ -495,8 +496,8 @@ function App() {
         llmConfig,
         chatId: currentChatId
       });
-      toast.success(`内省完了: ${res.data.reflection.permanentMemory || "新たな気付きはありませんでした"}`, {
-        duration: 5000,
+      toast.success('内省が完了しました', {
+        duration: 3000,
         style: {
           background: '#10B981', // Emerald 500
           color: '#fff',
@@ -528,12 +529,12 @@ function App() {
     } catch (error) {
       handleApiError(error, '内省処理に失敗しました');
     } finally {
-      setIsLoading(false);
+      setIsReflecting(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300">
+    <div className="flex flex-col h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300 relative">
       <Toaster
         position="top-center"
         toastOptions={{
@@ -797,7 +798,7 @@ function App() {
                   <div className="text-center mt-4 mb-2">
                     <button
                       onClick={handleReflect}
-                      disabled={isLoading || userMessageCountSinceLastReflection < REQUIRED_TURNS}
+                      disabled={isLoading || isReflecting || userMessageCountSinceLastReflection < REQUIRED_TURNS}
                       className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-300 text-xs font-semibold tracking-wide cursor-pointer disabled:cursor-not-allowed group relative"
                     >
                       {userMessageCountSinceLastReflection < REQUIRED_TURNS ? `内省を実行する (あと${REQUIRED_TURNS - userMessageCountSinceLastReflection}回)` : '内省を実行する'}
@@ -849,6 +850,31 @@ function App() {
           }}
         />
       </div>
+
+      {/* 画面全体を覆う内省用ローディングオーバーレイ */}
+      <AnimatePresence>
+        {isReflecting && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
+          >
+            <div className="flex flex-col items-center gap-4 p-8 bg-white/10 dark:bg-slate-900/40 rounded-3xl shadow-2xl border border-white/20 dark:border-slate-800/50 backdrop-blur-md">
+              <div className="relative">
+                <div className="w-16 h-16 border-4 border-indigo-500/30 rounded-full animate-pulse blur-sm absolute inset-0"></div>
+                <div className="w-16 h-16 border-4 border-slate-200 dark:border-slate-700 border-t-indigo-500 rounded-full animate-spin relative z-10"></div>
+              </div>
+              <p className="text-lg font-medium tracking-wider text-slate-800 dark:text-slate-100 mt-2">
+                人格再構築システムによる内省処理が進行中です
+              </p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                この処理には数十秒かかる場合があります
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
