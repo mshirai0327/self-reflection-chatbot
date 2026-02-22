@@ -172,6 +172,10 @@ function App() {
   /** メインエリアのタブ状態: 'chat' | 'persona-log' | 'graph' */
   const [activeTab, setActiveTab] = useState<'chat' | 'persona-log' | 'graph'>('chat');
 
+  /** 内省頻度制限のためのステート */
+  const [userMessageCountSinceLastReflection, setUserMessageCountSinceLastReflection] = useState<number>(0);
+  const REQUIRED_TURNS = 5;
+
   // Load state from localStorage
   const [currentPersonaId, setCurrentPersonaId] = useState<string | null>(() => localStorage.getItem('currentPersonaId'));
   // currentChatId also needs to be persisted to restore session
@@ -318,6 +322,12 @@ function App() {
           setLastReflection(null);
         }
 
+        if (typeof res.data.userMessageCountSinceLastReflection === 'number') {
+            setUserMessageCountSinceLastReflection(res.data.userMessageCountSinceLastReflection);
+        } else {
+            setUserMessageCountSinceLastReflection(0);
+        }
+
         // ステータスがあればセット (初回ロード時など)
         if (res.data.status) {
           console.log('[App] Setting initial status:', res.data.status);
@@ -454,6 +464,7 @@ function App() {
       if (!currentChatId && res.data.chatId) {
         setCurrentChatId(res.data.chatId);
       }
+      setUserMessageCountSinceLastReflection(prev => prev + 1);
       const aiMsg: Message = { role: 'assistant', content: res.data.response, createdAt: new Date().toISOString() };
       setMessages(prev => [...prev, aiMsg]);
       if (res.data.status) setStatus(res.data.status);
@@ -500,6 +511,7 @@ function App() {
         createdAt: new Date().toISOString(),
         response: res.data.reflection
       });
+      setUserMessageCountSinceLastReflection(0);
 
       const followUpMessage = "内省が終わったようですね。今の気分はどうですか？";
       setMessages(prev => [...prev, { role: 'user', content: followUpMessage, createdAt: new Date().toISOString() }]);
@@ -785,10 +797,10 @@ function App() {
                   <div className="text-center mt-4 mb-2">
                     <button
                       onClick={handleReflect}
-                      disabled={isLoading}
-                      className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-300 text-xs font-semibold tracking-wide cursor-pointer disabled:cursor-not-allowed"
+                      disabled={isLoading || userMessageCountSinceLastReflection < REQUIRED_TURNS}
+                      className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-300 text-xs font-semibold tracking-wide cursor-pointer disabled:cursor-not-allowed group relative"
                     >
-                      内省を実行する
+                      {userMessageCountSinceLastReflection < REQUIRED_TURNS ? `内省を実行する (あと${REQUIRED_TURNS - userMessageCountSinceLastReflection}回)` : '内省を実行する'}
                     </button>
                   </div>
                 </div>

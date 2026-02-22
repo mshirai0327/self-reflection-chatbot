@@ -62,11 +62,21 @@ export async function GET(
         // 初回取得時（カーソルなし）のみ内省結果とステータスを返す
         let latestReflection = null;
         let status = null;
+        let userMessageCountSinceLastReflection = 0;
 
         if (!cursor) {
             const reflectionEvent = await prisma.reflectionEvent.findFirst({
                 where: { personaId: chat.personaId },
                 orderBy: { createdAt: 'desc' }
+            });
+
+            // 最後の内省以降のユーザーメッセージ数をカウント（内省が一度もない場合は全件）
+            userMessageCountSinceLastReflection = await prisma.chatLog.count({
+                where: {
+                    chatId: id,
+                    role: 'user',
+                    ...(reflectionEvent ? { createdAt: { gt: reflectionEvent.createdAt } } : {})
+                }
             });
 
             if (reflectionEvent) {
@@ -88,6 +98,7 @@ export async function GET(
             nextCursor,
             latestReflection,
             status,
+            userMessageCountSinceLastReflection,
         });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });
