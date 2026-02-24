@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { MessageCircle, PlusCircle, Settings, CheckCircle, RefreshCw, ChevronDown, ChevronRight, Brain } from 'lucide-react';
+import { MessageCircle, PlusCircle, Settings, CheckCircle, RefreshCw, ChevronDown, ChevronRight, Brain, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -13,10 +13,20 @@ interface Chat {
     id: string;
     title: string;
     updatedAt: string;
-    additionalPersonaId?: string | null;
     _count?: {
         chatLogs: number;
     };
+}
+
+interface GroupChatSummary {
+    id: string;
+    title: string;
+    updatedAt: string;
+    participants: {
+        id: string;
+        role: string;
+        persona: { id: string; name: string };
+    }[];
 }
 
 interface ReflectionResponse {
@@ -42,10 +52,13 @@ type ChatHistoryProps = {
     isOpen: boolean;
     refreshTrigger: number;
     onSelectChat: (id: string) => void;
+    onSelectGroupChat: (id: string) => void;
     currentChatId: string | null;
+    currentGroupChatId: string | null;
     currentPersonaId: string | null;
     personas: Persona[];
     onNewChat: () => void;
+    onNewGroupChat: () => void;
     // LLM Settings
     chatModel: string;
     setChatModel: (model: string) => void;
@@ -91,10 +104,13 @@ export function ChatHistory({
     isOpen,
     refreshTrigger,
     onSelectChat,
+    onSelectGroupChat,
     currentChatId,
+    currentGroupChatId,
     currentPersonaId,
-    personas,
+    // personas, // unused
     onNewChat,
+    onNewGroupChat,
     chatModel,
     setChatModel,
     reflectModel,
@@ -104,13 +120,15 @@ export function ChatHistory({
     lastReflection
 }: ChatHistoryProps) {
     const [chats, setChats] = useState<Chat[]>([]);
+    const [groupChats, setGroupChats] = useState<GroupChatSummary[]>([]);
+    /** サイドバーのタブ状態: '1on1' | 'group' */
+    const [sidebarTab, setSidebarTab] = useState<'1on1' | 'group'>('1on1');
     const [isLoading, setIsLoading] = useState(false);
     const [isReflectionOpen, setIsReflectionOpen] = useState(true);
     const [showApiConfig, setShowApiConfig] = useState(false);
     const [loadingModels, setLoadingModels] = useState(false);
     const [editingChatId, setEditingChatId] = useState<string | null>(null);
     const [editingTitle, setEditingTitle] = useState("");
-    const [showSettingsChatId, setShowSettingsChatId] = useState<string | null>(null);
     /** 本番環境では Local LLM UI を非表示にするためのフラグ */
     const [isLocalLLMEnabled, setIsLocalLLMEnabled] = useState(true);
 
@@ -155,18 +173,7 @@ export function ChatHistory({
         }
     };
 
-    const saveAdditionalPersona = async (chatId: string, additionalPersonaId: string) => {
-        try {
-            await axios.patch(`${API_URL}/api/chats/${chatId}`, { 
-                additionalPersonaId: additionalPersonaId || null 
-            });
-            setChats(chats.map(c => c.id === chatId ? { ...c, additionalPersonaId: additionalPersonaId || null } : c));
-            toast.success('Additional persona updated');
-        } catch (error) {
-            console.error('Failed to update additional persona:', error);
-            toast.error('Failed to update additional persona');
-        }
-    };
+
 
     const handleKeyDown = (e: React.KeyboardEvent, chatId: string) => {
         if (e.key === 'Enter') {
@@ -180,10 +187,12 @@ export function ChatHistory({
         const fetchChats = async () => {
             setIsLoading(true);
             try {
-                const res = await axios.get(`${API_URL}/api/chats`, {
-                    params: { personaId: currentPersonaId }
-                });
-                setChats(res.data);
+                const [chatsRes, groupChatsRes] = await Promise.all([
+                    axios.get(`${API_URL}/api/chats`, { params: { personaId: currentPersonaId } }),
+                    axios.get(`${API_URL}/api/group-chats`, { params: { personaId: currentPersonaId } }),
+                ]);
+                setChats(chatsRes.data);
+                setGroupChats(groupChatsRes.data);
             } catch (error) {
                 console.error('[ChatHistory] Failed to fetch chats:', error);
             } finally {
@@ -191,7 +200,7 @@ export function ChatHistory({
             }
         };
         fetchChats();
-    }, [refreshTrigger, currentChatId, currentPersonaId]);
+    }, [refreshTrigger, currentChatId, currentGroupChatId, currentPersonaId]);
 
     useEffect(() => {
         if (lastReflection) {
@@ -256,34 +265,63 @@ export function ChatHistory({
     return (
         <div className={`bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 transition-all duration-300 flex-shrink-0 ${isOpen ? 'w-80' : 'w-0'} overflow-hidden flex flex-col shadow-lg`}>
             <div className="w-80 h-full flex flex-col">
-                {/* ヘッダー */}
-                <div className="border-b border-slate-200 dark:border-slate-800 p-4 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
-                    <h2 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                        <MessageCircle className="w-4 h-4" />
-                        Chat History
-                    </h2>
-                    <button
-                        onClick={onNewChat}
-                        className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors text-blue-600 dark:text-blue-400 border border-transparent hover:border-blue-200 dark:hover:border-slate-600"
-                        title="New Chat"
-                    >
-                        <PlusCircle className="w-5 h-5" />
-                    </button>
+                {/* ヘッダー + タブ */}
+                <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                    <div className="p-4 pb-0 flex items-center justify-between">
+                        <h2 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                            <MessageCircle className="w-4 h-4" />
+                            Chat History
+                        </h2>
+                        <button
+                            onClick={sidebarTab === 'group' ? onNewGroupChat : onNewChat}
+                            className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors text-blue-600 dark:text-blue-400 border border-transparent hover:border-blue-200 dark:hover:border-slate-600"
+                            title={sidebarTab === 'group' ? 'New Group Chat' : 'New Chat'}
+                        >
+                            <PlusCircle className="w-5 h-5" />
+                        </button>
+                    </div>
+                    {/* タブ切り替え */}
+                    <div className="flex px-4 pt-2">
+                        <button
+                            onClick={() => setSidebarTab('1on1')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border-b-2 transition-all ${
+                                sidebarTab === '1on1'
+                                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                                    : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                            }`}
+                        >
+                            <MessageCircle className="w-3 h-3" />
+                            1:1
+                        </button>
+                        <button
+                            onClick={() => setSidebarTab('group')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border-b-2 transition-all ${
+                                sidebarTab === 'group'
+                                    ? 'border-purple-500 text-purple-600 dark:text-purple-400'
+                                    : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                            }`}
+                        >
+                            <Users className="w-3 h-3" />
+                            Group
+                        </button>
+                    </div>
                 </div>
 
-                {/* チャットログリスト */}
+                {/* チャットリスト */}
                 <div className="flex-1 overflow-y-auto min-h-0">
-                    {isLoading && chats.length === 0 ? (
-                        <div className="p-4 text-center text-slate-400 text-sm">Loading...</div>
-                    ) : chats.length === 0 ? (
-                        <div className="p-8 text-center text-slate-400 text-sm">No history</div>
-                    ) : (
-                        chats.map((chat) => (
-                            <div
-                                key={chat.id}
-                                onClick={() => onSelectChat(chat.id)}
-                                className={`p-3 border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group ${currentChatId === chat.id ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500' : ''}`}
-                            >
+                    {sidebarTab === '1on1' ? (
+                        /* 1:1 チャット一覧 */
+                        isLoading && chats.length === 0 ? (
+                            <div className="p-4 text-center text-slate-400 text-sm">Loading...</div>
+                        ) : chats.length === 0 ? (
+                            <div className="p-8 text-center text-slate-400 text-sm">No history</div>
+                        ) : (
+                            chats.map((chat) => (
+                                <div
+                                    key={chat.id}
+                                    onClick={() => onSelectChat(chat.id)}
+                                    className={`p-3 border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group ${currentChatId === chat.id ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500' : ''}`}
+                                >
                                     <div className="flex items-start justify-between mb-1">
                                         <div className="flex items-center gap-2 flex-1 min-w-0">
                                             <MessageCircle className={`w-3.5 h-3.5 transition-colors flex-shrink-0 ${currentChatId === chat.id ? 'text-blue-500' : 'text-slate-400 dark:text-slate-500 group-hover:text-blue-500'}`} />
@@ -308,36 +346,58 @@ export function ChatHistory({
                                                 </h3>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-1 ml-2">
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); setShowSettingsChatId(chat.id === showSettingsChatId ? null : chat.id); }}
-                                                className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                title="Chat Settings"
-                                            >
-                                                <Settings className="w-3.5 h-3.5" />
-                                            </button>
-                                            <span className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">
-                                                {formatDate(chat.updatedAt)}
-                                            </span>
-                                        </div>
+                                        <span className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap ml-2">
+                                            {formatDate(chat.updatedAt)}
+                                        </span>
                                     </div>
-                                    {showSettingsChatId === chat.id && (
-                                        <div className="mt-2 p-2 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700" onClick={e => e.stopPropagation()}>
-                                            <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Additional Persona</label>
-                                            <select
-                                                value={chat.additionalPersonaId || ""}
-                                                onChange={(e) => saveAdditionalPersona(chat.id, e.target.value)}
-                                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-xs text-slate-700 dark:text-slate-300"
-                                            >
-                                                <option value="">None</option>
-                                                {personas.filter(p => p.id !== currentPersonaId).map(p => (
-                                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    )}
+                                </div>
+                            ))
+                        )
+                    ) : (
+                        /* グループチャット一覧 */
+                        isLoading && groupChats.length === 0 ? (
+                            <div className="p-4 text-center text-slate-400 text-sm">Loading...</div>
+                        ) : groupChats.length === 0 ? (
+                            <div className="p-8 text-center text-slate-400 text-sm flex flex-col items-center gap-2">
+                                <Users className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+                                <span>グループチャットがありません</span>
                             </div>
-                        ))
+                        ) : (
+                            groupChats.map((gc) => (
+                                <div
+                                    key={gc.id}
+                                    onClick={() => onSelectGroupChat(gc.id)}
+                                    className={`p-3 border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group ${currentGroupChatId === gc.id ? 'bg-purple-50 dark:bg-purple-900/20 border-l-4 border-l-purple-500' : ''}`}
+                                >
+                                    <div className="flex items-start justify-between mb-1">
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            <Users className={`w-3.5 h-3.5 transition-colors flex-shrink-0 ${currentGroupChatId === gc.id ? 'text-purple-500' : 'text-slate-400 dark:text-slate-500 group-hover:text-purple-500'}`} />
+                                            <h3 className={`font-medium text-xs truncate max-w-[180px] ${currentGroupChatId === gc.id ? 'text-purple-700 dark:text-purple-400' : 'text-slate-900 dark:text-slate-200'}`}>
+                                                {gc.title}
+                                            </h3>
+                                        </div>
+                                        <span className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap ml-2">
+                                            {formatDate(gc.updatedAt)}
+                                        </span>
+                                    </div>
+                                    {/* 参加ペルソナのバッジ */}
+                                    <div className="flex flex-wrap gap-1 mt-1 ml-5">
+                                        {gc.participants.map((p) => (
+                                            <span
+                                                key={p.id}
+                                                className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                                                    p.role === 'main'
+                                                        ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300'
+                                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                                                }`}
+                                            >
+                                                {p.persona.name}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))
+                        )
                     )}
                 </div>
 

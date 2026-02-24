@@ -139,18 +139,16 @@ async def reflect(request: ReflectionRequest):
         llm = create_chat_model(request.llm_config)
         
         # 3. 内省チェーンの実行
-        chain = create_reflection_chain(llm)
+        prompt, chain = create_reflection_chain(llm)
         
         # ステータス情報の展開
         s = request.status
         
-        result = await chain.ainvoke({
+        args = {
             "name": s.name or "Reflecta",
             "log_summary": request.log_summary,
             "gender": s.gender or "不明",
             "age": (s.birthDate.split('-')[0] + '年生まれ') if s.birthDate else "不明",
-            
-            # Pydanticモデルのフィールドに合わせて展開
             "blood_type": s.bloodType or "不明",
             "chronotype": s.chronotype or "不明",
             "intelligence": s.intelligence or "不明",
@@ -172,9 +170,19 @@ async def reflect(request: ReflectionRequest):
             "trust": s.trust or 50,
             "friendliness": s.friendliness or 50,
             "graph_context": graph_context,
-       })
+       }
 
-        return result
+        # 実際のプロンプトを構築して記録用として取得
+        formatted_messages = prompt.format_messages(**args)
+        actual_prompt = "\n".join([f"{m.type}: {m.content}" for m in formatted_messages])
+
+        result = await chain.ainvoke(args)
+
+        # ReflectionResult (Pydantic Model) に prompt を追加して返す
+        result_dict = result.model_dump()
+        result_dict["prompt"] = actual_prompt
+
+        return result_dict
 
     except Exception as e:
         import traceback

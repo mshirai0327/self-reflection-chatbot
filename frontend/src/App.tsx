@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { Send, Menu, ChevronLeft, Database, Sun, Moon, MessageSquare, BarChart3, ArrowDown, Network } from 'lucide-react';
+import { Send, Menu, ChevronLeft, Database, Sun, Moon, MessageSquare, BarChart3, ArrowDown, Network, Bot } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast, { Toaster } from 'react-hot-toast';
 import { BotSidebar } from './components/BotSidebar';
@@ -9,6 +9,7 @@ import { PersonaCreationModal } from './components/PersonaCreationModal';
 import { PersonaSelector } from './components/PersonaSelector';
 import { PersonaLogTab } from './components/PersonaLogTab';
 import { GraphViewer } from './components/GraphViewer';
+import { GroupChatCreationModal } from './components/GroupChatCreationModal';
 import { handleApiError } from './utils/errorHandler';
 
 interface Message {
@@ -183,9 +184,20 @@ function App() {
   const [currentPersonaId, setCurrentPersonaId] = useState<string | null>(() => localStorage.getItem('currentPersonaId'));
   // currentChatId also needs to be persisted to restore session
   const [currentChatId, setCurrentChatId] = useState<string | null>(() => localStorage.getItem('currentChatId'));
+  /** グループチャットの選択中ID（1:1チャットと排他） */
+  const [currentGroupChatId, setCurrentGroupChatId] = useState<string | null>(null);
 
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
+  const [isGroupChatModalOpen, setIsGroupChatModalOpen] = useState(false);
+
+  // Auto Mode (自動応答ループ) ステート
+  const [isAutoMode, setIsAutoMode] = useState(false);
+
+  // Auto ModeがOnの時に別チャットに移動したらOffにする安全措置
+  useEffect(() => {
+    setIsAutoMode(false);
+  }, [currentChatId, currentGroupChatId]);
 
   // Persist state
   useEffect(() => {
@@ -298,16 +310,23 @@ function App() {
 
   useEffect(() => {
     const fetchChatSession = async () => {
-      if (!currentChatId) {
-        console.log('[App] No currentChatId, clearing messages.');
+      // 1:1チャットもグループチャットも選択されていない場合
+      if (!currentChatId && !currentGroupChatId) {
+        console.log('[App] No chat selected, clearing messages.');
         setMessages([]);
         setNextCursor(null);
         setHasMore(false);
         return;
       }
       try {
-        console.log('[App] Fetching logs for chat:', currentChatId);
-        const res = await axios.get(`${API_URL}/api/chats/${currentChatId}`);
+        let res;
+        if (currentGroupChatId) {
+          console.log('[App] Fetching logs for group chat:', currentGroupChatId);
+          res = await axios.get(`${API_URL}/api/group-chats/${currentGroupChatId}`);
+        } else {
+          console.log('[App] Fetching logs for chat:', currentChatId);
+          res = await axios.get(`${API_URL}/api/chats/${currentChatId}`);
+        }
         const history = res.data.chatLogs.map((log: any) => ({
           role: log.role as 'user' | 'assistant',
           content: log.content,
@@ -342,7 +361,7 @@ function App() {
       }
     };
     fetchChatSession();
-  }, [currentChatId]);
+  }, [currentChatId, currentGroupChatId]);
 
   /**
    * 古いメッセージを追加取得する（上方向スクロール時に呼ばれる）
@@ -350,19 +369,24 @@ function App() {
    * 挿入前のscrollHeightを記録し、挿入後に差分だけスクロール位置を補正する
    */
   const fetchOlderMessages = useCallback(async () => {
-    if (!currentChatId || !nextCursor || isLoadingMore || !hasMore) return;
+    const activeChatId = currentChatId || currentGroupChatId;
+    if (!activeChatId || !nextCursor || isLoadingMore || !hasMore) return;
     setIsLoadingMore(true);
     try {
       const scrollEl = scrollRef.current;
       const prevScrollHeight = scrollEl?.scrollHeight || 0;
 
-      const res = await axios.get(`${API_URL}/api/chats/${currentChatId}`, {
+      const endpoint = currentGroupChatId
+        ? `${API_URL}/api/group-chats/${currentGroupChatId}`
+        : `${API_URL}/api/chats/${currentChatId}`;
+      const res = await axios.get(endpoint, {
         params: { cursor: nextCursor }
       });
       const olderMessages: Message[] = res.data.chatLogs.map((log: any) => ({
         role: log.role as 'user' | 'assistant',
         content: log.content,
-        createdAt: log.createdAt
+        createdAt: log.createdAt,
+        name: log.persona?.name
       }));
 
       if (olderMessages.length > 0) {
@@ -385,7 +409,7 @@ function App() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [currentChatId, nextCursor, isLoadingMore, hasMore]);
+  }, [currentChatId, currentGroupChatId, nextCursor, isLoadingMore, hasMore]);
 
   /**
    * 現在のスクロール位置が最下部付近かチェックする
@@ -461,16 +485,20 @@ function App() {
     }
   }, [activeTab, checkScrollPosition]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleSend = async (autoMessage?: string) => {
+    const textToSend = autoMessage !== undefined ? autoMessage : input;
+    if (!textToSend.trim() && !autoMessage) return; // 空文字でもautoMessageがあれば許可
+    if (isLoading) return;
 
-    const userMsg: Message = { role: 'user', content: input, createdAt: new Date().toISOString() };
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
+    if (!autoMessage) {
+        const userMsg: Message = { role: 'user', content: input, createdAt: new Date().toISOString() };
+        setMessages(prev => [...prev, userMsg]);
+        setInput('');
+    }
     setIsLoading(true);
 
     // テキストエリアの高さをリセット
-    if (textareaRef.current) {
+    if (textareaRef.current && !autoMessage) {
       textareaRef.current.style.height = 'auto';
     }
 
@@ -482,14 +510,15 @@ function App() {
       };
 
       const res = await axios.post(`${API_URL}/api/chat`, {
-        message: input,
+        message: textToSend,
         llmConfig,
         chatId: currentChatId,
-        personaId: currentPersonaId // Send selected persona
+        groupChatId: currentGroupChatId,
+        personaId: currentPersonaId
       });
 
       // 新規チャット作成時の処理
-      if (!currentChatId && res.data.chatId) {
+      if (!currentChatId && !currentGroupChatId && res.data.chatId) {
         setCurrentChatId(res.data.chatId);
       }
       setUserMessageCountSinceLastReflection(prev => prev + 1);
@@ -505,8 +534,28 @@ function App() {
     }
   };
 
+  // Auto Modeのためのハンドラ参照
+  const handleSendRef = useRef(handleSend);
+  useEffect(() => {
+    handleSendRef.current = handleSend;
+  });
+
+  // Auto Mode のためのループ監視
+  useEffect(() => {
+    if (!isAutoMode || isLoading || messages.length === 0) return;
+    
+    // Groupチャット時のみ有効化する場合（今回は1:1でも動作するようにしてもOKだが、一応制限なしとする）
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role === 'assistant') {
+      const timerId = setTimeout(() => {
+        handleSendRef.current("<AUTO_CONTINUE>");
+      }, 3000); // 3秒待機
+      return () => clearTimeout(timerId);
+    }
+  }, [messages, isAutoMode, isLoading]);
+
   const handleReflect = async () => {
-    if (!currentChatId) {
+    if (!currentChatId && !currentGroupChatId) {
       toast.error('内省を行うには、まずチャットを開始してください');
       return;
     }
@@ -521,19 +570,21 @@ function App() {
 
       const res = await axios.post(`${API_URL}/api/reflect`, {
         llmConfig,
-        chatId: currentChatId
+        chatId: currentChatId,
+        groupChatId: currentGroupChatId,
       });
-      toast.success('内省が完了しました', {
-        duration: 3000,
-        style: {
-          background: '#10B981', // Emerald 500
-          color: '#fff',
-        },
-        iconTheme: {
-          primary: '#fff',
-          secondary: '#10B981',
-        },
-      });
+
+      const reflectionCount = res.data.allReflections?.length;
+      toast.success(
+        reflectionCount
+          ? `${reflectionCount}体のペルソナの内省が完了しました`
+          : '内省が完了しました',
+        {
+          duration: 3000,
+          style: { background: '#10B981', color: '#fff' },
+          iconTheme: { primary: '#fff', secondary: '#10B981' },
+        }
+      );
       setLastReflection({
         id: 'temp-id',
         createdAt: new Date().toISOString(),
@@ -548,6 +599,7 @@ function App() {
         message: followUpMessage,
         llmConfig,
         chatId: currentChatId,
+        groupChatId: currentGroupChatId,
         personaId: currentPersonaId
       });
       setMessages(prev => [...prev, { role: 'assistant', content: resChat.data.response, createdAt: new Date().toISOString(), name: resChat.data.name }]);
@@ -817,8 +869,21 @@ function App() {
                       className="flex-1 bg-transparent border-none outline-none px-4 py-2 text-slate-900 dark:text-slate-100 placeholder-slate-400 resize-none overflow-y-auto scrollbar-hide"
                       style={{ maxHeight: '160px' }}
                     />
+                    {currentGroupChatId && (
+                      <button
+                        onClick={() => setIsAutoMode(!isAutoMode)}
+                        className={`p-3 rounded-xl transition-colors shadow-lg shrink-0 ${
+                          isAutoMode
+                            ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20'
+                            : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400'
+                        }`}
+                        title={isAutoMode ? "Auto Mode ON (自動応答を停止)" : "Auto Mode OFF (キャラクター同士で自動会話)"}
+                      >
+                        <Bot size={20} />
+                      </button>
+                    )}
                     <button
-                      onClick={handleSend}
+                      onClick={() => handleSend()}
                       disabled={isLoading}
                       className="p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 rounded-xl transition-colors shadow-lg shadow-blue-500/20 text-white shrink-0"
                     >
@@ -854,11 +919,20 @@ function App() {
         <ChatHistory
           isOpen={isRightOpen}
           refreshTrigger={refreshTrigger}
-          onSelectChat={(id: string) => setCurrentChatId(id)}
+          onSelectChat={(id: string) => {
+            setCurrentChatId(id);
+            setCurrentGroupChatId(null); // 1:1選択時にグループを解除
+          }}
+          onSelectGroupChat={(id: string) => {
+            setCurrentGroupChatId(id);
+            setCurrentChatId(null); // グループ選択時に1:1を解除
+          }}
           currentChatId={currentChatId}
+          currentGroupChatId={currentGroupChatId}
           currentPersonaId={currentPersonaId}
           personas={personas}
           onNewChat={() => setCurrentChatId(null)}
+          onNewGroupChat={() => setIsGroupChatModalOpen(true)}
           chatModel={chatModel}
           setChatModel={setChatModel}
           reflectModel={reflectModel}
@@ -872,13 +946,30 @@ function App() {
           isOpen={isPersonaModalOpen}
           onClose={() => setIsPersonaModalOpen(false)}
           onCreated={async (newPersonaId) => {
-            await fetchPersonas({ skipAutoSelect: true }); // Refresh list to include new persona
+            await fetchPersonas({ skipAutoSelect: true });
             setCurrentPersonaId(newPersonaId);
-            setCurrentChatId(null); // Clear chat to start fresh with new persona
+            setCurrentChatId(null);
+            setCurrentGroupChatId(null);
             setMessages([]);
-            setStatus(prev => ({ ...prev, name: undefined })); // Reset status name to trigger fetch
-            // Ideally fetch new status immediately
+            setStatus(prev => ({ ...prev, name: undefined }));
           }}
+        />
+
+        <GroupChatCreationModal
+          isOpen={isGroupChatModalOpen}
+          onClose={() => setIsGroupChatModalOpen(false)}
+          onCreate={async (title, personaIds) => {
+            try {
+              const res = await axios.post(`${API_URL}/api/group-chats`, { title, personaIds });
+              setCurrentGroupChatId(res.data.id);
+              setCurrentChatId(null);
+              setRefreshTrigger(prev => prev + 1);
+              toast.success('グループチャットを作成しました');
+            } catch (error) {
+              handleApiError(error, 'グループチャットの作成に失敗しました');
+            }
+          }}
+          personas={personas}
         />
       </div>
 

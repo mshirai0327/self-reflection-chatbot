@@ -8,6 +8,9 @@ import json
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from main import app
+# ReflectionResult と StatusUpdate をインポート
+from chains.reflection import ReflectionResult, StatusUpdate
+
 
 client = TestClient(app)
 
@@ -25,25 +28,30 @@ def test_reflect_endpoint():
                 # 1. Graph Serviceの戻り値をモック
                 mock_graph.get_relevant_context.return_value = "Mock Graph Context: User likes apples."
                 
-                # 2. Chainの実行結果をモック (Pydanticモデルではなく辞書で返す想定、またはchainの戻り値構造に合わせる)
-                # create_reflection_chain は prompt | llm.with_structured_output(ReflectionResult) を返す
-                # invokeの結果は ReflectionResult オブジェクトになるはずだが、FastAPIはそれをJSON化して返す
-                # ここでは invoke の戻り値として辞書またはオブジェクトを設定する
-                mock_result = {
-                    "thought": "Testing reflection logic.",
-                    "statusUpdate": {
-                        "health": 5, "mood": 10, "trust": 5, "friendliness": 5, "heightIncrease": 0.1
-                    },
-                    "permanentMemory": "Always test your code.",
-                    "newMemories": ["User ran a test."],
-                    "growthFeedback": True
-                }
+                # 2. Chainの実行結果をモック
+                # ainvokeの戻り値はPydanticモデル(ReflectionResult)であることを期待されているため、
+                # 辞書ではなく、実際のモデルのインスタンスを生成する。
+                mock_result = ReflectionResult(
+                    thought="Testing reflection logic.",
+                    statusUpdate=StatusUpdate(
+                        health=5,
+                        mood=10,
+                        trust=5,
+                        friendliness=5,
+                        heightIncrease=0.1
+                    ),
+                    permanentMemory="Always test your code.",
+                    newMemories=["User ran a test."],
+                    growthFeedback=True
+                )
                 
                 # Chainインスタンスのモック
                 mock_chain_instance = MagicMock()
+                mock_prompt_instance = MagicMock() # promptもアンパックされるため、ダミーのモックを用意
                 # ainvoke を AsyncMock でモック化する
                 mock_chain_instance.ainvoke = AsyncMock(return_value=mock_result)
-                mock_create_chain.return_value = mock_chain_instance
+                # prompt と chain の両方をタプルで返すように修正
+                mock_create_chain.return_value = (mock_prompt_instance, mock_chain_instance)
 
                 # 3. リクエストデータ (JS側から送られるJSONを模倣)
                 payload = {
