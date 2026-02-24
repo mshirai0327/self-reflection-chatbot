@@ -9,6 +9,7 @@ import { PersonaCreationModal } from './components/PersonaCreationModal';
 import { PersonaSelector } from './components/PersonaSelector';
 import { PersonaLogTab } from './components/PersonaLogTab';
 import { GraphViewer } from './components/GraphViewer';
+import { GroupChatCreationModal } from './components/GroupChatCreationModal';
 import { handleApiError } from './utils/errorHandler';
 
 interface Message {
@@ -183,9 +184,12 @@ function App() {
   const [currentPersonaId, setCurrentPersonaId] = useState<string | null>(() => localStorage.getItem('currentPersonaId'));
   // currentChatId also needs to be persisted to restore session
   const [currentChatId, setCurrentChatId] = useState<string | null>(() => localStorage.getItem('currentChatId'));
+  /** グループチャットの選択中ID（1:1チャットと排他） */
+  const [currentGroupChatId, setCurrentGroupChatId] = useState<string | null>(null);
 
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
+  const [isGroupChatModalOpen, setIsGroupChatModalOpen] = useState(false);
 
   // Persist state
   useEffect(() => {
@@ -854,11 +858,20 @@ function App() {
         <ChatHistory
           isOpen={isRightOpen}
           refreshTrigger={refreshTrigger}
-          onSelectChat={(id: string) => setCurrentChatId(id)}
+          onSelectChat={(id: string) => {
+            setCurrentChatId(id);
+            setCurrentGroupChatId(null); // 1:1選択時にグループを解除
+          }}
+          onSelectGroupChat={(id: string) => {
+            setCurrentGroupChatId(id);
+            setCurrentChatId(null); // グループ選択時に1:1を解除
+          }}
           currentChatId={currentChatId}
+          currentGroupChatId={currentGroupChatId}
           currentPersonaId={currentPersonaId}
           personas={personas}
           onNewChat={() => setCurrentChatId(null)}
+          onNewGroupChat={() => setIsGroupChatModalOpen(true)}
           chatModel={chatModel}
           setChatModel={setChatModel}
           reflectModel={reflectModel}
@@ -872,13 +885,30 @@ function App() {
           isOpen={isPersonaModalOpen}
           onClose={() => setIsPersonaModalOpen(false)}
           onCreated={async (newPersonaId) => {
-            await fetchPersonas({ skipAutoSelect: true }); // Refresh list to include new persona
+            await fetchPersonas({ skipAutoSelect: true });
             setCurrentPersonaId(newPersonaId);
-            setCurrentChatId(null); // Clear chat to start fresh with new persona
+            setCurrentChatId(null);
+            setCurrentGroupChatId(null);
             setMessages([]);
-            setStatus(prev => ({ ...prev, name: undefined })); // Reset status name to trigger fetch
-            // Ideally fetch new status immediately
+            setStatus(prev => ({ ...prev, name: undefined }));
           }}
+        />
+
+        <GroupChatCreationModal
+          isOpen={isGroupChatModalOpen}
+          onClose={() => setIsGroupChatModalOpen(false)}
+          onCreate={async (title, personaIds) => {
+            try {
+              const res = await axios.post(`${API_URL}/api/group-chats`, { title, personaIds });
+              setCurrentGroupChatId(res.data.id);
+              setCurrentChatId(null);
+              setRefreshTrigger(prev => prev + 1);
+              toast.success('グループチャットを作成しました');
+            } catch (error) {
+              handleApiError(error, 'グループチャットの作成に失敗しました');
+            }
+          }}
+          personas={personas}
         />
       </div>
 

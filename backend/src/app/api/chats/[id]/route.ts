@@ -26,7 +26,7 @@ export async function GET(
 
         const chat = await prisma.chat.findUnique({
             where: { id },
-            select: { id: true, title: true, personaId: true, additionalPersonaId: true, options: true, createdAt: true, updatedAt: true }
+            select: { id: true, title: true, personaId: true, options: true, createdAt: true, updatedAt: true }
         });
 
         if (!chat) {
@@ -116,11 +116,10 @@ export async function PATCH(
     try {
         const { id } = await params;
         const body = await req.json();
-        const { title, additionalPersonaId, options } = body;
+        const { title, options } = body;
 
         const data: any = {};
         if (title !== undefined) data.title = title;
-        if (additionalPersonaId !== undefined) data.additionalPersonaId = additionalPersonaId;
         if (options !== undefined) data.options = options;
 
         if (Object.keys(data).length === 0) {
