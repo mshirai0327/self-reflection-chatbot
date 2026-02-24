@@ -16,6 +16,8 @@ interface Message {
   content: string;
   /** メッセージの送信日時 */
   createdAt?: string;
+  /** 話しているペルソナの名前 */
+  name?: string;
 }
 
 interface Persona {
@@ -116,6 +118,7 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isReflecting, setIsReflecting] = useState(false);
   const [status, setStatus] = useState<PersonaStatus>({
     height: 160,
     weight: 50,
@@ -171,6 +174,10 @@ function App() {
 
   /** メインエリアのタブ状態: 'chat' | 'persona-log' | 'graph' */
   const [activeTab, setActiveTab] = useState<'chat' | 'persona-log' | 'graph'>('chat');
+
+  /** 内省頻度制限のためのステート */
+  const [userMessageCountSinceLastReflection, setUserMessageCountSinceLastReflection] = useState<number>(0);
+  const REQUIRED_TURNS = 5;
 
   // Load state from localStorage
   const [currentPersonaId, setCurrentPersonaId] = useState<string | null>(() => localStorage.getItem('currentPersonaId'));
@@ -304,7 +311,8 @@ function App() {
         const history = res.data.chatLogs.map((log: any) => ({
           role: log.role as 'user' | 'assistant',
           content: log.content,
-          createdAt: log.createdAt
+          createdAt: log.createdAt,
+          name: log.persona?.name
         }));
         setMessages(history);
         setNextCursor(res.data.nextCursor || null);
@@ -316,6 +324,12 @@ function App() {
           setLastReflection(res.data.latestReflection);
         } else {
           setLastReflection(null);
+        }
+
+        if (typeof res.data.userMessageCountSinceLastReflection === 'number') {
+            setUserMessageCountSinceLastReflection(res.data.userMessageCountSinceLastReflection);
+        } else {
+            setUserMessageCountSinceLastReflection(0);
         }
 
         // ステータスがあればセット (初回ロード時など)
@@ -374,6 +388,16 @@ function App() {
   }, [currentChatId, nextCursor, isLoadingMore, hasMore]);
 
   /**
+   * 現在のスクロール位置が最下部付近かチェックする
+   */
+  const checkScrollPosition = useCallback(() => {
+    const scrollEl = scrollRef.current;
+    if (!scrollEl) return;
+    const distanceFromBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight;
+    setIsNearBottom(distanceFromBottom < 150);
+  }, []);
+
+  /**
    * 最下部へスムーズスクロールする
    */
   const scrollToBottom = useCallback(() => {
@@ -382,8 +406,10 @@ function App() {
         top: scrollRef.current.scrollHeight,
         behavior: 'smooth'
       });
+      // スクロール開始後に判定を更新
+      setTimeout(checkScrollPosition, 500);
     }
-  }, []);
+  }, [checkScrollPosition]);
 
   /**
    * スクロールイベントハンドラ
@@ -399,29 +425,41 @@ function App() {
       if (scrollEl.scrollTop < 100 && hasMore && !isLoadingMore) {
         fetchOlderMessages();
       }
-      // 最下部付近にいるか判定（150px以内なら最下部とみなす）
-      const distanceFromBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight;
-      setIsNearBottom(distanceFromBottom < 150);
+      checkScrollPosition();
     };
 
     scrollEl.addEventListener('scroll', handleScroll);
     return () => scrollEl.removeEventListener('scroll', handleScroll);
-  }, [hasMore, isLoadingMore, fetchOlderMessages]);
+  }, [hasMore, isLoadingMore, fetchOlderMessages, checkScrollPosition]);
 
-  /** 新しいメッセージが追加された場合のみ最下部にスクロール */
+  /** メッセージが追加・更新された場合のスクロール制御 */
   const prevMessageCountRef = useRef(0);
   useEffect(() => {
-    // メッセージ数が増えた場合（新規送信）のみ自動スクロール
-    // 古いメッセージの読み込み時はスクロールしない（fetchOlderMessages内で位置を維持済み）
-    if (messages.length > prevMessageCountRef.current && scrollRef.current) {
-      const isOlderMessageLoad = prevMessageCountRef.current === 0 ||
-        (messages.length - prevMessageCountRef.current <= 2);
-      if (isOlderMessageLoad || prevMessageCountRef.current === 0) {
+    // メッセージ数が増えた場合（新規送信や初回ロード）の制御
+    if (messages.length > 0 && scrollRef.current) {
+      if (prevMessageCountRef.current === 0) {
+        // 初回ロード時は最下部へ
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      } else if (messages.length > prevMessageCountRef.current) {
+        // 新規メッセージ追加時
+        const isOlderMessageLoad = messages.length - prevMessageCountRef.current > 2;
+        if (!isOlderMessageLoad) {
+          // 自分が送った、あるいは返信がきた場合は最下部へ
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
       }
+      // メッセージ更新後にスクロール位置を再判定
+      setTimeout(checkScrollPosition, 100);
     }
     prevMessageCountRef.current = messages.length;
-  }, [messages]);
+  }, [messages, checkScrollPosition]);
+
+  /** タブ切り替え時にスクロール位置を再チェック */
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      setTimeout(checkScrollPosition, 100);
+    }
+  }, [activeTab, checkScrollPosition]);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -454,7 +492,8 @@ function App() {
       if (!currentChatId && res.data.chatId) {
         setCurrentChatId(res.data.chatId);
       }
-      const aiMsg: Message = { role: 'assistant', content: res.data.response, createdAt: new Date().toISOString() };
+      setUserMessageCountSinceLastReflection(prev => prev + 1);
+      const aiMsg: Message = { role: 'assistant', content: res.data.response, createdAt: new Date().toISOString(), name: res.data.name };
       setMessages(prev => [...prev, aiMsg]);
       if (res.data.status) setStatus(res.data.status);
       if (res.data.debug) setLastDebugInfo(res.data.debug);
@@ -472,7 +511,7 @@ function App() {
       return;
     }
 
-    setIsLoading(true);
+    setIsReflecting(true);
     try {
       const llmConfig = {
         provider: llmSettings.provider,
@@ -484,8 +523,8 @@ function App() {
         llmConfig,
         chatId: currentChatId
       });
-      toast.success(`内省完了: ${res.data.reflection.permanentMemory || "新たな気付きはありませんでした"}`, {
-        duration: 5000,
+      toast.success('内省が完了しました', {
+        duration: 3000,
         style: {
           background: '#10B981', // Emerald 500
           color: '#fff',
@@ -500,6 +539,7 @@ function App() {
         createdAt: new Date().toISOString(),
         response: res.data.reflection
       });
+      setUserMessageCountSinceLastReflection(0);
 
       const followUpMessage = "内省が終わったようですね。今の気分はどうですか？";
       setMessages(prev => [...prev, { role: 'user', content: followUpMessage, createdAt: new Date().toISOString() }]);
@@ -510,18 +550,18 @@ function App() {
         chatId: currentChatId,
         personaId: currentPersonaId
       });
-      setMessages(prev => [...prev, { role: 'assistant', content: resChat.data.response, createdAt: new Date().toISOString() }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: resChat.data.response, createdAt: new Date().toISOString(), name: resChat.data.name }]);
       if (resChat.data.status) setStatus(resChat.data.status);
       setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       handleApiError(error, '内省処理に失敗しました');
     } finally {
-      setIsLoading(false);
+      setIsReflecting(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300">
+    <div className="flex flex-col h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300 relative">
       <Toaster
         position="top-center"
         toastOptions={{
@@ -701,17 +741,20 @@ function App() {
                               }`}>
                               <p className="leading-relaxed whitespace-pre-wrap">{m.content}</p>
                             </div>
-                            {/* 時刻表示 (#14) */}
-                            {m.createdAt && (
-                              <span className={`text-[10px] text-slate-400 dark:text-slate-500 px-1 ${
-                                m.role === 'user' ? 'text-right' : 'text-left'
-                              }`}>
-                                {new Date(m.createdAt).toLocaleTimeString('ja-JP', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </span>
-                            )}
+                            {/* 時刻と名前表示 (#14, 複数ペルソナ対応) */}
+                            <div className={`flex items-center gap-2 px-1 text-[10px] text-slate-400 dark:text-slate-500 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                              {m.role === 'assistant' && m.name && (
+                                <span className="font-semibold text-slate-500 dark:text-slate-400">{m.name}</span>
+                              )}
+                              {m.createdAt && (
+                                <span>
+                                  {new Date(m.createdAt).toLocaleTimeString('ja-JP', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </motion.div>
                       );
@@ -785,10 +828,10 @@ function App() {
                   <div className="text-center mt-4 mb-2">
                     <button
                       onClick={handleReflect}
-                      disabled={isLoading}
-                      className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-300 text-xs font-semibold tracking-wide cursor-pointer disabled:cursor-not-allowed"
+                      disabled={isLoading || isReflecting || userMessageCountSinceLastReflection < REQUIRED_TURNS}
+                      className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-300 text-xs font-semibold tracking-wide cursor-pointer disabled:cursor-not-allowed group relative"
                     >
-                      内省を実行する
+                      {userMessageCountSinceLastReflection < REQUIRED_TURNS ? `内省を実行する (あと${REQUIRED_TURNS - userMessageCountSinceLastReflection}回)` : '内省を実行する'}
                     </button>
                   </div>
                 </div>
@@ -814,6 +857,7 @@ function App() {
           onSelectChat={(id: string) => setCurrentChatId(id)}
           currentChatId={currentChatId}
           currentPersonaId={currentPersonaId}
+          personas={personas}
           onNewChat={() => setCurrentChatId(null)}
           chatModel={chatModel}
           setChatModel={setChatModel}
@@ -837,6 +881,31 @@ function App() {
           }}
         />
       </div>
+
+      {/* 画面全体を覆う内省用ローディングオーバーレイ */}
+      <AnimatePresence>
+        {isReflecting && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
+          >
+            <div className="flex flex-col items-center gap-4 p-8 bg-white/10 dark:bg-slate-900/40 rounded-3xl shadow-2xl border border-white/20 dark:border-slate-800/50 backdrop-blur-md">
+              <div className="relative">
+                <div className="w-16 h-16 border-4 border-indigo-500/30 rounded-full animate-pulse blur-sm absolute inset-0"></div>
+                <div className="w-16 h-16 border-4 border-slate-200 dark:border-slate-700 border-t-indigo-500 rounded-full animate-spin relative z-10"></div>
+              </div>
+              <p className="text-lg font-medium tracking-wider text-slate-800 dark:text-slate-100 mt-2">
+                人格再構築システムによる内省処理が進行中です
+              </p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                この処理には数十秒かかる場合があります
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

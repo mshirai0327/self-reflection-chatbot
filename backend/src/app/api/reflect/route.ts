@@ -122,6 +122,26 @@ export async function POST(req: NextRequest) {
         }
         console.log(`[Reflect API] Found ${recentLogs.length} recent logs.`);
 
+        // 前回の内省からのユーザー発言回数をチェック (5回以上必要)
+        const reflectionEvent = await prisma.reflectionEvent.findFirst({
+            where: { personaId: personaId },
+            orderBy: { createdAt: 'desc' }
+        });
+        
+        const userMessageCountSinceLastReflection = await prisma.chatLog.count({
+            where: {
+                chatId: chatId,
+                role: 'user',
+                ...(reflectionEvent ? { createdAt: { gt: reflectionEvent.createdAt } } : {})
+            }
+        });
+
+        const REQUIRED_TURNS = 5;
+        if (userMessageCountSinceLastReflection < REQUIRED_TURNS) {
+            console.log(`[Reflect API] Not enough user messages since last reflection. Count: ${userMessageCountSinceLastReflection}, Required: ${REQUIRED_TURNS}`);
+            return NextResponse.json({ error: `内省を行うには、前回の内省から${REQUIRED_TURNS}回以上のユーザーの発言が必要です。(現在: ${userMessageCountSinceLastReflection}回)` }, { status: 400 });
+        }
+
         const logSummary = recentLogs.slice().reverse().map((l) => `${l.role}: ${l.content}`).join("\n");
 
         // 2. 現在のペルソナステータスを取得

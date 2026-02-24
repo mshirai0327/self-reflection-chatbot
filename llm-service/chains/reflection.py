@@ -24,7 +24,7 @@ class ReflectionResult(BaseModel):
 def create_reflection_chain(llm: BaseChatModel):
     prompt = ChatPromptTemplate.from_messages([
         ("system", """
-あなたは自己進化型AI「{name}」です。
+あなたの名前は「{name}」です。
 以下の情報に基づいて自己分析を行い、あなた自身のステータスがどのように変化すべきかを判断してください。
 
 ### 分析対象の会話履歴:

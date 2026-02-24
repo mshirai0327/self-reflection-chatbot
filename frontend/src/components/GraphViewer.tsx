@@ -88,14 +88,64 @@ export const GraphViewer: React.FC = () => {
             <ForceGraph2D
                 ref={fgRef}
                 graphData={data}
-                nodeLabel="id"
-                nodeColor={node => node.group === 'Concept' ? '#4ade80' : '#60a5fa'}
                 nodeRelSize={6}
+                // ノードのカスタム描画（丸とラベルを常時表示）
+                nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+                    const label = node.id;
+                    const fontSize = 12 / globalScale;
+                    ctx.font = `${fontSize}px Inter, Roboto, "Segoe UI", sans-serif`;
+                    const textWidth = ctx.measureText(label).width;
+                    const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2); // some padding
+
+                    // ノードの円
+                    ctx.beginPath();
+                    ctx.arc(node.x, node.y, 5, 0, 2 * Math.PI, false);
+                    ctx.fillStyle = node.group === 'Concept' ? '#4ade80' : '#60a5fa';
+                    ctx.fill();
+
+                    // テキストの背景（可読性向上のため）
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+                    ctx.fillRect(node.x - bckgDimensions[0] / 2, node.y + 7, bckgDimensions[0], bckgDimensions[1]);
+
+                    // テキスト
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#f8fafc';
+                    ctx.fillText(label, node.x, node.y + 7 + bckgDimensions[1] / 2);
+                }}
+                nodePointerAreaPaint={(node: any, color, ctx) => {
+                    ctx.fillStyle = color;
+                    ctx.beginPath(); ctx.arc(node.x, node.y, 5, 0, 2 * Math.PI, false); ctx.fill();
+                }}
+                // リンクのカスタム描画（ラベルを常時表示）
+                linkCanvasObjectMode={() => 'after'}
+                linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+                    const MAX_FONT_SIZE = 4;
+                    const LABEL_NODE_MARGIN = 6;
+
+                    const start = link.source;
+                    const end = link.target;
+
+                    // リンクの中間点を計算
+                    const textPos = Object.assign({}, ...['x', 'y'].map(c => ({
+                        [c]: start[c] + (end[c] - start[c]) / 2 // middle point
+                    })));
+
+                    const relSize = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
+                    const fontSize = Math.min(MAX_FONT_SIZE, (relSize - LABEL_NODE_MARGIN) / link.label.length);
+
+                    ctx.font = `${fontSize}px Sans-Serif`;
+                    ctx.fillStyle = link.is_personal ? '#fbbf24' : '#94a3b8';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(link.label, textPos.x, textPos.y);
+                }}
                 linkColor={(link: any) => link.is_personal ? '#fbbf24' : '#94a3b8'}
-                linkWidth={(link: any) => link.weight ? link.weight * 2 : 1}
-                linkLabel={(link: any) => `${link.label} (w=${link.weight})`}
-                linkDirectionalArrowLength={3.5}
+                linkWidth={(link: any) => (link.weight ? link.weight * 2 : 1.5)}
+                linkDirectionalArrowLength={8} // 矢印を大きく
                 linkDirectionalArrowRelPos={1}
+                linkDirectionalParticles={2} // 流れを強調
+                linkDirectionalParticleSpeed={0.005}
                 onEngineStop={handleEngineStop}
                 width={dimensions.width}
                 height={dimensions.height}

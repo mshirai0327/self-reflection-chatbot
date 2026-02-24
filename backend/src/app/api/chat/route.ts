@@ -170,6 +170,7 @@ export async function POST(req: NextRequest) {
             response: aiResponse,
             status: status,
             chatId: targetChatId,
+            name: persona.name,
             debug: {
                 systemPrompt: systemInstruction,
                 userPrompt: message,

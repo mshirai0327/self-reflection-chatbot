@@ -4,10 +4,16 @@ import { MessageCircle, PlusCircle, Settings, CheckCircle, RefreshCw, ChevronDow
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
+interface Persona {
+    id: string;
+    name: string;
+}
+
 interface Chat {
     id: string;
     title: string;
     updatedAt: string;
+    additionalPersonaId?: string | null;
     _count?: {
         chatLogs: number;
     };
@@ -38,6 +44,7 @@ type ChatHistoryProps = {
     onSelectChat: (id: string) => void;
     currentChatId: string | null;
     currentPersonaId: string | null;
+    personas: Persona[];
     onNewChat: () => void;
     // LLM Settings
     chatModel: string;
@@ -86,6 +93,7 @@ export function ChatHistory({
     onSelectChat,
     currentChatId,
     currentPersonaId,
+    personas,
     onNewChat,
     chatModel,
     setChatModel,
@@ -102,6 +110,7 @@ export function ChatHistory({
     const [loadingModels, setLoadingModels] = useState(false);
     const [editingChatId, setEditingChatId] = useState<string | null>(null);
     const [editingTitle, setEditingTitle] = useState("");
+    const [showSettingsChatId, setShowSettingsChatId] = useState<string | null>(null);
     /** 本番環境では Local LLM UI を非表示にするためのフラグ */
     const [isLocalLLMEnabled, setIsLocalLLMEnabled] = useState(true);
 
@@ -143,6 +152,19 @@ export function ChatHistory({
             toast.error('Failed to update chat title');
         } finally {
             setEditingChatId(null);
+        }
+    };
+
+    const saveAdditionalPersona = async (chatId: string, additionalPersonaId: string) => {
+        try {
+            await axios.patch(`${API_URL}/api/chats/${chatId}`, { 
+                additionalPersonaId: additionalPersonaId || null 
+            });
+            setChats(chats.map(c => c.id === chatId ? { ...c, additionalPersonaId: additionalPersonaId || null } : c));
+            toast.success('Additional persona updated');
+        } catch (error) {
+            console.error('Failed to update additional persona:', error);
+            toast.error('Failed to update additional persona');
         }
     };
 
@@ -286,10 +308,34 @@ export function ChatHistory({
                                                 </h3>
                                             )}
                                         </div>
-                                        <span className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap ml-2">
-                                            {formatDate(chat.updatedAt)}
-                                        </span>
+                                        <div className="flex items-center gap-1 ml-2">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setShowSettingsChatId(chat.id === showSettingsChatId ? null : chat.id); }}
+                                                className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                title="Chat Settings"
+                                            >
+                                                <Settings className="w-3.5 h-3.5" />
+                                            </button>
+                                            <span className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                                                {formatDate(chat.updatedAt)}
+                                            </span>
+                                        </div>
                                     </div>
+                                    {showSettingsChatId === chat.id && (
+                                        <div className="mt-2 p-2 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700" onClick={e => e.stopPropagation()}>
+                                            <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Additional Persona</label>
+                                            <select
+                                                value={chat.additionalPersonaId || ""}
+                                                onChange={(e) => saveAdditionalPersona(chat.id, e.target.value)}
+                                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-xs text-slate-700 dark:text-slate-300"
+                                            >
+                                                <option value="">None</option>
+                                                {personas.filter(p => p.id !== currentPersonaId).map(p => (
+                                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
                             </div>
                         ))
                     )}
