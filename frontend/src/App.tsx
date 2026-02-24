@@ -302,16 +302,23 @@ function App() {
 
   useEffect(() => {
     const fetchChatSession = async () => {
-      if (!currentChatId) {
-        console.log('[App] No currentChatId, clearing messages.');
+      // 1:1チャットもグループチャットも選択されていない場合
+      if (!currentChatId && !currentGroupChatId) {
+        console.log('[App] No chat selected, clearing messages.');
         setMessages([]);
         setNextCursor(null);
         setHasMore(false);
         return;
       }
       try {
-        console.log('[App] Fetching logs for chat:', currentChatId);
-        const res = await axios.get(`${API_URL}/api/chats/${currentChatId}`);
+        let res;
+        if (currentGroupChatId) {
+          console.log('[App] Fetching logs for group chat:', currentGroupChatId);
+          res = await axios.get(`${API_URL}/api/group-chats/${currentGroupChatId}`);
+        } else {
+          console.log('[App] Fetching logs for chat:', currentChatId);
+          res = await axios.get(`${API_URL}/api/chats/${currentChatId}`);
+        }
         const history = res.data.chatLogs.map((log: any) => ({
           role: log.role as 'user' | 'assistant',
           content: log.content,
@@ -346,7 +353,7 @@ function App() {
       }
     };
     fetchChatSession();
-  }, [currentChatId]);
+  }, [currentChatId, currentGroupChatId]);
 
   /**
    * 古いメッセージを追加取得する（上方向スクロール時に呼ばれる）
@@ -354,19 +361,24 @@ function App() {
    * 挿入前のscrollHeightを記録し、挿入後に差分だけスクロール位置を補正する
    */
   const fetchOlderMessages = useCallback(async () => {
-    if (!currentChatId || !nextCursor || isLoadingMore || !hasMore) return;
+    const activeChatId = currentChatId || currentGroupChatId;
+    if (!activeChatId || !nextCursor || isLoadingMore || !hasMore) return;
     setIsLoadingMore(true);
     try {
       const scrollEl = scrollRef.current;
       const prevScrollHeight = scrollEl?.scrollHeight || 0;
 
-      const res = await axios.get(`${API_URL}/api/chats/${currentChatId}`, {
+      const endpoint = currentGroupChatId
+        ? `${API_URL}/api/group-chats/${currentGroupChatId}`
+        : `${API_URL}/api/chats/${currentChatId}`;
+      const res = await axios.get(endpoint, {
         params: { cursor: nextCursor }
       });
       const olderMessages: Message[] = res.data.chatLogs.map((log: any) => ({
         role: log.role as 'user' | 'assistant',
         content: log.content,
-        createdAt: log.createdAt
+        createdAt: log.createdAt,
+        name: log.persona?.name
       }));
 
       if (olderMessages.length > 0) {
@@ -389,7 +401,7 @@ function App() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [currentChatId, nextCursor, isLoadingMore, hasMore]);
+  }, [currentChatId, currentGroupChatId, nextCursor, isLoadingMore, hasMore]);
 
   /**
    * 現在のスクロール位置が最下部付近かチェックする
@@ -489,11 +501,12 @@ function App() {
         message: input,
         llmConfig,
         chatId: currentChatId,
-        personaId: currentPersonaId // Send selected persona
+        groupChatId: currentGroupChatId,
+        personaId: currentPersonaId
       });
 
       // 新規チャット作成時の処理
-      if (!currentChatId && res.data.chatId) {
+      if (!currentChatId && !currentGroupChatId && res.data.chatId) {
         setCurrentChatId(res.data.chatId);
       }
       setUserMessageCountSinceLastReflection(prev => prev + 1);

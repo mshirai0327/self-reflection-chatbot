@@ -13,7 +13,7 @@ import { ulid } from "ulid";
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { message, model, llmConfig } = body;
+        const { message, model, llmConfig, groupChatId } = body;
 
         // デフォルト設定
         const activeConfig: LLMConfig = llmConfig || {
@@ -92,12 +92,70 @@ export async function POST(req: NextRequest) {
         // 3. Generate response with chosen LLM
         console.log("[Chat API] Requesting AI response...");
         const memoryStrings = memories.map(m => m.content).filter((c): c is string => c !== null);
+
+        // グループチャットの場合は参加者情報を取得
+        let participants: { name: string; role: string; status: any; system_prompt: string | null }[] = [];
+        let currentSpeakerName: string | null = null;
+
+        if (groupChatId) {
+            const groupChat = await prisma.groupChat.findUnique({
+                where: { id: groupChatId },
+                include: {
+                    participants: {
+                        include: { persona: true },
+                        orderBy: { sortOrder: 'asc' }
+                    }
+                }
+            });
+
+            if (groupChat) {
+                // 全参加ペルソナのステータスを取得
+                for (const p of groupChat.participants) {
+                    const pFullStatus = await getLatestStatus(p.persona.id);
+                    const pStatus = flattenStatus(pFullStatus);
+                    participants.push({
+                        name: p.persona.name,
+                        role: p.role,
+                        status: pStatus,
+                        system_prompt: p.persona.systemPrompt || null,
+                    });
+                }
+
+                // 交互発言: 直前のassistantメッセージの発言者の次のペルソナを選択
+                if (groupChat.participants.length > 0) {
+                    const lastAssistantLog = await prisma.chatLog.findFirst({
+                        where: { groupChatId, role: 'assistant' },
+                        orderBy: { createdAt: 'desc' },
+                        include: { persona: { select: { id: true } } }
+                    });
+
+                    if (lastAssistantLog) {
+                        const lastIdx = groupChat.participants.findIndex(
+                            p => p.personaId === lastAssistantLog.personaId
+                        );
+                        const nextIdx = (lastIdx + 1) % groupChat.participants.length;
+                        currentSpeakerName = groupChat.participants[nextIdx].persona.name;
+                        // personaを次の発言者に更新
+                        persona = groupChat.participants[nextIdx].persona as typeof persona;
+                    } else {
+                        // 初回発言: 最初のペルソナ
+                        currentSpeakerName = groupChat.participants[0].persona.name;
+                        persona = groupChat.participants[0].persona as typeof persona;
+                    }
+                }
+
+                console.log(`[Chat API] Group chat: ${participants.length} participants, next speaker: ${currentSpeakerName}`);
+            }
+        }
+
         const { content: aiResponse, systemInstruction } = await generateResponse(activeConfig, message, {
             status,
             memories: memoryStrings,
             history,
             growthDelta,
-            systemPrompt: persona?.systemPrompt || undefined
+            systemPrompt: persona?.systemPrompt || undefined,
+            participants,
+            currentSpeakerName,
         });
 
 
@@ -106,9 +164,10 @@ export async function POST(req: NextRequest) {
         // 4. Prismaへの会話ログ保存
         console.log("[Chat API] Saving chat logs to Prisma...");
         let targetChatId = body.chatId;
+        let targetGroupChatId = groupChatId || null;
 
-        // chatId が指定されていない場合は新規作成
-        if (!targetChatId) {
+        // chatId が指定されていない場合は新規作成（1:1チャットのみ）
+        if (!targetChatId && !targetGroupChatId) {
             const firstWords = message.substring(0, 15);
             const newChat = await prisma.chat.create({
                 data: {
@@ -118,10 +177,16 @@ export async function POST(req: NextRequest) {
                 }
             });
             targetChatId = newChat.id;
-        } else {
-            // 既存チャットの更新日時を更新
+        } else if (targetChatId) {
+            // 既存1:1チャットの更新日時を更新
             await prisma.chat.update({
                 where: { id: targetChatId },
+                data: { updatedAt: new Date() }
+            });
+        } else if (targetGroupChatId) {
+            // グループチャットの更新日時を更新
+            await prisma.groupChat.update({
+                where: { id: targetGroupChatId },
                 data: { updatedAt: new Date() }
             });
         }
@@ -134,8 +199,8 @@ export async function POST(req: NextRequest) {
                 content: message,
                 userId: user.id,
                 personaId: persona.id,
-                chatId: targetChatId,
-                // AIの応答より確実に前にするために現在時刻を使用
+                chatId: targetChatId || null,
+                groupChatId: targetGroupChatId || null,
                 createdAt: new Date()
             }
         });
@@ -149,7 +214,8 @@ export async function POST(req: NextRequest) {
                 content: aiResponse,
                 userId: user.id,
                 personaId: persona.id,
-                chatId: targetChatId,
+                chatId: targetChatId || null,
+                groupChatId: targetGroupChatId || null,
                 createdAt: new Date()
             }
         });
@@ -170,6 +236,7 @@ export async function POST(req: NextRequest) {
             response: aiResponse,
             status: status,
             chatId: targetChatId,
+            groupChatId: targetGroupChatId,
             name: persona.name,
             debug: {
                 systemPrompt: systemInstruction,

@@ -49,6 +49,14 @@ class LLMConfig(BaseModel):
     endpoint: str | None = None  # フロントエンドからは 'endpoint' で渡される場合がある
 
 
+class ParticipantInfo(BaseModel):
+    """グループチャット参加者の情報"""
+    name: str
+    role: str = "guest"  # "main" | "guest"
+    status: PersonaStatus | None = None
+    system_prompt: str | None = None
+
+
 class ChatContext(BaseModel):
     """チャットのコンテキスト情報"""
     status: PersonaStatus
@@ -56,6 +64,10 @@ class ChatContext(BaseModel):
     growth_delta: float = 0.0
     system_prompt: str | None = None
     graph_context: str | None = None
+    # グループチャット時の参加者情報（1:1チャットでは空）
+    participants: list[ParticipantInfo] = []
+    # グループチャット時に次に発言するペルソナ名
+    current_speaker_name: str | None = None
 
 
 # --- デフォルトモデル名 ---
@@ -174,6 +186,33 @@ def build_system_instruction(context: ChatContext) -> str:
 
     if context.system_prompt:
         instruction += f"\n\n### 追加指示 (System Prompt)\n{context.system_prompt}"
+
+    # グループチャット時の参加者情報を追加
+    if context.participants:
+        instruction += "\n\n### グループチャット参加者"
+        instruction += "\nこの会話には複数のキャラクターが参加しています。"
+        for i, p in enumerate(context.participants, 1):
+            role_label = "メイン" if p.role == "main" else "ゲスト"
+            instruction += f"\n\n#### {i}. {p.name}（{role_label}）"
+            if p.status:
+                ps = p.status
+                instruction += f"""
+- 性別: {ps.gender or '不明'}
+- 情緒: {ps.mood}/100
+- 信頼度: {ps.trust}/100
+- 親しみやすさ: {ps.friendliness}/100
+- 身長: {ps.height}cm / 体重: {ps.weight}kg"""
+            if p.system_prompt:
+                instruction += f"\n- 性格設定: {p.system_prompt}"
+
+        # 次に発言するペルソナの指定
+        if context.current_speaker_name:
+            instruction += f"""
+
+### 発言指示
+次に発言するキャラクターは「{context.current_speaker_name}」です。
+このキャラクターの性格と現在の状態に基づいて、そのキャラクターとして応答してください。
+応答の冒頭にキャラクター名を付ける必要はありません。"""
 
     return instruction
 

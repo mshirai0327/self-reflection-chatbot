@@ -26,6 +26,10 @@ export interface PersonaContext {
     history?: { role: string; content: string }[]; // 直近の会話履歴
     growthDelta?: number; // 前回の計測からの身長の伸び
     systemPrompt?: string; // ユーザー定義の追加システムプロンプト
+    /** グループチャット参加者情報 */
+    participants?: { name: string; role: string; status: any; system_prompt: string | null }[];
+    /** グループチャット時の次の発言者名 */
+    currentSpeakerName?: string | null;
 }
 
 // --- Model Instantiation ---
@@ -211,7 +215,9 @@ export async function generateResponse(
                     status: context.status,
                     memories: context.memories,
                     growth_delta: context.growthDelta || 0,
-                    system_prompt: context.systemPrompt
+                    system_prompt: context.systemPrompt,
+                    participants: context.participants || [],
+                    current_speaker_name: context.currentSpeakerName || null,
                 },
                 // LLM接続設定をPythonサービスに渡す（provider/model/endpointの動的切替用）
                 llm_config: config ? {
