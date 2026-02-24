@@ -119,7 +119,7 @@ export const GraphViewer: React.FC = () => {
                 }}
                 // リンクのカスタム描画（ラベルを常時表示）
                 linkCanvasObjectMode={() => 'after'}
-                linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+                linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, _globalScale: number) => {
                     const MAX_FONT_SIZE = 4;
                     const LABEL_NODE_MARGIN = 6;
 

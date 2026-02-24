@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { Send, Menu, ChevronLeft, Database, Sun, Moon, MessageSquare, BarChart3, ArrowDown, Network } from 'lucide-react';
+import { Send, Menu, ChevronLeft, Database, Sun, Moon, MessageSquare, BarChart3, ArrowDown, Network, Bot } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast, { Toaster } from 'react-hot-toast';
 import { BotSidebar } from './components/BotSidebar';
@@ -190,6 +190,14 @@ function App() {
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
   const [isGroupChatModalOpen, setIsGroupChatModalOpen] = useState(false);
+
+  // Auto Mode (自動応答ループ) ステート
+  const [isAutoMode, setIsAutoMode] = useState(false);
+
+  // Auto ModeがOnの時に別チャットに移動したらOffにする安全措置
+  useEffect(() => {
+    setIsAutoMode(false);
+  }, [currentChatId, currentGroupChatId]);
 
   // Persist state
   useEffect(() => {
@@ -477,16 +485,20 @@ function App() {
     }
   }, [activeTab, checkScrollPosition]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleSend = async (autoMessage?: string) => {
+    const textToSend = autoMessage !== undefined ? autoMessage : input;
+    if (!textToSend.trim() && !autoMessage) return; // 空文字でもautoMessageがあれば許可
+    if (isLoading) return;
 
-    const userMsg: Message = { role: 'user', content: input, createdAt: new Date().toISOString() };
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
+    if (!autoMessage) {
+        const userMsg: Message = { role: 'user', content: input, createdAt: new Date().toISOString() };
+        setMessages(prev => [...prev, userMsg]);
+        setInput('');
+    }
     setIsLoading(true);
 
     // テキストエリアの高さをリセット
-    if (textareaRef.current) {
+    if (textareaRef.current && !autoMessage) {
       textareaRef.current.style.height = 'auto';
     }
 
@@ -498,7 +510,7 @@ function App() {
       };
 
       const res = await axios.post(`${API_URL}/api/chat`, {
-        message: input,
+        message: textToSend,
         llmConfig,
         chatId: currentChatId,
         groupChatId: currentGroupChatId,
@@ -521,6 +533,26 @@ function App() {
       setIsLoading(false);
     }
   };
+
+  // Auto Modeのためのハンドラ参照
+  const handleSendRef = useRef(handleSend);
+  useEffect(() => {
+    handleSendRef.current = handleSend;
+  });
+
+  // Auto Mode のためのループ監視
+  useEffect(() => {
+    if (!isAutoMode || isLoading || messages.length === 0) return;
+    
+    // Groupチャット時のみ有効化する場合（今回は1:1でも動作するようにしてもOKだが、一応制限なしとする）
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role === 'assistant') {
+      const timerId = setTimeout(() => {
+        handleSendRef.current("<AUTO_CONTINUE>");
+      }, 3000); // 3秒待機
+      return () => clearTimeout(timerId);
+    }
+  }, [messages, isAutoMode, isLoading]);
 
   const handleReflect = async () => {
     if (!currentChatId && !currentGroupChatId) {
@@ -837,8 +869,21 @@ function App() {
                       className="flex-1 bg-transparent border-none outline-none px-4 py-2 text-slate-900 dark:text-slate-100 placeholder-slate-400 resize-none overflow-y-auto scrollbar-hide"
                       style={{ maxHeight: '160px' }}
                     />
+                    {currentGroupChatId && (
+                      <button
+                        onClick={() => setIsAutoMode(!isAutoMode)}
+                        className={`p-3 rounded-xl transition-colors shadow-lg shrink-0 ${
+                          isAutoMode
+                            ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20'
+                            : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400'
+                        }`}
+                        title={isAutoMode ? "Auto Mode ON (自動応答を停止)" : "Auto Mode OFF (キャラクター同士で自動会話)"}
+                      >
+                        <Bot size={20} />
+                      </button>
+                    )}
                     <button
-                      onClick={handleSend}
+                      onClick={() => handleSend()}
                       disabled={isLoading}
                       className="p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-800 rounded-xl transition-colors shadow-lg shadow-blue-500/20 text-white shrink-0"
                     >

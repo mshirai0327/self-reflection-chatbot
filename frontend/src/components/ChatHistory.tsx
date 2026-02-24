@@ -108,7 +108,7 @@ export function ChatHistory({
     currentChatId,
     currentGroupChatId,
     currentPersonaId,
-    personas,
+    // personas, // unused
     onNewChat,
     onNewGroupChat,
     chatModel,

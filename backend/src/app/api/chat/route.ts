@@ -72,17 +72,21 @@ export async function POST(req: NextRequest) {
 
         // 2.5 Fetch conversation history (Short-term memory)
         let history: { role: string; content: string }[] = [];
-        if (body.chatId) {
+        let recentPersonaIds: (string | null)[] = [];
+        const activeChatId = body.chatId || groupChatId;
+        if (activeChatId) {
             try {
                 const logs = await prisma.chatLog.findMany({
-                    where: { chatId: body.chatId },
+                    where: body.chatId ? { chatId: body.chatId } : { groupChatId: groupChatId },
                     orderBy: { createdAt: 'desc' },
-                    take: 10,// 直近10件のチャットログを送る。
+                    take: 10,
                 });
                 history = logs.reverse().map(log => ({
                     role: log.role,
                     content: log.content
                 }));
+                // store recent personaIds for scoring (0 is most recent, since reverse wasn't applied)
+                recentPersonaIds = logs.map(log => log.personaId);
                 console.log(`[Chat API] Fetched ${history.length} history items for context.`);
             } catch (err) {
                 console.error("[Chat API] Failed to fetch chat history:", err);
@@ -121,34 +125,49 @@ export async function POST(req: NextRequest) {
                     });
                 }
 
-                // 交互発言: 直前のassistantメッセージの発言者の次のペルソナを選択
+                // 交互発言: 直近ログからスコアリングで次の発言者を選択
                 if (groupChat.participants.length > 0) {
-                    const lastAssistantLog = await prisma.chatLog.findFirst({
-                        where: { groupChatId, role: 'assistant' },
-                        orderBy: { createdAt: 'desc' },
-                        include: { persona: { select: { id: true } } }
-                    });
+                    let nextPersonaId = "";
+                    let maxScore = -Infinity;
 
-                    if (lastAssistantLog) {
-                        const lastIdx = groupChat.participants.findIndex(
-                            p => p.personaId === lastAssistantLog.personaId
-                        );
-                        const nextIdx = (lastIdx + 1) % groupChat.participants.length;
-                        currentSpeakerName = groupChat.participants[nextIdx].persona.name;
-                        // personaを次の発言者に更新
-                        persona = groupChat.participants[nextIdx].persona as typeof persona;
-                    } else {
-                        // 初回発言: 最初のペルソナ
-                        currentSpeakerName = groupChat.participants[0].persona.name;
-                        persona = groupChat.participants[0].persona as typeof persona;
+                    // 直近ログ（0件目が直前）
+                    const lastMessage = history.length > 0 ? history[history.length - 1].content : "";
+
+                    for (const p of groupChat.participants) {
+                        let score = 0;
+                        
+                        // メンション判定
+                        if (lastMessage.includes(p.persona.name)) {
+                            score += 500;
+                        }
+
+                        // 連続発言ペナルティ
+                        if (recentPersonaIds[0] === p.personaId) score -= 200;
+                        if (recentPersonaIds[1] === p.personaId) score -= 50;
+
+                        // おしゃべり度 (固定で5) とランダム
+                        score += (5 * 10);
+                        score += Math.floor(Math.random() * 50);
+
+                        if (score > maxScore) {
+                            maxScore = score;
+                            nextPersonaId = p.personaId;
+                        }
                     }
+
+                    const nextParticipant = groupChat.participants.find(p => p.personaId === nextPersonaId) || groupChat.participants[0];
+                    currentSpeakerName = nextParticipant.persona.name;
+                    persona = nextParticipant.persona as typeof persona;
                 }
 
                 console.log(`[Chat API] Group chat: ${participants.length} participants, next speaker: ${currentSpeakerName}`);
             }
         }
 
-        const { content: aiResponse, systemInstruction } = await generateResponse(activeConfig, message, {
+        const isAutoContinue = message === "<AUTO_CONTINUE>";
+        const llmMessage = isAutoContinue ? "（続けてください）" : message;
+
+        const { content: aiResponse, systemInstruction } = await generateResponse(activeConfig, llmMessage, {
             status,
             memories: memoryStrings,
             history,
@@ -193,20 +212,22 @@ export async function POST(req: NextRequest) {
 
         // ログ。トランザクションで一括保存するか、個別に作成
         // ログ保存。順序を保証するために直列実行し、createdAtの重複を避ける
-        await prisma.chatLog.create({
-            data: {
-                role: "user",
-                content: message,
-                userId: user.id,
-                personaId: persona.id,
-                chatId: targetChatId || null,
-                groupChatId: targetGroupChatId || null,
-                createdAt: new Date()
-            }
-        });
+        if (!isAutoContinue) {
+            await prisma.chatLog.create({
+                data: {
+                    role: "user",
+                    content: message,
+                    userId: user.id,
+                    personaId: persona.id,
+                    chatId: targetChatId || null,
+                    groupChatId: targetGroupChatId || null,
+                    createdAt: new Date()
+                }
+            });
 
-        // わずかに時間をずらす（DBの精度によっては同時刻扱いになるのを防ぐ）
-        await new Promise(resolve => setTimeout(resolve, 50));
+            // わずかに時間をずらす（DBの精度によっては同時刻扱いになるのを防ぐ）
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
 
         await prisma.chatLog.create({
             data: {
