@@ -200,7 +200,7 @@ async function reflectForPersona(params: {
         data: {
             personaId,
             response: reflection as unknown as import("@prisma/client").Prisma.InputJsonValue,
-            prompt: "(Generated in Python Service)"
+            prompt: (reflection as any).prompt || "(Generated in Python Service)"
         }
     });
 

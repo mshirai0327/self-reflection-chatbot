@@ -72,4 +72,4 @@ def create_reflection_chain(llm: BaseChatModel):
         ("human", "内省を開始してください。")
     ])
 
-    return prompt | llm.with_structured_output(ReflectionResult)
+    return prompt, prompt | llm.with_structured_output(ReflectionResult)
