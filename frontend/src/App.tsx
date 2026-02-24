@@ -523,7 +523,7 @@ function App() {
   };
 
   const handleReflect = async () => {
-    if (!currentChatId) {
+    if (!currentChatId && !currentGroupChatId) {
       toast.error('内省を行うには、まずチャットを開始してください');
       return;
     }
@@ -538,19 +538,21 @@ function App() {
 
       const res = await axios.post(`${API_URL}/api/reflect`, {
         llmConfig,
-        chatId: currentChatId
+        chatId: currentChatId,
+        groupChatId: currentGroupChatId,
       });
-      toast.success('内省が完了しました', {
-        duration: 3000,
-        style: {
-          background: '#10B981', // Emerald 500
-          color: '#fff',
-        },
-        iconTheme: {
-          primary: '#fff',
-          secondary: '#10B981',
-        },
-      });
+
+      const reflectionCount = res.data.allReflections?.length;
+      toast.success(
+        reflectionCount
+          ? `${reflectionCount}体のペルソナの内省が完了しました`
+          : '内省が完了しました',
+        {
+          duration: 3000,
+          style: { background: '#10B981', color: '#fff' },
+          iconTheme: { primary: '#fff', secondary: '#10B981' },
+        }
+      );
       setLastReflection({
         id: 'temp-id',
         createdAt: new Date().toISOString(),
@@ -565,6 +567,7 @@ function App() {
         message: followUpMessage,
         llmConfig,
         chatId: currentChatId,
+        groupChatId: currentGroupChatId,
         personaId: currentPersonaId
       });
       setMessages(prev => [...prev, { role: 'assistant', content: resChat.data.response, createdAt: new Date().toISOString(), name: resChat.data.name }]);
